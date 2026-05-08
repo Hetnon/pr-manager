@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check \"D:/AI Projects/pr-matrix/server.js\")",
+      "Bash(node --check \"D:/AI Projects/pr-matrix/server/server.js\")",
+      "Bash(rm -f \"D:/AI Projects/pr-matrix/ui/public/app.js.LICENSE.txt\")",
+      "Bash(npm run *)"
+    ]
+  }
+}

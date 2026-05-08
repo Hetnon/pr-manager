@@ -1,0 +1,22 @@
+{
+  "name": "pr-matrix",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "webpack --mode development",
+    "watch": "webpack --mode development --watch"
+  },
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@babel/core": "latest",
+    "@babel/preset-env": "latest",
+    "@babel/preset-react": "latest",
+    "babel-loader": "latest",
+    "webpack": "latest",
+    "webpack-cli": "latest"
+  }
+}

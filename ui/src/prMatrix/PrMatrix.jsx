@@ -5,7 +5,7 @@ import PrMatrixHeader from './PrMatrixHeader.jsx';
 import PrMatrixBody from './PrMatrixBody.jsx';
 import styles from './PrMatrix.module.css';
 
-export default function PrMatrix({ prs }) {
+export default function PrMatrix({ prs, cellState, renderFileExtra }) {
   const [expanded, setExpanded] = useState(true);
   const [fileColWidth, setFileColWidth] = useState(null);
   const fileColRef = useRef(null);
@@ -38,7 +38,7 @@ export default function PrMatrix({ prs }) {
           fileColRef={fileColRef}
           fileColMinWidth={fileColWidth}
         />
-        {expanded && <PrMatrixBody files={files} sortedPrs={sortedPrs} />}
+        {expanded && <PrMatrixBody files={files} sortedPrs={sortedPrs} cellState={cellState} renderFileExtra={renderFileExtra} />}
       </table>
     </>
   );

@@ -4,7 +4,8 @@ import RepoPicker from './picker/RepoPicker.jsx';
 import usePicker from './picker/usePicker.js';
 import { fetchSavedRepo } from './picker/api.js';
 import PrMatrix from './prMatrix/PrMatrix.jsx';
-import Report from './report/Report.jsx';
+import DevActions from './report/DevActions.jsx';
+import MasterCheck from './masterCheck/MasterCheck.jsx';
 
 function App() {
   const [currentRepo, setCurrentRepo] = useState(null);
@@ -78,7 +79,8 @@ function App() {
         {!contentError && Array.isArray(prs) && (
           <>
             <PrMatrix prs={prs} />
-            <Report prs={prs} />
+            <DevActions prs={prs} />
+            <MasterCheck prs={prs} onMerged={loadPRs} />
           </>
         )}
       </main>

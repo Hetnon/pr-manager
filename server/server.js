@@ -5,7 +5,6 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import readConfig from './utils/readConfig.js';
@@ -16,6 +15,8 @@ import pickFolder from './utils/pickFolder.js';
 import readJsonBody from './utils/readJsonBody.js';
 import sendJson from './utils/sendJson.js';
 import createLiveReload from './utils/liveReload.js';
+import checkMasterConflict from './utils/checkMasterConflict.js';
+import mergePr from './utils/mergePr.js';
 
 const PORT = 7654;
 const __filename = fileURLToPath(import.meta.url);
@@ -62,6 +63,31 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    if (req.method === 'POST' && req.url === '/api/merge-pr') {
+      const cfg = readConfig(CONFIG_FILE);
+      if (!cfg.repoPath) return sendJson(res, 400, { error: 'No repository configured.' });
+      const v = await validateRepo(cfg.repoPath);
+      if (!v.ok) return sendJson(res, 400, { error: v.error });
+      const body = await readJsonBody(req).catch(() => ({}));
+      if (!body.prNumber) return sendJson(res, 400, { error: 'prNumber required' });
+      const result = await mergePr(cfg.repoPath, body.prNumber, body.strategy);
+      return sendJson(res, result.ok ? 200 : 500, result);
+    }
+
+    if (req.method === 'POST' && req.url === '/api/master-conflicts') {
+      const cfg = readConfig(CONFIG_FILE);
+      if (!cfg.repoPath) return sendJson(res, 400, { error: 'No repository configured.' });
+      const v = await validateRepo(cfg.repoPath);
+      if (!v.ok) return sendJson(res, 400, { error: v.error });
+      const body = await readJsonBody(req).catch(() => ({}));
+      const prNumbers = Array.isArray(body.prNumbers) ? body.prNumbers : [];
+      const results = {};
+      for (const n of prNumbers) {
+        results[n] = await checkMasterConflict(cfg.repoPath, n);
+      }
+      return sendJson(res, 200, { results });
+    }
+
     if (req.method === 'GET' && req.url === '/api/prs') {
       const cfg = readConfig(CONFIG_FILE);
       if (!cfg.repoPath) {
@@ -101,12 +127,5 @@ server.listen(PORT, () => {
   const cfg = readConfig(CONFIG_FILE);
   console.log(`PR Matrix server running at ${url}`);
   console.log(cfg.repoPath ? `Configured repo: ${cfg.repoPath}` : 'No repo configured yet — pick one in the UI.');
-
-  if (process.platform === 'win32') {
-    exec(`start "" "${url}"`);
-  } else if (process.platform === 'darwin') {
-    exec(`open "${url}"`);
-  } else {
-    exec(`xdg-open "${url}"`);
-  }
+  console.log(`Open this URL in your browser if it isn't already: ${url}`);
 });

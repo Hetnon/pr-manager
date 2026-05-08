@@ -70,9 +70,13 @@ table.matrix {
 .pr-meta-content.branch { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #6e7781; }
 .pr-meta-content.author { font-weight: 500; color: #24292f; }
 .pr-meta-content.title { font-style: italic; max-width: 220px; }
+.pr-meta-content.timestamp { max-width: 240px; }
 
 .hit { color: #1f883d; font-size: 16px; font-weight: bold; }
 .miss { color: #d0d7de; }
+/* Cells flagged by MasterCheck via cellState() */
+.hit.cell-conflict { color: white; background: #cf222e; font-size: 14px; }
+.hit.cell-warning  { color: #24292f; background: #fff8c5; font-size: 14px; }
 
 /* Heat colors for files */
 .heat-1 { /* default white */ }

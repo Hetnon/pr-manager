@@ -1,42 +1,52 @@
-export default function DevActions({ matrix }) {
-  const { sortedPrs, files, prSafe } = matrix;
+import { useMemo } from 'react';
+import { buildMatrix } from '../lib/matrix.js';
 
-  // path -> [prNumbers] for O(1) lookup
-  const fileOwners = new Map(files);
+export default function DevActions({ prs }) {
+  const matrix = useMemo(() => buildMatrix(prs), [prs]);
+  if (prs.length === 0) return null;
+  const { sortedPrs, files } = matrix;
 
-  const conflicts = sortedPrs
-    .filter(pr => !prSafe.get(pr.number))
-    .map(pr => {
-      const sharedFiles = pr.files
-        .map(f => f.path)
-        .filter(path => (fileOwners.get(path)?.length ?? 0) > 1)
-        .map(path => ({
-          path,
-          others: fileOwners.get(path).filter(n => n !== pr.number),
-        }));
-      return { pr, sharedFiles };
+  // PR# -> PR object lookup (so we can map shared-file owners back to their author)
+  const prByNumber = new Map(sortedPrs.map(pr => [pr.number, pr]));
+
+  // Each shared file: who's touching it, and how many distinct authors
+  const sharedFiles = files
+    .filter(([, prNums]) => prNums.length > 1)
+    .map(([path, prNums]) => {
+      const prsForFile = prNums.map(n => prByNumber.get(n));
+      const authors = new Set(prsForFile.map(pr => pr.author.login));
+      return { path, prsForFile, authors };
     });
+
+  // Bucket: same dev owns every PR touching this file — they can resolve solo.
+  const sameAuthorFiles = sharedFiles.filter(sf => sf.authors.size === 1);
+  const byAuthor = new Map();
+  for (const sf of sameAuthorFiles) {
+    const author = [...sf.authors][0];
+    if (!byAuthor.has(author)) byAuthor.set(author, []);
+    byAuthor.get(author).push(sf);
+  }
+  const authorGroups = [...byAuthor.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
   return (
     <div className="recommendations">
       <h2>Dev Actions</h2>
       <div className="rec-section rec-warn">
-        <h3>Coordinate &amp; rebase ({conflicts.length})</h3>
+        <h3>Resolve solo — same author owns all PRs ({sameAuthorFiles.length})</h3>
         <p className="rec-tip">
-          Each PR below shares files with at least one other open PR. After the tech lead picks a merge order, rebase your branch on the merged result. Talk to the listed authors first if your changes overlap logically (not just textually).
+          For each file below, the same dev owns every PR touching it. No cross-team coordination needed.
         </p>
-        {conflicts.length === 0 ? (
-          <p className="rec-item muted">No conflicting PRs.</p>
+        {authorGroups.length === 0 ? (
+          <p className="rec-item muted">No same-author conflicts — every shared file involves multiple devs.</p>
         ) : (
           <ul>
-            {conflicts.map(({ pr, sharedFiles }) => (
-              <li key={pr.number} className="rec-item">
-                <strong>#{pr.number}</strong> — {pr.title}{' '}
-                <span className="muted">({pr.author.login} · {pr.headRefName})</span>
+            {authorGroups.map(([author, filesForAuthor]) => (
+              <li key={author} className="rec-item">
+                <strong>@{author}: pick your canonical version, remove the file from the other PRs of yours, and push.</strong>
                 <ul className="shared-files">
-                  {sharedFiles.map(sf => (
+                  {filesForAuthor.map(sf => (
                     <li key={sf.path}>
-                      <code>{sf.path}</code> shared with {sf.others.map(n => `#${n}`).join(', ')}
+                      <code>{sf.path}</code> — in {sf.prsForFile.map(pr => `#${pr.number}`).join(', ')}
                     </li>
                   ))}
                 </ul>

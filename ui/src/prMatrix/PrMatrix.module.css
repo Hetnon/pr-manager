@@ -1,0 +1,109 @@
+/* Styles for the PR overlap matrix component tree.
+   Class names are scoped (CSS Modules) and accessed as `styles.xxx` from JS. */
+
+.summary {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+table.matrix {
+  border-collapse: collapse;
+  background: white;
+  border: 1px solid #d0d7de;
+  font-size: 13px;
+}
+.matrix th, .matrix td {
+  padding: 6px 10px;
+  border: 1px solid #d0d7de;
+  text-align: center;
+  white-space: nowrap;
+}
+.matrix th {
+  background: #f6f8fa;
+  font-weight: 600;
+}
+
+.file-col {
+  text-align: left;
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-cell {
+  text-align: left;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.pr-col { min-width: 80px; }
+.pr-col a { color: #0969da; text-decoration: none; font-weight: 600; }
+.pr-col a:hover { text-decoration: underline; }
+.pr-safe { background: #dafbe1; }
+.pr-conflict { background: #ffebe9; }
+
+/* Row labels in the leftmost column of the multi-row header */
+.matrix th.row-label {
+  text-align: right;
+  font-size: 11px;
+  color: #6e7781;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f6f8fa;
+}
+
+/* PR metadata rows under the #N header (branch / author / title) */
+.pr-meta-row td { padding: 2px 8px; font-weight: normal; background: #fafbfc; }
+.pr-meta-content {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #57606a;
+  margin: 0 auto;
+}
+.pr-meta-content.branch { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #6e7781; }
+.pr-meta-content.author { font-weight: 500; color: #24292f; }
+.pr-meta-content.title { font-style: italic; max-width: 220px; }
+
+.hit { color: #1f883d; font-size: 16px; font-weight: bold; }
+.miss { color: #d0d7de; }
+
+/* Heat colors for files */
+.heat-1 { /* default white */ }
+.heat-conflict { background: #ffcecb; }
+
+/* Status column (Safe? / per-row safe-or-conflict) */
+.status-col { background: #f6f8fa; }
+.status-cell { font-weight: 600; }
+.status-cell.safe { color: #1f883d; background: #dafbe1; }
+.status-cell.conflict { color: #cf222e; background: #ffebe9; }
+
+.footer-row td,
+.footer-row th { background: #f6f8fa; font-weight: 600; }
+
+/* "Good to Merge?" toggle button (chevron + label) */
+.row-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.row-toggle:hover { background: none; }
+.row-toggle .triangle {
+  font-size: 9px;
+  color: #6e7781;
+  width: 10px;
+  display: inline-block;
+  text-align: center;
+}

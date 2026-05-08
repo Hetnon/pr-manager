@@ -16,6 +16,8 @@
     "@babel/preset-env": "latest",
     "@babel/preset-react": "latest",
     "babel-loader": "latest",
+    "css-loader": "^7.1.4",
+    "style-loader": "^4.0.0",
     "webpack": "latest",
     "webpack-cli": "latest"
   }

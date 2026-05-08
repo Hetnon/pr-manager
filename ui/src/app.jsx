@@ -4,6 +4,7 @@ import RepoPicker from './picker/RepoPicker.jsx';
 import usePicker from './picker/usePicker.js';
 import { fetchSavedRepo } from './picker/api.js';
 import PrMatrix from './prMatrix/PrMatrix.jsx';
+import Report from './report/Report.jsx';
 
 function App() {
   const [currentRepo, setCurrentRepo] = useState(null);
@@ -64,7 +65,6 @@ function App() {
   return (
     <>
       <header>
-        <h1>PR File Overlap Matrix</h1>
         <div className="controls">
           {hasRepo && <span className="repo-display" title={currentRepo}>{currentRepo}</span>}
           {hasRepo && <button onClick={() => picker.show({ firstRun: false })}>Change repo</button>}
@@ -75,7 +75,12 @@ function App() {
       <main>
         {contentError && <p className="error">{contentError}</p>}
         {!contentError && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs...' : 'Loading...'}</p>}
-        {!contentError && Array.isArray(prs) && <PrMatrix prs={prs} />}
+        {!contentError && Array.isArray(prs) && (
+          <>
+            <PrMatrix prs={prs} />
+            <Report prs={prs} />
+          </>
+        )}
       </main>
       {picker.isOpen && <RepoPicker {...picker.viewProps} />}
     </>

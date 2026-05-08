@@ -3,6 +3,7 @@ import { buildMatrix } from '../lib/matrix.js';
 import PrMatrixSummary from './PrMatrixSummary.jsx';
 import PrMatrixHeader from './PrMatrixHeader.jsx';
 import PrMatrixBody from './PrMatrixBody.jsx';
+import styles from './PrMatrix.module.css';
 
 export default function PrMatrix({ prs }) {
   const [expanded, setExpanded] = useState(true);
@@ -27,7 +28,7 @@ export default function PrMatrix({ prs }) {
   return (
     <>
       <PrMatrixSummary safeCount={safeCount} totalPrs={prs.length} hotFileCount={hotFileCount} />
-      <table className="matrix">
+      <table className={styles.matrix}>
         <PrMatrixHeader
           sortedPrs={sortedPrs}
           fileCount={files.length}

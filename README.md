@@ -11,7 +11,7 @@ Standalone — point it at any repo from the UI.
 
 ## Usage
 
-Start the server (auto-restarts on server code changes):
+Start the server:
 
 ```powershell
 cd server

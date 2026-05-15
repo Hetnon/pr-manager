@@ -1,11 +1,17 @@
-// Test fixtures for the user document collection.
-// Real fixtures load from a shared testing/mocks/ folder when available; this stub
-// keeps the imports satisfiable for non-test runs.
+// @ts-nocheck
+import { getFirestoreCollection } from '../../firebase_apis.js';
+import { mockUserDocumentsData } from 'testing/mocks/expressServer/userDocumentFixtures.js';
 
 export async function initializeUserDocumentsForTests(): Promise<void> {
-    // No-op until a testing/mocks/ fixture set is added to this repo.
+    const usersCollection = getFirestoreCollection('users');
+    for (const [userEmail, userData] of Object.entries(mockUserDocumentsData)) {
+        await usersCollection.doc(userEmail).set(userData);
+    }
 }
 
 export async function cleanupUserDocumentsForTests(): Promise<void> {
-    // No-op.
+    const usersCollection = getFirestoreCollection('users');
+    for (const userEmail of Object.keys(mockUserDocumentsData)) {
+        await usersCollection.doc(userEmail).delete();
+    }
 }

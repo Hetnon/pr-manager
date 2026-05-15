@@ -6,7 +6,7 @@ import { mockSessionsData } from 'testing/mocks/expressServer/sessionFixtures.js
 import { TEST_SESSION_IDS } from 'testing/mocks/expressServer/sessionsMapFixtures.js';
 import { TEST_USERS } from 'testing/mocks/expressServer/testUsers.js';
 import { initializeAllDatabasesForTests, tearDownAllDatabasesForTests } from '../../databases/databases.js';
-import { initializeCSRF, _resetCSRF } from '../../validation_middleware/tokenManager/tokenManager.js';
+import { initializeCSRF, _resetCSRF } from '../../validation_middleware/csrfProtection/csrfProtection.js';
 
 
 describe('Check User Session Integration Tests', () => {

@@ -41,9 +41,11 @@ describe('terminateSession', () => {
         // Mock request object
 
 
-        // Mock response object
+        // Mock response object — terminateSession ends with res.status(200).json(...)
         res = {
-            clearCookie: jest.fn()
+            clearCookie: jest.fn(),
+            status: jest.fn(function () { return this; }),
+            json: jest.fn(function () { return this; }),
         };
 
         // Mock the database function to resolve successfully
@@ -107,12 +109,13 @@ describe('terminateSession', () => {
         expect(res.clearCookie).toHaveBeenCalled();
     });
 
-    it('should handle missing userEmail', async () => {
+    it('should skip DB cleanup when userEmail is missing', async () => {
         req.session.userEmail = undefined;
 
         await terminateSession(req, res, 'connect.sid');
 
-        expect(removeSessionFromMap).toHaveBeenCalledWith(undefined, 'test-session-123');
+        // Impl guards: `if (userEmail) await removeSessionFromMap(...)`
+        expect(removeSessionFromMap).not.toHaveBeenCalled();
     });
 
     it('should call destroy, clearCookie, and DB cleanup in correct order', async () => {

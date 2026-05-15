@@ -1,8 +1,5 @@
 import { getUserCollectionDocument } from './getUserCollectionDocument/getUserCollectionDocument.js';
 
-// Testing helpers
-import { initializeUserDocumentsForTests, cleanupUserDocumentsForTests } from './userDocument/userDocumentMethodsForTesting.js';
-
 // Named wrappers using the generic get
 export const getUser = (userEmail: string) => getUserCollectionDocument(userEmail, 'users');
 
@@ -17,12 +14,3 @@ export { getUsersListDB } from './userDocument/getUsersList/getUsersList.js';
 export { storeUserToken } from './tokens/storeToken.js';
 export { getUserToken } from './tokens/getToken.js';
 export { clearUserToken } from './tokens/clearToken.js';
-
-// Test utilities
-export async function initializeUserDataForTests(): Promise<void> {
-    await initializeUserDocumentsForTests();
-}
-
-export async function cleanupUserDataForTests(): Promise<void> {
-    await cleanupUserDocumentsForTests();
-}

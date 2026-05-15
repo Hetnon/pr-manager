@@ -1,11 +1,17 @@
 // @ts-nocheck
 import { getFirestoreCollection } from '../../../firebase_apis.js';
-import { convertFirestoreTimestampToISO } from '../../../../../utils/convertApplicationTimesToReadableFormat.js'
+
+function timestampToISO(value) {
+    if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'string') return value;
+    return null;
+}
 
 export async function getErrorListFromDB(payload) {
     const errorCollection = getFirestoreCollection('errorLogs');
 
-    const { userEmail, statuses, batchSearchId, applicationId, jobListingId, pageNumber, errorsPerPage } = payload;
+    const { userEmail, statuses, pageNumber, errorsPerPage } = payload;
 
     let query = errorCollection;
     if (userEmail) {
@@ -13,15 +19,6 @@ export async function getErrorListFromDB(payload) {
     }
     if (statuses && statuses.length > 0) {
         query = query.where('status', 'in', statuses);
-    }
-    if (batchSearchId) {
-        query = query.where('batchSearchId', '==', batchSearchId);
-    }
-    if (applicationId) {
-        query = query.where('applicationId', '==', applicationId);
-    }
-    if (jobListingId) {
-        query = query.where('jobListingId', '==', jobListingId);
     }
 
     query = query.orderBy('createdAt', 'desc');
@@ -34,7 +31,7 @@ export async function getErrorListFromDB(payload) {
     const errorLogList = [];
     snapshot.forEach(doc => {
         const docData = doc.data();
-        errorLogList.push({ ...docData, id: doc.id, createdAt: convertFirestoreTimestampToISO(docData.createdAt) });
+        errorLogList.push({ ...docData, id: doc.id, createdAt: timestampToISO(docData.createdAt) });
     });
     return errorLogList;
 }

@@ -47,24 +47,20 @@ describe('saveErrorsToDB', () => {
         expect(doc.IP).toBe('127.0.0.1');
     });
 
-    // 2 - Saves a client-reported extension error payload
-    it('should save a client-reported extension error payload', async () => {
+    // 2 - Saves a client-reported error payload
+    it('should save a client-reported error payload', async () => {
         const payload = {
             userEmail: TEST_USERS.INACTIVE,
             IP: '192.168.1.5',
             url: '/api/log-error',
             method: 'POST',
             error: {
-                message: 'Extension call failed',
-                stack: 'Error: Extension call failed\n    at extensionCall',
+                message: 'Network request failed',
+                stack: 'Error: Network request failed\n    at fetch',
                 name: 'Error',
                 statusCode: null,
-                nodes: null,
-                nonThrowing: null,
             },
-            origin: 'extensionCall',
-            task: 'apply-for-job',
-            website: 'linkedin',
+            origin: 'client',
             device: { name: 'desktop', type: 'desktop' },
             browserInfo: { name: 'Chrome/Brave', version: '120.0', engine: 'Chromium', fullVersion: '120.0' },
         };
@@ -73,15 +69,14 @@ describe('saveErrorsToDB', () => {
 
         const snapshot = await getFirestoreCollection('errorLogs')
             .where('userEmail', '==', TEST_USERS.INACTIVE)
-            .where('origin', '==', 'extensionCall')
+            .where('origin', '==', 'client')
             .get();
 
         expect(snapshot.empty).toBe(false);
         const doc = snapshot.docs[0].data();
-        expect(doc.error.message).toBe('Extension call failed');
-        expect(doc.task).toBe('apply-for-job');
-        expect(doc.website).toBe('linkedin');
+        expect(doc.error.message).toBe('Network request failed');
         expect(doc.device.type).toBe('desktop');
+        expect(doc.browserInfo.name).toBe('Chrome/Brave');
     });
 
     // 3 - Always sets status to 'new' regardless of payload
@@ -92,7 +87,7 @@ describe('saveErrorsToDB', () => {
             IP: '127.0.0.1',
             url: '/api/log-error',
             method: 'POST',
-            origin: 'extensionCall',
+            origin: 'client',
             status: 'resolved', // should be overwritten
         };
 
@@ -116,7 +111,7 @@ describe('saveErrorsToDB', () => {
             IP: '10.0.0.1',
             url: '/api/log-error',
             method: 'POST',
-            origin: 'extensionCall',
+            origin: 'client',
         };
 
         await saveErrorsToDB(payload);

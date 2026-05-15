@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "webpack --mode development",
-    "watch": "webpack --mode development --watch",
+    "watch": "node devServer.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

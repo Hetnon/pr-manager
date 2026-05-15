@@ -11,7 +11,7 @@ jest.unstable_mockModule('csrf-sync', () => ({
 }));
 
 // Import after mocking
-const { initializeCSRF, CSRFTokenGenerator, syncCSRFProtection, _resetCSRF } = await import('./tokenManager.js');
+const { initializeCSRF, CSRFTokenGenerator, syncCSRFProtection, _resetCSRF } = await import('./csrfProtection.js');
 
 describe('CSRF Token Manager', () => {
     beforeEach(() => {

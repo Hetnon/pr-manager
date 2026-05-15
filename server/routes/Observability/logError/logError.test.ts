@@ -36,9 +36,7 @@ describe('logError', () => {
     it('should save an error payload and respond with 200', async () => {
         const errorPayload = {
             error: { message: 'Test client error', stack: 'Error: Test\n    at line 1' },
-            origin: 'extensionCall',
-            task: 'test-task',
-            website: 'linkedin',
+            origin: 'client',
         };
         const req = createMockReq(errorPayload);
         const res = createMockRes();
@@ -57,7 +55,7 @@ describe('logError', () => {
     });
 
     it('should use unknown-user when session userEmail is missing', async () => {
-        const errorPayload = { error: { message: 'No user test' }, origin: 'extensionCall' };
+        const errorPayload = { error: { message: 'No user test' }, origin: 'client' };
         const req = createMockReq(errorPayload, { session: {} as Request['session'] });
         const res = createMockRes();
 

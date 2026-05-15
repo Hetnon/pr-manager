@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { getErrorListFromDB } from './getErrorListFromDB.js';
 import { firestoreSetupForTests, firestoreTeardownForTests } from '../../../firestoreTestSetup.js';
 import { TEST_USERS } from 'testing/mocks/expressServer/testUsers.js';
-import { TEST_BATCH_SEARCH_ID, TEST_APPLICATION_ID, TEST_JOB_LISTING_ID } from 'testing/mocks/expressServer/errorLogsFixtures.js';
 
 describe('getErrorListFromDB', () => {
     beforeAll(async () => {
@@ -49,34 +48,7 @@ describe('getErrorListFromDB', () => {
         });
     });
 
-    // 5 - Filter by batchSearchId returns matching errors
-    it('should return only errors for the given batchSearchId', async () => {
-        const result = await getErrorListFromDB({ batchSearchId: TEST_BATCH_SEARCH_ID });
-        expect(result.length).toBeGreaterThan(0);
-        result.forEach(error => {
-            expect(error.batchSearchId).toBe(TEST_BATCH_SEARCH_ID);
-        });
-    });
-
-    // 6 - Filter by applicationId returns matching errors
-    it('should return only errors for the given applicationId', async () => {
-        const result = await getErrorListFromDB({ applicationId: TEST_APPLICATION_ID });
-        expect(result.length).toBeGreaterThan(0);
-        result.forEach(error => {
-            expect(error.applicationId).toBe(TEST_APPLICATION_ID);
-        });
-    });
-
-    // 7 - Filter by jobListingId returns matching errors
-    it('should return only errors for the given jobListingId', async () => {
-        const result = await getErrorListFromDB({ jobListingId: TEST_JOB_LISTING_ID });
-        expect(result.length).toBeGreaterThan(0);
-        result.forEach(error => {
-            expect(error.jobListingId).toBe(TEST_JOB_LISTING_ID);
-        });
-    });
-
-    // 8 - Results are ordered by createdAt descending
+    // 5 - Results are ordered by createdAt descending
     it('should return results ordered by createdAt descending', async () => {
         const result = await getErrorListFromDB({ userEmail: TEST_USERS.ACTIVE });
         expect(result.length).toBeGreaterThan(1);
@@ -87,7 +59,7 @@ describe('getErrorListFromDB', () => {
         }
     });
 
-    // 9 - Each result includes an id field from the document
+    // 6 - Each result includes an id field from the document
     it('should include the document id in each result', async () => {
         const result = await getErrorListFromDB({ userEmail: TEST_USERS.ACTIVE });
         expect(result.length).toBeGreaterThan(0);
@@ -97,7 +69,7 @@ describe('getErrorListFromDB', () => {
         });
     });
 
-    // 10 - createdAt is converted (returned as ISO string or passthrough)
+    // 7 - createdAt is converted (returned as ISO string or passthrough)
     it('should return createdAt as a string', async () => {
         const result = await getErrorListFromDB({ userEmail: TEST_USERS.ACTIVE });
         expect(result.length).toBeGreaterThan(0);
@@ -107,13 +79,13 @@ describe('getErrorListFromDB', () => {
         });
     });
 
-    // 11 - Pagination: errorsPerPage limits the number of results
+    // 8 - Pagination: errorsPerPage limits the number of results
     it('should respect errorsPerPage limit', async () => {
         const result = await getErrorListFromDB({ errorsPerPage: 2 });
         expect(result.length).toBeLessThanOrEqual(2);
     });
 
-    // 12 - Pagination: pageNumber 2 returns different results than page 1
+    // 9 - Pagination: pageNumber 2 returns different results than page 1
     it('should return different results for different page numbers', async () => {
         const page1 = await getErrorListFromDB({ errorsPerPage: 2, pageNumber: 1 });
         const page2 = await getErrorListFromDB({ errorsPerPage: 2, pageNumber: 2 });
@@ -127,13 +99,13 @@ describe('getErrorListFromDB', () => {
         }
     });
 
-    // 13 - Returns empty array when no errors match the filters
+    // 10 - Returns empty array when no errors match the filters
     it('should return an empty array when no errors match the filters', async () => {
         const result = await getErrorListFromDB({ userEmail: TEST_USERS.NO_SESSIONS });
         expect(result).toEqual([]);
     });
 
-    // 14 - Combined filters: userEmail + status
+    // 11 - Combined filters: userEmail + status
     it('should apply combined filters (userEmail + statuses)', async () => {
         const result = await getErrorListFromDB({
             userEmail: TEST_USERS.ACTIVE,

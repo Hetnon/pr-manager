@@ -23,21 +23,18 @@
  *
  * --- Caller 2: logError (client-reported errors via POST /api/log-error) ---
  * Server handler adds: userEmail, IP, url, method
- * Client sends (from useExtensionFunctionsHook.js extensionCall):
- * - error: object - { message, stack, name, statusCode, nodes, nonThrowing }
- * - origin: string - 'extensionCall'
+ * Client sends:
+ * - error: object - { message, stack, name, statusCode }
+ * - origin: string - 'client'
  * - device: object - Same device object as browserInfo collection
  * - browserInfo: object - Same browserInfo object as browserInfo collection
- * - ...extensionPayload - Spread of extension call payload (task, url, website, etc.)
  *
  * --- Fields added by saveErrorsToDB on ALL documents ---
  * - createdAt: timestamp - Server-side timestamp
- * - status: 'new' - Always set to 'new' on save (overrides any status in payload)
+ * - status: 'string' - Always set to 'new' on save (overrides any status in payload)
  *
  * --- Filter fields used by getErrorListFromDB ---
- * - userEmail, status, batchSearchId, applicationId, jobListingId
- * - batchSearchId/applicationId/jobListingId may exist on documents if included in the
- *   client error payload, and are used as optional query filters
+ * - userEmail, status
  *
  * Example (client-reported error):
  * {
@@ -46,16 +43,12 @@
  *   "url": "/api/log-error",
  *   "method": "POST",
  *   "error": {
- *     "message": "Extension call failed",
- *     "stack": "Error: Extension call failed\n    at ...",
+ *     "message": "Network request failed",
+ *     "stack": "Error: Network request failed\n    at ...",
  *     "name": "Error",
- *     "statusCode": null,
- *     "nodes": null,
- *     "nonThrowing": null
+ *     "statusCode": null
  *   },
- *   "origin": "extensionCall",
- *   "task": "apply-for-job",
- *   "website": "linkedin",
+ *   "origin": "client",
  *   "device": { "name": "desktop", "type": "desktop", ... },
  *   "browserInfo": { "name": "Chrome/Brave", "version": "120.0", ... },
  *   "createdAt": Timestamp(2026-02-16T10:00:00Z),
@@ -65,12 +58,12 @@
  * Example (server error handler):
  * {
  *   "userEmail": "user@example.com",
- *   "error": { "message": "Not found", "statusCode": 404 },
- *   "body": { "jobUrl": "https://..." },
+ *   "error": { "message": "PR not found", "statusCode": 404 },
+ *   "body": { "prNumber": 42 },
  *   "query": {},
  *   "params": {},
  *   "IP": "::1",
- *   "url": "/api/apply-for-job",
+ *   "url": "/api/merge-pr",
  *   "method": "POST",
  *   "origin": "server-error-handler",
  *   "createdAt": Timestamp(2026-02-16T10:00:00Z),
@@ -88,7 +81,7 @@ export const errorLogsSchema = {
         url: 'string',
         method: 'string', // HTTP method
         error: 'object', // Error object or JS Error
-        origin: 'string', // 'server-error-handler' | 'extensionCall' | other
+        origin: 'string', // 'server-error-handler' | 'client' | other
         createdAt: 'timestamp', // added by saveErrorsToDB
         status: 'string', // always 'new' on save
     },
@@ -98,17 +91,9 @@ export const errorLogsSchema = {
         query: 'object',
         params: 'object',
     },
-    // Fields only present on client-reported (extension) error documents
+    // Fields only present on client-reported error documents
     clientErrorFields: {
         device: 'object | undefined',
         browserInfo: 'object | undefined',
-        task: 'string | undefined', // from extension payload
-        website: 'string | undefined', // from extension payload
-    },
-    // Optional filter fields (may exist if included in error payload)
-    filterFields: {
-        batchSearchId: 'string | undefined',
-        applicationId: 'string | undefined',
-        jobListingId: 'string | undefined',
     },
 };

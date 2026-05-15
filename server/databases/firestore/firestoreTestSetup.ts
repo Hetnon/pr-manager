@@ -1,9 +1,16 @@
 import admin from 'firebase-admin';
 import { initializeAllFirebase, allCollections, _resetFirestoreDB } from './firebase_apis.js';
 import { clearTimedSaves } from './setupAndRun/runFirebase.js';
-import { initializeSessionsDataForTests, cleanupSessionsDataForTests, _resetSessionStore } from './sessions/sessionMethods.js';
-import { initializeObservabilityDataForTests, cleanupObservabilityDataForTests } from './observability/observabilityMethods.js';
-import { initializeUserDataForTests, cleanupUserDataForTests } from './users/userMethods.js';
+import { _resetSessionStore } from './sessions/sessionStore/sessionStore.js';
+
+// Test fixture helpers — imported directly so the production import chain
+// (databases.ts → firestoreMethods.ts → *Methods.ts) does not pull in the
+// `testing/` package, which only resolves under jest's moduleNameMapper.
+import { initializeUserDocumentsForTests, cleanupUserDocumentsForTests } from './users/userDocument/userDocumentMethodsForTesting.js';
+import { initializeSessionForTests, cleanupSessionsForTests } from './sessions/sessionStore/sessionMethodsForTesting.js';
+import { initializeSessionMapForTests, cleanupSessionMapForTests } from './sessions/sessionsMap/sessionMapMethodsForTesting.js';
+import { initializeBrowserInfoForTests, cleanupBrowserInfoForTests } from './observability/browserInfo/browserInfoMethodsForTesting.js';
+import { initializeErrorLogsForTests, cleanupErrorLogsForTests } from './observability/errorLogs/errorLogsMethodsForTesting.js';
 
 let isFirebaseInitializedForTests = false;
 
@@ -20,18 +27,22 @@ export async function firestoreSetupForTests(): Promise<void> {
     await initializeAllFirebase('test');
 
     _resetSessionStore();
-    await initializeUserDataForTests();
-    await initializeSessionsDataForTests();
-    await initializeObservabilityDataForTests();
+    await initializeUserDocumentsForTests();
+    await initializeSessionForTests();
+    await initializeSessionMapForTests();
+    await initializeBrowserInfoForTests();
+    await initializeErrorLogsForTests();
 
     isFirebaseInitializedForTests = true;
 }
 
 export async function firestoreTeardownForTests(): Promise<void> {
     clearTimedSaves();
-    await cleanupUserDataForTests();
-    await cleanupSessionsDataForTests();
-    await cleanupObservabilityDataForTests();
+    await cleanupUserDocumentsForTests();
+    await cleanupSessionsForTests();
+    await cleanupSessionMapForTests();
+    await cleanupBrowserInfoForTests();
+    await cleanupErrorLogsForTests();
 
     if (admin.apps.length > 0) {
         await admin.app().delete();

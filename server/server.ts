@@ -133,9 +133,10 @@ async function startProductionConfigurations(): Promise<void> {
 async function startDevelopmentConfigurations(): Promise<void> {
     console.log('development environment');
     const dotenv = await import('dotenv');
-    dotenv.config();
+    // .env.dev wins on key collisions (dotenv keeps the first value it sees).
+    dotenv.config({ path: [path.join(__dirname, '.env.dev'), path.join(__dirname, '.env.shared')] });
 
-    // Make the dev branch work even before .env exists. The Firestore init,
+    // Make the dev branch work even before .env.dev exists. The Firestore init,
     // session config, and CSRF setup all expect NODE_ENV to be a non-empty string.
     if (!process.env.NODE_ENV) process.env.NODE_ENV = 'development';
 
@@ -177,7 +178,13 @@ function setupCORS(): void {
     app.use(
         cors({
             origin: (origin, callback) => {
-                if (!origin || allowedOrigins.includes(origin)) {
+                // Dev convenience: allow any localhost origin (any port). The UI's
+                // `npm run watch` server (port 7654) lives at a different port from
+                // this API (3030), and we don't want to maintain a parallel list.
+                const isLocalhostDev = !isProduction && !!origin
+                    && /^https?:\/\/localhost(:\d+)?$/i.test(origin);
+
+                if (!origin || isLocalhostDev || allowedOrigins.includes(origin)) {
                     callback(null, true);
                 } else {
                     console.error('Incoming http request from not allowed origin:', origin);

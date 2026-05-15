@@ -4,6 +4,7 @@ const webpack = require('webpack');
 module.exports = (_env, argv) => {
   const isProd = argv.mode === 'production';
   return {
+    mode: argv.mode || 'development',
     entry: './src/app.tsx',
     output: {
       path: path.resolve(__dirname, 'public'),

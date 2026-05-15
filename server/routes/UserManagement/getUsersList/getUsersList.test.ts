@@ -35,10 +35,11 @@ describe('getUsersList', () => {
         await getUsersList(req as Request, res as unknown as Response);
 
         expect(res.statusCode).toBe(200);
-        const responseObject = (res.jsonData as { responseObject: { users: unknown[]; totalUsersCount: number } }).responseObject;
+        const responseObject = (res.jsonData as { responseObject: { users: unknown[]; page: number; perPage: number } }).responseObject;
         expect(responseObject).toBeDefined();
         expect(Array.isArray(responseObject.users)).toBe(true);
-        expect(typeof responseObject.totalUsersCount).toBe('number');
+        expect(responseObject.page).toBe(1);
+        expect(responseObject.perPage).toBe(10);
     });
 
     it('should parse string params to integers and return users', async () => {

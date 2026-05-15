@@ -25,7 +25,7 @@
 //   9. Build env_secrets JSON (SESSION_SECRET, GITHUB_*, KMS_KEY_NAME, ...) and store
 //  10. (Optional) Create Cloud Build triggers for cloudbuild-*.yaml against a GitHub repo
 //  11. (Optional) Create extra Secret Manager secrets (--secrets=…)
-//  12. Write server/.env with dev-mode values (handy for local development)
+//  12. Write server/.env.dev with dev-mode values (handy for local development)
 //
 // Zero dependencies — just Node.js + gcloud CLI installed.
 
@@ -52,10 +52,17 @@ const fail = (m) => console.error(`  ${C.red}✗${C.reset} ${m}`);
 
 // ─── gcloud wrapper ───────────────────────────────────────────────────────────
 function gcloud(args, opts = {}) {
-    const r = spawnSync('gcloud', args, {
+    const onWindows = process.platform === 'win32';
+    // On Windows with shell:true, spawnSync joins args with spaces. Any arg
+    // that itself contains whitespace gets re-tokenized by the shell, so quote
+    // those (escaping any embedded double quotes).
+    const processedArgs = onWindows
+        ? args.map((a) => (/\s/.test(a) ? `"${String(a).replace(/"/g, '\\"')}"` : a))
+        : args;
+    const r = spawnSync('gcloud', processedArgs, {
         encoding: 'utf8',
         input: opts.input,
-        shell: process.platform === 'win32',
+        shell: onWindows,
     });
     return { code: r.status ?? 1, stdout: r.stdout || '', stderr: r.stderr || '' };
 }
@@ -110,7 +117,7 @@ Optional:
   --skip-kms                 Skip KMS key creation
   --skip-firebase-sa         Skip Firebase service-account creation
   --skip-env-secrets         Skip env_secrets bundle upload
-  --skip-dev-env             Skip writing server/.env
+  --skip-dev-env             Skip writing server/.env.dev
   --help                     Show this help
 
 Notes:
@@ -121,7 +128,7 @@ Notes:
       2. Create your GitHub OAuth App at github.com/settings/developers using both
          that URL and https://localhost:3030/api/auth/github/callback as callback URLs.
       3. Re-run with --github-client-id and --github-client-secret to populate
-         env_secrets and write server/.env. Idempotent: skipped steps are skipped.
+         env_secrets and write server/.env.dev. Idempotent: skipped steps are skipped.
   • Cloud Build → GitHub: the first connection on a new project still requires one
     manual OAuth step in the Console. The script prints the link if needed.
 `);
@@ -495,9 +502,9 @@ function createBuildTriggers(projectId, owner, repo, branchPattern) {
 
 // ─── dev .env ─────────────────────────────────────────────────────────────────
 function writeDevEnvFile(envVars) {
-    step('Writing server/.env (dev defaults)');
+    step('Writing server/.env.dev (dev defaults)');
     const lines = Object.entries(envVars).map(([k, v]) => `${k}=${v}`);
-    const dest = path.resolve(__dirname, '..', 'server', '.env');
+    const dest = path.resolve(__dirname, '..', 'server', '.env.dev');
     fs.writeFileSync(dest, lines.join('\n') + '\n', { mode: 0o600 });
     ok(`Wrote ${dest}`);
     info('This file is .gitignored. It mirrors the env_secrets bundle for local dev.');
@@ -642,7 +649,7 @@ async function main() {
         };
         writeDevEnvFile(devEnv);
     } else if (!hasGithubCreds) {
-        step('Writing server/.env (dev defaults)');
+        step('Writing server/.env.dev (dev defaults)');
         skip('Skipped — needs GitHub creds.');
     }
 

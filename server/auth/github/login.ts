@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { requireParam } from '../../../utils/requireParam/requireParam.js';
-import { generateOauthState } from '../oauthState.js';
+import { requireParam } from '../../utils/requireParam/requireParam.js';
+import { generateOauthState } from './oauthState.js';
 
 /**
  * POST /api/auth/github/login

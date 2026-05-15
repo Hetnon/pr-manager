@@ -79,8 +79,8 @@ async function initializeServer(): Promise<void> {
         app.post('/api/log-error', logError);
 
         // Auth — public: the OAuth round-trip can't have a session yet
-        const { githubLogin } = await import('./routes/auth/githubLogin/githubLogin.js');
-        const { githubCallback } = await import('./routes/auth/githubCallback/githubCallback.js');
+        const { githubLogin } = await import('./auth/github/login.js');
+        const { githubCallback } = await import('./auth/github/callback.js');
         app.post('/api/auth/github/login', githubLogin);
         app.get('/api/auth/github/callback', githubCallback);
 

@@ -1,13 +1,13 @@
 import type { Request, Response } from 'express';
-import { requireParam, throwValidationError } from '../../../utils/requireParam/requireParam.js';
+import { requireParam, throwValidationError } from '../../utils/requireParam/requireParam.js';
 import {
     getUserByGithubId,
     createUserDB,
     updateUserFields,
     storeUserToken,
-} from '../../../databases/databases.js';
-import { includeUserInfoToSession } from '../../../expressSession/expressSession.js';
-import { verifyOauthState } from '../oauthState.js';
+} from '../../databases/databases.js';
+import { includeUserInfoToSession } from '../../expressSession/expressSession.js';
+import { verifyOauthState } from './oauthState.js';
 
 interface GithubTokenResponse {
     access_token?: string;

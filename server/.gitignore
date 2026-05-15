@@ -4,8 +4,4 @@ keys/
 
 # Firestore emulator runtime artifacts — regenerated each dev run.
 # (firebase.json, firestore.rules, firestore.indexes.json, .firebaserc stay in git.)
-databases/firestore/setupAndRun/firebase-data/
-databases/firestore/setupAndRun/firebase-export-*/
-databases/firestore/setupAndRun/*.log
-databases/firestore/setupAndRun/firebase_emulator_log.txt
-databases/firestore/setupAndRun/firestore-debug.log
+databases/firestore/setupAndRun/firebase-runtime/

@@ -25,7 +25,9 @@ export async function firestoreEmulatorUp() {
 
 async function spawnFirebase() {
     console.log('pathToFirebaseRoot:', pathToFirebaseRoot);
-    const cmdLine = `cd /d "${pathToFirebaseRoot}" && firebase emulators:start --project=demo-project --import=./firebase-data`;
+    // --export-on-exit pins any auto-export to the same runtime subfolder so
+    // we don't end up with a sea of firebase-export-<timestamp><hash>/ siblings.
+    const cmdLine = `cd /d "${pathToFirebaseRoot}" && firebase emulators:start --project=demo-project --import=./firebase-runtime/firebase-data --export-on-exit=./firebase-runtime/firebase-data`;
     const args = [
         '/c',
         'start',
@@ -83,7 +85,7 @@ function setTimedSavesForFirestoreEmulator() {
     console.log('Setting timed saves for Firestore emulator every', saveIntervalMs / 1000, 'seconds');
     
     saveInterval = setInterval(() => {
-        exec('firebase emulators:export ./firebase-data --force --project=demo-project',
+        exec('firebase emulators:export ./firebase-runtime/firebase-data --force --project=demo-project',
             {cwd: pathToFirebaseRoot, shell: true},
             (err, stdout, stderr) => {
             if (err) {

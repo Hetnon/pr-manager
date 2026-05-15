@@ -1,81 +1,96 @@
-// Dry-run merge a PR against the local default branch (master/main) to see if
-// it would conflict. Uses `git merge-tree --write-tree --name-only` (Git 2.38+),
-// which writes the merged tree to the object DB and reports any conflicting
-// paths to stdout. No working-tree changes; only `git fetch` for the PR ref
-// (updates remote-tracking refs, doesn't touch local branches).
-
+import { Octokit } from '@octokit/rest';
 import type { CheckMasterConflictResult, MasterTouch } from '@shared/conflicts.js';
-import run from './run.js';
+import { requireParam } from './requireParam/requireParam.js';
 
-export default async function checkMasterConflict(
-  repoPath: string,
-  prNumber: number | string,
+/**
+ * Check whether a PR conflicts with the default branch and surface
+ * "master also touched these files" warnings.
+ *
+ * GitHub computes the mergeable bit asynchronously, so the first GET on a
+ * just-opened PR can return mergeable=null. We retry once with a short wait.
+ * GitHub does not expose conflicting file paths directly — we approximate
+ * "conflict candidates" as the intersection of files the PR changed and
+ * files master changed since the PR's base.
+ */
+export async function checkMasterConflict(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    token: string,
 ): Promise<CheckMasterConflictResult> {
-  // 1. Default branch: read origin/HEAD (e.g. "origin/main")
-  const head = await run('git symbolic-ref refs/remotes/origin/HEAD', { cwd: repoPath });
-  if (head.code !== 0) {
-    return { ok: false, error: head.stderr.trim() || 'Could not detect default branch. Run: git remote set-head origin -a' };
-  }
-  const defaultRef = head.stdout.trim().replace(/^refs\/remotes\//, '');
+    requireParam(owner, 'owner is required');
+    requireParam(repo, 'repo is required');
+    requireParam(prNumber, 'prNumber is required', 'number');
+    requireParam(token, 'GitHub token is required');
 
-  // 2. Fetch the PR's HEAD ref (GitHub exposes refs/pull/<n>/head on origin)
-  const fetched = await run(`git fetch origin pull/${prNumber}/head`, { cwd: repoPath });
-  if (fetched.code !== 0) {
-    return { ok: false, error: fetched.stderr.trim() || `git fetch failed for PR #${prNumber}` };
-  }
+    const octokit = new Octokit({ auth: token });
 
-  // 3. Merge base
-  const base = await run(`git merge-base ${defaultRef} FETCH_HEAD`, { cwd: repoPath });
-  if (base.code !== 0) {
-    return { ok: false, error: base.stderr.trim() || 'git merge-base failed' };
-  }
-  const baseSha = base.stdout.trim();
+    try {
+        const { data: repoData } = await octokit.repos.get({ owner, repo });
+        const defaultBranch = repoData.default_branch;
 
-  // 4. merge-tree: exit 0 = clean, exit 1 = conflicts.
-  const merge = await run(
-    `git merge-tree --write-tree --name-only --merge-base=${baseSha} ${defaultRef} FETCH_HEAD`,
-    { cwd: repoPath },
-  );
+        let pr = (await octokit.pulls.get({ owner, repo, pull_number: prNumber })).data;
+        if (pr.mergeable === null) {
+            await new Promise((r) => setTimeout(r, 1500));
+            pr = (await octokit.pulls.get({ owner, repo, pull_number: prNumber })).data;
+        }
 
-  if (merge.code !== 0 && merge.code !== 1) {
-    return { ok: false, error: merge.stderr.trim() || `git merge-tree exit ${merge.code}` };
-  }
+        const baseSha = pr.base.sha;
 
-  const lines = merge.stdout.trim().split('\n').filter(Boolean);
-  const conflicts = lines.slice(1);
+        const { data: comp } = await octokit.repos.compareCommits({
+            owner,
+            repo,
+            base: baseSha,
+            head: defaultBranch,
+        });
+        const touchedByMaster = (comp.files ?? []).map((f) => f.filename);
 
-  // 5. Files master has changed since the merge base
-  const masterDiff = await run(`git diff --name-only ${baseSha} ${defaultRef}`, { cwd: repoPath });
-  const touchedByMaster = masterDiff.code === 0
-    ? masterDiff.stdout.trim().split('\n').filter(Boolean)
-    : [];
+        const { data: prFiles } = await octokit.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: prNumber,
+            per_page: 100,
+        });
+        const prFilenames = prFiles.map((f) => f.filename);
 
-  // 6. For each file in the PR, find master's most recent commit touching it
-  const prDiff = await run(`git diff --name-only ${baseSha} FETCH_HEAD`, { cwd: repoPath });
-  const prFiles = prDiff.code === 0 ? prDiff.stdout.trim().split('\n').filter(Boolean) : [];
+        const masterSet = new Set(touchedByMaster);
+        const conflictCandidates = prFilenames.filter((f) => masterSet.has(f));
+        const clean = pr.mergeable === true;
+        const conflicts = clean ? [] : conflictCandidates;
 
-  const masterLastTouched: Record<string, MasterTouch> = {};
-  for (const file of prFiles) {
-    const log = await run(
-      `git log -1 --format=%H%x09%aI%x09%s ${defaultRef} -- "${file.replace(/"/g, '\\"')}"`,
-      { cwd: repoPath },
-    );
-    if (log.code === 0 && log.stdout.trim()) {
-      const parts = log.stdout.trim().split('\t');
-      masterLastTouched[file] = {
-        sha: parts[0],
-        date: parts[1],
-        subject: parts.slice(2).join('\t'),
-      };
+        const masterLastTouched: Record<string, MasterTouch> = {};
+        await Promise.all(
+            prFilenames.map(async (file) => {
+                try {
+                    const { data: commits } = await octokit.repos.listCommits({
+                        owner,
+                        repo,
+                        path: file,
+                        sha: defaultBranch,
+                        per_page: 1,
+                    });
+                    if (commits[0]) {
+                        masterLastTouched[file] = {
+                            sha: commits[0].sha,
+                            date: commits[0].commit.author?.date ?? '',
+                            subject: commits[0].commit.message.split('\n')[0],
+                        };
+                    }
+                } catch {
+                    // per-file errors are non-fatal
+                }
+            }),
+        );
+
+        return {
+            ok: true,
+            defaultBranch,
+            clean,
+            conflicts,
+            touchedByMaster,
+            masterLastTouched,
+        };
+    } catch (e) {
+        return { ok: false, error: (e as Error).message };
     }
-  }
-
-  return {
-    ok: true,
-    defaultBranch: defaultRef,
-    clean: conflicts.length === 0,
-    conflicts,
-    touchedByMaster,
-    masterLastTouched,
-  };
 }

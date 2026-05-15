@@ -12,7 +12,8 @@
       "Read(//c/Users/hetno/AppData/Local/Temp/claude/D--AI-Projects-pr-matrix/be1d8391-a5b6-4347-8caa-b153ff05b40b/tasks/**)",
       "Bash(curl *)",
       "PowerShell(Remove-Item *)",
-      "PowerShell(node \"D:\\\\AI Projects\\\\pr-matrix\\\\scripts\\\\gcp-bootstrap.js\" --help)"
+      "PowerShell(node \"D:\\\\AI Projects\\\\pr-matrix\\\\scripts\\\\gcp-bootstrap.js\" --help)",
+      "PowerShell(npm view *)"
     ]
   }
 }

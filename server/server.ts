@@ -1,42 +1,189 @@
-// pr-matrix/server/server.ts
-// Express 5 + TypeScript entry. Endpoints live under ./routes/.
+// External Dependencies
+// Express 5 forwards async errors to the error handler natively — no polyfill needed.
+import express, { type Request, type Response } from 'express';
+import cors from 'cors';
+import session, { type SessionOptions } from 'express-session';
+import bodyParser from 'body-parser';
+import https from 'node:https';
+import fs from 'node:fs';
+import path, { dirname } from 'node:path';
+import cookieParser from 'cookie-parser';
+import { fileURLToPath } from 'node:url';
 
-import express, { type Request, type Response, type NextFunction } from 'express';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-import readConfig from './utils/readConfig.js';
-import { PORT, PUBLIC_DIR, CONFIG_FILE } from './paths.js';
-
-import configRoutes from './routes/config/index.js';
-import prsRoutes from './routes/prs/index.js';
-import reloadRoute from './routes/reload.js';
-import pickFolderRoute from './routes/pick-folder.js';
+// Internal Dependencies
+import { isProduction } from './config.js';
+import { loadSecrets } from './infrastructure/secretManager/secretManager.js';
+import loadDatabaseMethods from './databases/databases.js';
+import { createSessionConfig } from './expressSession/expressSession.js';
+import {
+    syncCSRFProtection,
+    initializeCSRF,
+    validateUser,
+    validateAdmin,
+} from './validation_middleware/validationMiddleware.js';
 
 const app = express();
 app.disable('x-powered-by');
+app.use(cookieParser());
 
-// API routes (all mounted under /api)
-app.use('/api', reloadRoute);
-app.use('/api', configRoutes);
-app.use('/api', prsRoutes);
-app.use('/api', pickFolderRoute);
-
-// Static files
-app.use(express.static(PUBLIC_DIR, {
-  extensions: ['html'],
-  index: 'index.html',
-}));
-
-// Centralised error handler — Express 5 forwards rejected async errors here.
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  if (res.headersSent) return;
-  res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
+app.get('/', (_req: Request, res: Response) => {
+    res.status(200).send('pr-matrix server OK');
 });
 
-app.listen(PORT, () => {
-  const url = `http://localhost:${PORT}`;
-  const cfg = readConfig(CONFIG_FILE);
-  console.log(`PR Matrix server running at ${url}`);
-  console.log(cfg.repoPath ? `Configured repo: ${cfg.repoPath}` : 'No repo configured yet — pick one in the UI.');
-  console.log(`Open this URL in your browser if it isn't already: ${url}`);
+let isAppReady = false;
+
+app.get('/readiness_check', (_req: Request, res: Response) => {
+    if (isAppReady) res.status(200).send('readiness check ok');
+    else res.status(503).send('still initializing');
 });
+
+app.get('/liveness_check', (_req: Request, res: Response) => {
+    res.status(200).send('liveness check ok');
+});
+
+let server: https.Server | ReturnType<typeof app.listen> | undefined;
+
+await initializeServer();
+
+async function initializeServer(): Promise<void> {
+    try {
+        if (isProduction) {
+            await startProductionConfigurations();
+        } else {
+            await startDevelopmentConfigurations();
+        }
+        setupCORS();
+        app.use(bodyParser.json({ limit: '5mb' }));
+
+        await loadDatabaseMethods();
+
+        const { getSessionStore } = await import('./databases/databases.js');
+        const store = await getSessionStore();
+        console.log('Session store initialized');
+
+        const expressSessionConfig = createSessionConfig(store) as SessionOptions;
+        app.use(session(expressSessionConfig));
+        console.log('Session middleware initialized');
+
+        initializeCSRF();
+
+        // Observability — public so the UI can report client-side errors pre-auth
+        const { errorHandler } = await import('./routes/Observability/errorHandler/errorHandler.js');
+        const { logError } = await import('./routes/Observability/logError/logError.js');
+        const { logBrowserInfo } = await import('./routes/Observability/logBrowserInfo/logBrowserInfo.js');
+        const { getErrorLogList } = await import('./routes/Observability/getErrorLogList/getErrorLogList.js');
+        app.post('/api/log-browser-info', logBrowserInfo);
+        app.post('/api/log-error', logError);
+
+        // Auth — public: the OAuth round-trip can't have a session yet
+        const { githubLogin } = await import('./routes/auth/githubLogin/githubLogin.js');
+        const { githubCallback } = await import('./routes/auth/githubCallback/githubCallback.js');
+        app.post('/api/auth/github/login', githubLogin);
+        app.get('/api/auth/github/callback', githubCallback);
+
+        // Session state endpoints — public (the UI asks before logging in)
+        const { checkUserSession, terminateSession } = await import('./expressSession/expressSession.js');
+        app.get('/api/check-user-session', checkUserSession);
+        app.post('/api/terminate-session', terminateSession);
+
+        // From here, every /api route is CSRF-protected
+        app.use('/api', syncCSRFProtection);
+        console.log('CSRF protection mounted for /api');
+
+        // Admin-only routes
+        app.get('/api/get-error-log-list', validateUser, validateAdmin, getErrorLogList);
+
+        const { getUsersList } = await import('./routes/UserManagement/getUsersList/getUsersList.js');
+        const { deleteUser } = await import('./routes/UserManagement/deleteUser/deleteUser.js');
+        const { changeUserStatus } = await import('./routes/UserManagement/changeUserStatus/changeUserStatus.js');
+        app.get('/api/get-users-list/:pageNumber/:usersPerPage', validateUser, validateAdmin, getUsersList);
+        app.delete('/api/delete-user/:userEmail', validateUser, validateAdmin, deleteUser);
+        app.patch('/api/change-user-status', validateUser, validateAdmin, changeUserStatus);
+
+        // PR matrix — logged-in users only
+        const { listPrs } = await import('./routes/prs/listPrs/listPrs.js');
+        const { mergePr } = await import('./routes/prs/mergePr/mergePr.js');
+        const { checkMasterConflicts } = await import('./routes/prs/checkMasterConflicts/checkMasterConflicts.js');
+        app.get('/api/prs', validateUser, listPrs);
+        app.post('/api/merge-pr', validateUser, mergePr);
+        app.post('/api/master-conflicts', validateUser, checkMasterConflicts);
+
+        console.log('All routes mounted');
+
+        app.use(errorHandler);
+        startServer();
+        isAppReady = true;
+    } catch (error) {
+        console.error('CRITICAL ERROR during server initialization:');
+        console.error(error);
+        process.exit(1);
+    }
+}
+
+async function startProductionConfigurations(): Promise<void> {
+    console.log('production environment');
+    app.set('trust proxy', 1);
+    await loadSecrets();
+    console.log('secrets loaded');
+}
+
+async function startDevelopmentConfigurations(): Promise<void> {
+    console.log('development environment');
+    const dotenv = await import('dotenv');
+    dotenv.config();
+
+    const keyPath = path.join(__dirname, '..', 'keys', 'security_certificate', 'localhost-key.pem');
+    const certPath = path.join(__dirname, '..', 'keys', 'security_certificate', 'localhost.pem');
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+        const key = fs.readFileSync(keyPath);
+        const cert = fs.readFileSync(certPath);
+        server = https.createServer({ key, cert }, app);
+    } else {
+        console.warn('No dev HTTPS certs found at keys/security_certificate/. Generate with mkcert. Falling back to HTTP — sessions will not work because cookies are secure-only.');
+    }
+}
+
+function startServer(): void {
+    if (isProduction) {
+        const port = Number(process.env.PORT_TO_USE ?? process.env.PORT ?? 8080);
+        server = app.listen(port, '0.0.0.0', () => {
+            console.log(`Production server listening on port ${port}`);
+        });
+    } else {
+        const port = Number(process.env.PORT ?? 3030);
+        if (server) {
+            (server as https.Server).listen(port, () => {
+                console.log(`Dev HTTPS server listening on port ${port}`);
+            });
+        } else {
+            server = app.listen(port, () => {
+                console.log(`Dev HTTP server listening on port ${port} (no certs found)`);
+            });
+        }
+    }
+}
+
+function setupCORS(): void {
+    console.log('setting up CORS');
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
+    app.use(
+        cors({
+            origin: (origin, callback) => {
+                if (!origin || allowedOrigins.includes(origin)) {
+                    callback(null, true);
+                } else {
+                    console.error('Incoming http request from not allowed origin:', origin);
+                    callback(new Error(`${origin} not allowed by CORS`));
+                }
+            },
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'CSRF-Token'],
+            optionsSuccessStatus: 204,
+            credentials: true,
+        }),
+    );
+}

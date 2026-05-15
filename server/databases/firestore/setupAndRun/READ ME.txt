@@ -1,0 +1,4 @@
+Go to https://adoptium.net/
+Download Java 11 or higher for Windows
+Run the installer
+Make sure "Add to PATH" is checked during installation

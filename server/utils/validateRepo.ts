@@ -1,26 +1,33 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import run from './run.js';
-import isDirectory from './isDirectory.js';
+import { Octokit } from '@octokit/rest';
 
 export type ValidateRepoResult =
-  | { ok: true; repoPath: string }
-  | { ok: false; error: string };
+    | { ok: true; owner: string; repo: string }
+    | { ok: false; error: string };
 
-export default async function validateRepo(repoPath: unknown): Promise<ValidateRepoResult> {
-  if (!repoPath || typeof repoPath !== 'string') {
-    return { ok: false, error: 'No path provided.' };
-  }
-  const abs = path.resolve(repoPath);
-  if (!fs.existsSync(abs)) {
-    return { ok: false, error: `Path does not exist: ${abs}` };
-  }
-  if (!isDirectory(abs)) {
-    return { ok: false, error: `Path is not a directory: ${abs}` };
-  }
-  const { stdout, code } = await run('git rev-parse --is-inside-work-tree', { cwd: abs });
-  if (code !== 0 || stdout.trim() !== 'true') {
-    return { ok: false, error: `Not a git repository: ${abs}` };
-  }
-  return { ok: true, repoPath: abs };
+/**
+ * Validate an "owner/repo" string by HEAD-ing the repo via the GitHub API
+ * using the current user's stored token. Confirms the repo exists AND the
+ * user has read access.
+ */
+export async function validateRepo(repoString: unknown, token: string): Promise<ValidateRepoResult> {
+    if (!repoString || typeof repoString !== 'string') {
+        return { ok: false, error: 'No repo provided.' };
+    }
+    const parts = repoString.split('/');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        return { ok: false, error: 'Repo must be in "owner/repo" format' };
+    }
+    const [owner, repo] = parts;
+
+    const octokit = new Octokit({ auth: token });
+    try {
+        await octokit.repos.get({ owner, repo });
+        return { ok: true, owner, repo };
+    } catch (e) {
+        const error = e as { status?: number; message?: string };
+        if (error.status === 404) {
+            return { ok: false, error: `Repo "${repoString}" not found or no access.` };
+        }
+        return { ok: false, error: error.message ?? `GitHub error (${error.status ?? '?'})` };
+    }
 }

@@ -135,8 +135,12 @@ async function startDevelopmentConfigurations(): Promise<void> {
     const dotenv = await import('dotenv');
     dotenv.config();
 
-    const keyPath = path.join(__dirname, '..', 'keys', 'security_certificate', 'localhost-key.pem');
-    const certPath = path.join(__dirname, '..', 'keys', 'security_certificate', 'localhost.pem');
+    // Make the dev branch work even before .env exists. The Firestore init,
+    // session config, and CSRF setup all expect NODE_ENV to be a non-empty string.
+    if (!process.env.NODE_ENV) process.env.NODE_ENV = 'development';
+
+    const keyPath = path.join(__dirname, 'keys', 'security_certificate', 'localhost-key.pem');
+    const certPath = path.join(__dirname, 'keys', 'security_certificate', 'localhost.pem');
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
         const key = fs.readFileSync(keyPath);
         const cert = fs.readFileSync(certPath);

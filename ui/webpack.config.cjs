@@ -1,51 +1,68 @@
 const path = require('node:path');
+const webpack = require('webpack');
 
-module.exports = {
-  entry: './src/app.jsx',
-  output: {
-    path: path.resolve(__dirname, 'public'),
-    filename: 'app.js',
-    clean: false,
-  },
-  module: {
-    rules: [
-      {
-        test: /\.jsx?$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              ['@babel/preset-env', { targets: 'defaults' }],
-              ['@babel/preset-react', { runtime: 'automatic' }],
-            ],
-          },
-        },
-      },
-      {
-        test: /\.css$/,
-        use: [
-          'style-loader',
-          {
-            loader: 'css-loader',
+module.exports = (_env, argv) => {
+  const isProd = argv.mode === 'production';
+  return {
+    entry: './src/app.tsx',
+    output: {
+      path: path.resolve(__dirname, 'public'),
+      filename: 'app.js',
+      clean: false,
+    },
+    module: {
+      rules: [
+        {
+          test: /\.[jt]sx?$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
             options: {
-              modules: {
-                // Enables CSS Modules only for files matching *.module.css.
-                // Plain *.css files (styles.css) stay global.
-                auto: true,
-                // css-loader v7 defaults to namedExport:true (no default export).
-                // Disable so `import styles from './X.module.css'` works.
-                namedExport: false,
-                exportLocalsConvention: 'camelCaseOnly',
-                localIdentName: '[name]__[local]--[hash:base64:5]',
-              },
+              presets: [
+                ['@babel/preset-env', { targets: 'defaults' }],
+                ['@babel/preset-react', { runtime: 'automatic' }],
+                '@babel/preset-typescript',
+              ],
             },
           },
-        ],
+        },
+        {
+          test: /\.css$/,
+          use: [
+            'style-loader',
+            {
+              loader: 'css-loader',
+              options: {
+                modules: {
+                  // CSS Modules only for *.module.css; plain *.css stays global.
+                  auto: true,
+                  namedExport: false,
+                  exportLocalsConvention: 'camelCaseOnly',
+                  localIdentName: '[name]__[local]--[hash:base64:5]',
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    resolve: {
+      extensions: ['.ts', '.tsx', '.js', '.jsx'],
+      // Imports use .js extensions (NodeNext-style); resolve .ts/.tsx first.
+      extensionAlias: {
+        '.js': ['.ts', '.tsx', '.js'],
       },
+      alias: {
+        // Match the tsconfig path mapping so @shared/* works in source.
+        '@shared': path.resolve(__dirname, '..', 'TypesAndInterfaces'),
+      },
+    },
+    plugins: [
+      new webpack.DefinePlugin({
+        __API_BASE_URL__: JSON.stringify(
+          process.env.API_BASE_URL ?? (isProd ? '' : 'https://localhost:3030'),
+        ),
+      }),
     ],
-  },
-  resolve: {
-    extensions: ['.js', '.jsx'],
-  },
+  };
 };

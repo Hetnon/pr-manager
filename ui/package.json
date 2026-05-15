@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "webpack --mode development",
-    "watch": "webpack --mode development --watch"
+    "watch": "webpack --mode development --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "latest",
@@ -15,9 +16,13 @@
     "@babel/core": "latest",
     "@babel/preset-env": "latest",
     "@babel/preset-react": "latest",
+    "@babel/preset-typescript": "latest",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "babel-loader": "latest",
     "css-loader": "^7.1.4",
     "style-loader": "^4.0.0",
+    "typescript": "^5.6.0",
     "webpack": "latest",
     "webpack-cli": "latest"
   }

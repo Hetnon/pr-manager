@@ -7,6 +7,7 @@ import {
     storeUserToken,
 } from '../../../databases/databases.js';
 import { includeUserInfoToSession } from '../../../expressSession/expressSession.js';
+import { verifyOauthState } from '../oauthState.js';
 
 interface GithubTokenResponse {
     access_token?: string;
@@ -49,10 +50,9 @@ export async function githubCallback(req: Request, res: Response): Promise<void>
     requireParam(code, 'OAuth code is required');
     requireParam(state, 'OAuth state is required');
 
-    if (!req.session.oauthState || state !== req.session.oauthState) {
-        throwValidationError('OAuth state mismatch — possible CSRF or expired session');
+    if (!verifyOauthState(state!)) {
+        throwValidationError('OAuth state invalid or expired — start sign-in again');
     }
-    delete req.session.oauthState;
 
     // 1. Exchange code → access_token
     const tokenResp = await fetch('https://github.com/login/oauth/access_token', {

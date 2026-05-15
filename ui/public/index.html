@@ -9,9 +9,5 @@
 <body>
   <div id="root"></div>
   <script src="app.js"></script>
-  <script>
-    // Live-reload: server pushes a 'reload' event when ui/public/app.js is rebuilt.
-    new EventSource('/api/_reload').addEventListener('reload', () => location.reload());
-  </script>
 </body>
 </html>

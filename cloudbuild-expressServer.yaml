@@ -1,0 +1,26 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # Step 1: Stage shared types into the server folder so they're uploaded
+  # with `gcloud app deploy`. The path-mapping (server/tsconfig.json) resolves
+  # @shared/* against ../TypesAndInterfaces/* OR ./TypesAndInterfaces/* so both
+  # local dev and deployed runtime work.
+  - name: 'ubuntu'
+    args: ['cp', '-r', 'TypesAndInterfaces', 'server/TypesAndInterfaces']
+    id: 'stage-shared-types'
+
+  # Step 2: Install server dependencies (including devDeps so tsx/typescript
+  # are available at runtime — server/app.yaml sets NPM_CONFIG_PRODUCTION=false).
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+    dir: 'server'
+    id: 'install-server-deps'
+    waitFor: ['stage-shared-types']
+
+  # Step 3: Deploy to App Engine (service: api per server/app.yaml).
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['app', 'deploy', 'app.yaml', '--quiet']
+    dir: 'server'
+    id: 'deploy-server'
+    waitFor: ['install-server-deps']

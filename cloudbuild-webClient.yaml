@@ -1,0 +1,25 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # Step 1: Install UI dependencies
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+    dir: 'ui'
+    id: 'install-ui-deps'
+
+  # Step 2: Build the webpack bundle into ui/public/app.js
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'build']
+    env:
+      - 'NODE_ENV=production'
+    dir: 'ui'
+    id: 'build-ui'
+    waitFor: ['install-ui-deps']
+
+  # Step 3: Deploy. app.yaml serves ui/public/* as static files (service: default).
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['app', 'deploy', 'app.yaml', '--quiet']
+    dir: 'ui'
+    id: 'deploy-ui'
+    waitFor: ['build-ui']

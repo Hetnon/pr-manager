@@ -13,7 +13,7 @@
     "verbatimModuleSyntax": false,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../TypesAndInterfaces/*"]
+      "@shared/*": ["../TypesAndInterfaces/*", "./TypesAndInterfaces/*"]
     }
   },
   "include": [

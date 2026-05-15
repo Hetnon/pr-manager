@@ -16,6 +16,7 @@ const __dirname = dirname(__filename);
 // Internal Dependencies
 import { isProduction } from './config.js';
 import { loadSecrets } from './infrastructure/secretManager/secretManager.js';
+import { checkKmsAccess } from './infrastructure/kms/kmsEncryption.js';
 import loadDatabaseMethods from './databases/databases.js';
 import { createSessionConfig } from './expressSession/expressSession.js';
 import {
@@ -55,6 +56,7 @@ async function initializeServer(): Promise<void> {
         } else {
             await startDevelopmentConfigurations();
         }
+        await preflightKmsCheck();
         setupCORS();
         app.use(bodyParser.json({ limit: '5mb' }));
 
@@ -128,6 +130,52 @@ async function startProductionConfigurations(): Promise<void> {
     app.set('trust proxy', 1);
     await loadSecrets();
     console.log('secrets loaded');
+}
+
+async function preflightKmsCheck(): Promise<void> {
+    const result = await checkKmsAccess();
+    if (result.ok) {
+        console.log(`KMS key reachable: ${result.keyName}`);
+        return;
+    }
+
+    const banner = '='.repeat(70);
+    if (result.reason === 'missing-credentials') {
+        console.error(`\n${banner}`);
+        console.error('✗ KMS access check failed: Application Default Credentials missing.');
+        console.error('');
+        console.error('The server needs Google Cloud KMS to envelope-encrypt GitHub OAuth tokens.');
+        console.error('In dev, this uses your local ADC. Set them up once with:');
+        console.error('');
+        console.error('   gcloud auth application-default login');
+        console.error('');
+        console.error('Then restart the server.');
+        console.error('');
+        console.error(`KMS key: ${result.keyName}`);
+        console.error(`${banner}\n`);
+    } else if (result.reason === 'permission') {
+        console.error(`\n${banner}`);
+        console.error('✗ KMS access check failed: PERMISSION_DENIED.');
+        console.error('');
+        console.error('The current identity can reach KMS but is not authorised on the key.');
+        console.error('Grant roles/cloudkms.cryptoKeyEncrypterDecrypter on:');
+        console.error(`   ${result.keyName}`);
+        console.error(`${banner}\n`);
+    } else if (result.reason === 'not-found') {
+        console.error(`\n${banner}`);
+        console.error('✗ KMS access check failed: key not found.');
+        console.error(`   KMS_KEY_NAME=${result.keyName}`);
+        console.error('Re-run scripts/gcp-bootstrap.js to (re)create the keyring + key, or fix the env var.');
+        console.error(`${banner}\n`);
+    } else {
+        console.error(`\n${banner}`);
+        console.error(`✗ KMS access check failed: ${result.message}`);
+        console.error(`   KMS_KEY_NAME=${result.keyName}`);
+        console.error(`${banner}\n`);
+    }
+
+    // Refuse to keep booting — any auth flow would just crash later, hard to diagnose.
+    process.exit(1);
 }
 
 async function startDevelopmentConfigurations(): Promise<void> {

@@ -58,6 +58,41 @@ export async function encryptEnvelope(plaintext: string): Promise<EnvelopeCipher
     return { encryptedPayload, wrappedDek, kmsKeyName };
 }
 
+/**
+ * Pre-flight: confirm the configured KMS key is reachable with the current
+ * Application Default Credentials. Called at server boot so a missing ADC
+ * setup fails fast with a clear instruction instead of crashing the first
+ * OAuth callback with an opaque gRPC stack trace.
+ *
+ * Returns `{ ok: true }` if the key is readable, otherwise a typed error result
+ * so the caller can decide whether to log + exit (dev) or just log (prod).
+ */
+export async function checkKmsAccess(): Promise<
+    | { ok: true; keyName: string }
+    | { ok: false; keyName: string; reason: 'missing-credentials' | 'permission' | 'not-found' | 'other'; message: string }
+> {
+    const keyName = process.env.KMS_KEY_NAME;
+    if (!keyName) {
+        return { ok: false, keyName: '', reason: 'other', message: 'KMS_KEY_NAME env var is not set' };
+    }
+    try {
+        await kmsClient.getCryptoKey({ name: keyName });
+        return { ok: true, keyName };
+    } catch (err) {
+        const message = (err as Error).message || String(err);
+        if (/Could not load the default credentials|Application Default Credentials/i.test(message)) {
+            return { ok: false, keyName, reason: 'missing-credentials', message };
+        }
+        if (/PERMISSION_DENIED|does not have permission/i.test(message)) {
+            return { ok: false, keyName, reason: 'permission', message };
+        }
+        if (/NOT_FOUND|does not exist/i.test(message)) {
+            return { ok: false, keyName, reason: 'not-found', message };
+        }
+        return { ok: false, keyName, reason: 'other', message };
+    }
+}
+
 export async function decryptEnvelope(cipher: EnvelopeCipher): Promise<string> {
     const [result] = await kmsClient.decrypt({
         name: cipher.kmsKeyName,

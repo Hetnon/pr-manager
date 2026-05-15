@@ -4,37 +4,46 @@
 // triggers location.reload() when it receives the event.
 
 import fs from 'node:fs';
-import path from 'node:path';
+import type { Request, Response } from 'express';
 
 const DEBOUNCE_MS = 200;
 
-export default function createLiveReload({ watchPath, watchFile = null }) {
-  const clients = new Set();
-  let debounce = null;
+export interface LiveReloadOptions {
+  watchPath: string;
+  watchFile?: string | null;
+}
 
-  function broadcast() {
+export interface LiveReload {
+  handler: (req: Request, res: Response) => void;
+}
+
+export default function createLiveReload({ watchPath, watchFile = null }: LiveReloadOptions): LiveReload {
+  const clients = new Set<Response>();
+  let debounce: NodeJS.Timeout | null = null;
+
+  function broadcast(): void {
     for (const res of clients) {
       try { res.write('event: reload\ndata: 1\n\n'); } catch { /* dead connection */ }
     }
   }
 
-  function trigger() {
-    clearTimeout(debounce);
+  function trigger(): void {
+    if (debounce) clearTimeout(debounce);
     debounce = setTimeout(broadcast, DEBOUNCE_MS);
   }
 
-  function startWatching() {
+  function startWatching(): void {
     try {
       fs.watch(watchPath, (_event, filename) => {
         if (watchFile && filename !== watchFile) return;
         trigger();
       });
     } catch (e) {
-      console.warn(`live-reload: cannot watch ${watchPath}: ${e.message}`);
+      console.warn(`live-reload: cannot watch ${watchPath}: ${(e as Error).message}`);
     }
   }
 
-  function handler(req, res) {
+  function handler(req: Request, res: Response): void {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',

@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../TypesAndInterfaces/*"]
+    }
+  },
+  "include": [
+    "server.ts",
+    "paths.ts",
+    "routes/**/*.ts",
+    "utils/**/*.ts",
+    "../TypesAndInterfaces/**/*.ts"
+  ]
+}

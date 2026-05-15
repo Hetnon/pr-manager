@@ -5,7 +5,13 @@
       "Bash(node --check \"D:/AI Projects/pr-matrix/server/server.js\")",
       "Bash(rm -f \"D:/AI Projects/pr-matrix/ui/public/app.js.LICENSE.txt\")",
       "Bash(npm run *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(dir D:\\\\AI Projects\\\\pr-matrix *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npm run *)",
+      "Read(//c/Users/hetno/AppData/Local/Temp/claude/D--AI-Projects-pr-matrix/be1d8391-a5b6-4347-8caa-b153ff05b40b/tasks/**)",
+      "Bash(curl *)",
+      "PowerShell(Remove-Item *)"
     ]
   }
 }

@@ -3,7 +3,7 @@
 
 import { execFile } from 'node:child_process';
 
-export default function pickFolder(initialDir) {
+export default function pickFolder(initialDir?: string): Promise<string | null> {
   return new Promise((resolve, reject) => {
     if (process.platform !== 'win32') {
       return reject(new Error('Native folder picker is only available on Windows. Paste a path manually.'));

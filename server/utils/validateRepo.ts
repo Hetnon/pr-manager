@@ -3,7 +3,11 @@ import path from 'node:path';
 import run from './run.js';
 import isDirectory from './isDirectory.js';
 
-export default async function validateRepo(repoPath) {
+export type ValidateRepoResult =
+  | { ok: true; repoPath: string }
+  | { ok: false; error: string };
+
+export default async function validateRepo(repoPath: unknown): Promise<ValidateRepoResult> {
   if (!repoPath || typeof repoPath !== 'string') {
     return { ok: false, error: 'No path provided.' };
   }

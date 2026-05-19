@@ -1,55 +1,59 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { parseRepo } from './useRepoSelection.js';
+import { useState } from 'react';
+import { FolderPickError, isFolderPickerSupported, pickRepoFolder } from './pickRepoFolder.js';
 
 export interface RepoSelectorProps {
-    initialValue: string;
     currentRepo: string | null;
-    onSelect: (ownerRepo: string) => void;
+    onSelect: (ownerRepo: string, handle: FileSystemDirectoryHandle) => void;
     onCancel?: () => void;
     firstRun?: boolean;
 }
 
-export default function RepoSelector({ initialValue, currentRepo, onSelect, onCancel, firstRun }: RepoSelectorProps) {
-    const [value, setValue] = useState(initialValue);
+export default function RepoSelector({ currentRepo, onSelect, onCancel, firstRun }: RepoSelectorProps) {
     const [error, setError] = useState<string | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [busy, setBusy] = useState(false);
+    const supported = isFolderPickerSupported();
 
-    useEffect(() => { inputRef.current?.focus(); }, []);
-
-    function submit(e: FormEvent) {
-        e.preventDefault();
-        const trimmed = value.trim();
-        if (!parseRepo(trimmed)) {
-            setError('Enter the repo as "owner/name" (e.g. anthropic/claude-code).');
-            return;
+    async function pick() {
+        setError(null);
+        setBusy(true);
+        try {
+            const { handle, owner, name } = await pickRepoFolder();
+            onSelect(`${owner}/${name}`, handle);
+        } catch (e) {
+            if (e instanceof FolderPickError && e.cancelled) {
+                // User dismissed the OS picker — leave the modal open with no error.
+                return;
+            }
+            setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setBusy(false);
         }
-        onSelect(trimmed);
     }
 
     return (
         <div className="picker-overlay">
-            <form className="picker" onSubmit={submit}>
-                <h2>{firstRun ? 'Pick a repository' : 'Change repository'}</h2>
+            <div className="picker">
+                <h2>{firstRun ? 'Pick a repository folder' : 'Change repository folder'}</h2>
                 <p className="picker-msg">
-                    Enter a GitHub repository as <code>owner/name</code>.
-                    {' '}You need at least read access; merging requires push access.
+                    Choose a local folder containing a git repository with a GitHub remote.
+                    {' '}You need at least read access on GitHub; merging requires push access.
                 </p>
-                <div className="picker-row">
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        placeholder="anthropic/claude-code"
-                        spellCheck={false}
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                    />
-                </div>
+                {currentRepo && (
+                    <p className="picker-msg">Current: <code>{currentRepo}</code></p>
+                )}
                 <div className="picker-actions">
-                    {!firstRun && currentRepo && onCancel && <button type="button" onClick={onCancel}>Cancel</button>}
-                    <button type="submit" className="primary">Save</button>
+                    {!firstRun && onCancel && <button type="button" onClick={onCancel}>Cancel</button>}
+                    <button type="button" className="primary" onClick={pick} disabled={!supported || busy}>
+                        {busy ? 'Opening…' : 'Choose folder…'}
+                    </button>
                 </div>
+                {!supported && (
+                    <p className="picker-error">
+                        Your browser doesn't support the folder picker. Please use Chrome or Edge.
+                    </p>
+                )}
                 {error && <p className="picker-error">{error}</p>}
-            </form>
+            </div>
         </div>
     );
 }

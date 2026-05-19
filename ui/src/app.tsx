@@ -6,6 +6,8 @@ import AuthGate from './auth/AuthGate.js';
 import LogoutButton from './auth/LogoutButton.js';
 import RepoSelector from './repo/RepoSelector.js';
 import { useRepoSelection } from './repo/useRepoSelection.js';
+import GitSpikePanel from './repo/GitSpikePanel.js';
+import LocalBranchesPanel from './localBranches/LocalBranchesPanel.js';
 import { listPrs } from './api/prs.js';
 import { ApiError } from './api/client.js';
 import PrMatrix from './prMatrix/PrMatrix.js';
@@ -13,7 +15,7 @@ import DevActions from './report/DevActions.js';
 import MasterCheck from './masterCheck/MasterCheck.js';
 
 function PrMatrixApp() {
-    const { repo, setRepo, parsed } = useRepoSelection();
+    const { repo, setRepo, parsed, folderHandle } = useRepoSelection();
     const [pickerOpen, setPickerOpen] = useState(false);
     const [prs, setPrs] = useState<PR[] | null>(null);
     const [status, setStatus] = useState('');
@@ -52,8 +54,8 @@ function PrMatrixApp() {
         }
     }
 
-    function handleSelectRepo(ownerRepo: string) {
-        setRepo(ownerRepo);
+    function handleSelectRepo(ownerRepo: string, handle: FileSystemDirectoryHandle) {
+        setRepo(ownerRepo, handle);
         setPickerOpen(false);
     }
 
@@ -69,6 +71,8 @@ function PrMatrixApp() {
                 </div>
             </header>
             <main>
+                <GitSpikePanel handle={folderHandle} />
+                <LocalBranchesPanel handle={folderHandle} prs={prs} />
                 {contentError && <p className="error">{contentError}</p>}
                 {!contentError && parsed && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs…' : 'Loading…'}</p>}
                 {!contentError && parsed && Array.isArray(prs) && (
@@ -81,7 +85,6 @@ function PrMatrixApp() {
             </main>
             {pickerOpen && (
                 <RepoSelector
-                    initialValue={repo ?? ''}
                     currentRepo={repo}
                     firstRun={!repo}
                     onSelect={handleSelectRepo}

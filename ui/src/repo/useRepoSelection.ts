@@ -1,27 +1,38 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { clearFolderHandle, loadFolderHandle, saveFolderHandle } from './repoFolderStorage.js';
 
 const STORAGE_KEY = 'pr-matrix.repo';
 
 export interface RepoSelection {
     repo: string | null;        // canonical "owner/name" form
-    setRepo: (value: string | null) => void;
     parsed: { owner: string; name: string } | null;
+    folderHandle: FileSystemDirectoryHandle | null;
+    setRepo: (value: string | null, handle?: FileSystemDirectoryHandle | null) => void;
 }
 
 export function useRepoSelection(): RepoSelection {
     const [repo, setRepoState] = useState<string | null>(() => {
         try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
     });
+    const [folderHandle, setFolderHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
-    const setRepo = useCallback((value: string | null) => {
+    useEffect(() => {
+        void loadFolderHandle().then((h) => { if (h) setFolderHandle(h); });
+    }, []);
+
+    const setRepo = useCallback((value: string | null, handle?: FileSystemDirectoryHandle | null) => {
         setRepoState(value);
         try {
             if (value) localStorage.setItem(STORAGE_KEY, value);
             else localStorage.removeItem(STORAGE_KEY);
         } catch { /* localStorage disabled — fine */ }
+        if (handle === undefined) return;
+        setFolderHandle(handle);
+        if (handle) void saveFolderHandle(handle);
+        else void clearFolderHandle();
     }, []);
 
-    return { repo, setRepo, parsed: parseRepo(repo) };
+    return { repo, parsed: parseRepo(repo), folderHandle, setRepo };
 }
 
 export function parseRepo(value: string | null): { owner: string; name: string } | null {

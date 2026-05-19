@@ -64,6 +64,11 @@ module.exports = (_env, argv) => {
           process.env.API_BASE_URL ?? (isProd ? '' : 'https://localhost:3030'),
         ),
       }),
+      // isomorphic-git's browser ESM build uses Buffer as a global without importing it.
+      // Provide the npm `buffer` polyfill so its 76 uses of Buffer.from / Buffer.isBuffer work.
+      new webpack.ProvidePlugin({
+        Buffer: ['buffer', 'Buffer'],
+      }),
     ],
   };
 };

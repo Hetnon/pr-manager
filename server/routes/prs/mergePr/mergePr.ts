@@ -11,6 +11,7 @@ export async function mergePr(req: Request, res: Response): Promise<void> {
         repo?: string;
         prNumber?: number;
         strategy?: MergeStrategy;
+        deleteBranch?: boolean;
     };
     requireParam(body.owner, 'owner is required');
     requireParam(body.repo, 'repo is required');
@@ -28,6 +29,6 @@ export async function mergePr(req: Request, res: Response): Promise<void> {
         return;
     }
 
-    const result = await mergePrApi(v.owner, v.repo, body.prNumber!, body.strategy, token);
+    const result = await mergePrApi(v.owner, v.repo, body.prNumber!, body.strategy, token, body.deleteBranch);
     res.status(result.ok ? 200 : 500).json(result);
 }

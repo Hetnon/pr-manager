@@ -105,30 +105,38 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
             },
 
             async writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts): Promise<void> {
-                const fh = await getFile(path, true);
-                const writable = await (fh as FileSystemFileHandle & {
-                    createWritable: (opts?: { keepExistingData?: boolean }) => Promise<{
-                        write: (data: unknown) => Promise<void>;
-                        close: () => Promise<void>;
-                    }>;
-                }).createWritable({ keepExistingData: false });
-                if (typeof data === 'string') {
-                    if (opts?.encoding && opts.encoding !== 'utf8' && opts.encoding !== 'utf-8') {
-                        throw new Error(`Unsupported encoding: ${opts.encoding}`);
+                try {
+                    const fh = await getFile(path, true);
+                    const writable = await (fh as FileSystemFileHandle & {
+                        createWritable: (opts?: { keepExistingData?: boolean }) => Promise<{
+                            write: (data: unknown) => Promise<void>;
+                            close: () => Promise<void>;
+                        }>;
+                    }).createWritable({ keepExistingData: false });
+                    if (typeof data === 'string') {
+                        if (opts?.encoding && opts.encoding !== 'utf8' && opts.encoding !== 'utf-8') {
+                            throw new Error(`Unsupported encoding: ${opts.encoding}`);
+                        }
+                        await writable.write(data);
+                    } else {
+                        // Wrap Uint8Array in a Blob to dodge TS's strict ArrayBuffer/SharedArrayBuffer split.
+                        await writable.write(new Blob([data as unknown as BlobPart]));
                     }
-                    await writable.write(data);
-                } else {
-                    // Wrap Uint8Array in a Blob to dodge TS's strict ArrayBuffer/SharedArrayBuffer split.
-                    await writable.write(new Blob([data as unknown as BlobPart]));
+                    await writable.close();
+                } catch (e) {
+                    throw wrapFsError(e, 'writeFile', path);
                 }
-                await writable.close();
             },
 
             async unlink(path: string): Promise<void> {
-                const parts = splitPath(path);
-                if (parts.length === 0) throw new ENoEnt(path);
-                const dir = await getDir(parts.slice(0, -1));
-                await dir.removeEntry(parts[parts.length - 1]);
+                try {
+                    const parts = splitPath(path);
+                    if (parts.length === 0) throw new ENoEnt(path);
+                    const dir = await getDir(parts.slice(0, -1));
+                    await dir.removeEntry(parts[parts.length - 1]);
+                } catch (e) {
+                    throw wrapFsError(e, 'unlink', path);
+                }
             },
 
             async readdir(path: string): Promise<string[]> {
@@ -143,14 +151,22 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
             },
 
             async mkdir(path: string): Promise<void> {
-                await getDir(splitPath(path), true);
+                try {
+                    await getDir(splitPath(path), true);
+                } catch (e) {
+                    throw wrapFsError(e, 'mkdir', path);
+                }
             },
 
             async rmdir(path: string): Promise<void> {
-                const parts = splitPath(path);
-                if (parts.length === 0) throw new EPerm('cannot rmdir root');
-                const parent = await getDir(parts.slice(0, -1));
-                await parent.removeEntry(parts[parts.length - 1], { recursive: false });
+                try {
+                    const parts = splitPath(path);
+                    if (parts.length === 0) throw new EPerm('cannot rmdir root');
+                    const parent = await getDir(parts.slice(0, -1));
+                    await parent.removeEntry(parts[parts.length - 1], { recursive: false });
+                } catch (e) {
+                    throw wrapFsError(e, 'rmdir', path);
+                }
             },
 
             async stat(path: string): Promise<StatsLike> {
@@ -187,3 +203,18 @@ class FsError extends Error {
 class ENoEnt extends FsError { constructor(p: string) { super('ENOENT', `ENOENT: ${p}`); } }
 class EPerm extends FsError { constructor(m: string) { super('EPERM', `EPERM: ${m}`); } }
 class EInval extends FsError { constructor(m: string) { super('EINVAL', `EINVAL: ${m}`); } }
+
+// Map raw FSAPI DOMException errors to node-style fs errors so isomorphic-git
+// can reason about them and the user gets an informative message.
+function wrapFsError(e: unknown, op: string, path: string): Error {
+    if (e instanceof FsError) return e;
+    const err = e as { name?: string; message?: string };
+    const name = err.name ?? '';
+    if (name === 'NotFoundError') return new ENoEnt(`${op} ${path}`);
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+        return new EPerm(`${op} ${path} — folder permission likely 'read' only; re-pick with readwrite`);
+    }
+    if (name === 'TypeMismatchError') return new EPerm(`${op} ${path} — path collides with existing file/dir of opposite kind`);
+    if (name === 'InvalidModificationError') return new EPerm(`${op} ${path} — invalid modification (often a write under read-only handle)`);
+    return new Error(`fsApi ${op} ${path}: ${name || 'Error'}: ${err.message ?? String(e)}`);
+}

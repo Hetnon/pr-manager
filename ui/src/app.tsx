@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { PR } from '@shared/pr.js';
 import { AuthProvider, useAuth } from './auth/AuthContext.js';
 import AuthGate from './auth/AuthGate.js';
 import LogoutButton from './auth/LogoutButton.js';
 import RepoSelector from './repo/RepoSelector.js';
+import RepoPermissionBadge from './repo/RepoPermissionBadge.js';
 import { useRepoSelection } from './repo/useRepoSelection.js';
 import LocalBranchesPanel from './localBranches/LocalBranchesPanel.js';
 import { listPrs } from './api/prs.js';
@@ -21,6 +22,9 @@ function PrMatrixApp() {
     const [contentError, setContentError] = useState<string | null>(null);
     const initializedRef = useRef(false);
     const { refresh: refreshSession } = useAuth();
+    // Bumped on Refresh / on permission upgrade — LocalBranchesPanel watches
+    // this to know when to reread local state + try a fetch.
+    const [refreshNonce, setRefreshNonce] = useState(0);
 
     useEffect(() => {
         initializedRef.current = true;
@@ -58,13 +62,25 @@ function PrMatrixApp() {
         setPickerOpen(false);
     }
 
+    const triggerRefresh = useCallback(() => {
+        setRefreshNonce((n) => n + 1);
+        if (parsed) void loadPRs(parsed);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [parsed]);
+
     return (
         <>
             <header>
                 <div className="controls">
                     {repo && <span className="repo-display" title={repo}>{repo}</span>}
+                    {repo && folderHandle && (
+                        <RepoPermissionBadge
+                            handle={folderHandle}
+                            onChange={(level) => { if (level === 'readwrite') triggerRefresh(); }}
+                        />
+                    )}
                     {repo && <button onClick={() => setPickerOpen(true)}>Change repo</button>}
-                    {repo && <button onClick={() => void loadPRs()}>↻ Refresh</button>}
+                    {repo && <button onClick={triggerRefresh}>↻ Refresh</button>}
                     <span id="status">{status}</span>
                     <LogoutButton />
                 </div>
@@ -75,7 +91,8 @@ function PrMatrixApp() {
                     prs={prs}
                     owner={parsed?.owner ?? null}
                     repo={parsed?.name ?? null}
-                    onPushed={() => parsed && void loadPRs(parsed)}
+                    refreshNonce={refreshNonce}
+                    onPushed={() => triggerRefresh()}
                 />
                 {contentError && <p className="error">{contentError}</p>}
                 {!contentError && parsed && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs…' : 'Loading…'}</p>}
@@ -83,7 +100,7 @@ function PrMatrixApp() {
                     <>
                         <PrMatrix prs={prs} />
                         <DevActions prs={prs} />
-                        <MasterCheck prs={prs} owner={parsed.owner} repo={parsed.name} onMerged={() => void loadPRs()} />
+                        <MasterCheck prs={prs} owner={parsed.owner} repo={parsed.name} folderHandle={folderHandle} onMerged={() => void loadPRs()} />
                     </>
                 )}
             </main>

@@ -3,8 +3,11 @@ import { checkMasterConflict } from '../../../utils/checkMasterConflict.js';
 import { validateRepo } from '../../../utils/validateRepo.js';
 import { getUserToken } from '../../../databases/databases.js';
 import { requireParam } from '../../../utils/requireParam/requireParam.js';
-import type { CheckMasterConflictResult } from '@shared/conflicts.js';
+import type { CheckConflictsResponse, CheckMasterConflictResult } from '@shared/conflicts.js';
 
+// PR-vs-PR pairwise detection moved out — see server/_archived/pairwisePrConflicts.ts.
+// The browser now computes pairwise locally via isomorphic-git mergeFile so we
+// get real 3-way merge semantics instead of the line-range heuristic.
 export async function checkMasterConflicts(req: Request, res: Response): Promise<void> {
     const body = req.body as { owner?: string; repo?: string; prNumbers?: number[] };
     requireParam(body.owner, 'owner is required');
@@ -24,9 +27,9 @@ export async function checkMasterConflicts(req: Request, res: Response): Promise
     }
 
     const results: Record<string, CheckMasterConflictResult> = {};
-    // Sequential to be polite to GitHub API rate limits; PR counts here are typically small.
     for (const n of body.prNumbers ?? []) {
         results[String(n)] = await checkMasterConflict(v.owner, v.repo, n, token);
     }
-    res.status(200).json({ results });
+    const response: CheckConflictsResponse = { results };
+    res.status(200).json(response);
 }

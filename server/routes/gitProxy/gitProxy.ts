@@ -40,8 +40,13 @@ async function forward(req: Request, res: Response, owner: string, repo: string,
 
     const url = `https://github.com/${owner}/${repo}.git/${pathSuffix}`;
 
+    // Git smart-HTTP wants HTTP Basic Auth, not Bearer. With an OAuth/PAT,
+    // the convention is username=x-access-token, password=<token>.
+    // Bearer works for api.github.com (REST) but github.com/<repo>.git/ returns
+    // 401 "Bad credentials" with anything other than Basic.
+    const basicAuth = Buffer.from(`x-access-token:${token}`).toString('base64');
     const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Basic ${basicAuth}`,
         'User-Agent': 'pr-matrix-server',
     };
     const accept = req.get('Accept');

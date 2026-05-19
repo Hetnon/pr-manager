@@ -23,7 +23,7 @@ export async function pickRepoFolder(): Promise<PickedRepo> {
     try {
         handle = await (window as unknown as {
             showDirectoryPicker: (opts?: { id?: string; mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
-        }).showDirectoryPicker({ id: 'pr-matrix-repo', mode: 'read' });
+        }).showDirectoryPicker({ id: 'pr-matrix-repo', mode: 'readwrite' });
     } catch (e) {
         const err = e as { name?: string; message?: string };
         if (err?.name === 'AbortError') throw new FolderPickError('Cancelled.', true);

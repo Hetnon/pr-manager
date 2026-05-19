@@ -5,6 +5,7 @@ import { checkLocalConflicts, type BranchGroup, type LocalConflictReport } from 
 import { pushBranch } from './pushBranch.js';
 import { fetchOrigin, type FetchResult } from './fetchOrigin.js';
 import { createPr } from '../api/git.js';
+import { queryFolderPermission, requestFolderReadWrite } from '../repo/folderPermission.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 
 interface Props {
@@ -12,6 +13,9 @@ interface Props {
     prs: PR[] | null;
     owner: string | null;
     repo: string | null;
+    // Incremented by the parent when the user clicks Refresh (or after a
+    // permission upgrade). Triggers a reread + opportunistic fetch.
+    refreshNonce: number;
     onPushed?: () => void;
 }
 
@@ -24,7 +28,7 @@ interface Row {
     pr: PR | null;
 }
 
-export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed }: Props) {
+export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNonce, onPushed }: Props) {
     const [snapshot, setSnapshot] = useState<LocalRepoSnapshot | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -44,8 +48,9 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
             setConflictError(null);
             return;
         }
-        void load(handle);
-    }, [handle]);
+        void runRefresh(handle);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [handle, refreshNonce]);
 
     async function load(h: FileSystemDirectoryHandle) {
         setBusy(true);
@@ -53,9 +58,12 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
         setConflictReport(null);
         setConflictError(null);
         try {
-            const perm = await ensureReadPermission(h);
-            if (perm !== 'granted') {
-                throw new Error(`Folder permission not granted (${perm})`);
+            // Query-only: requestPermission throws SecurityError when called
+            // outside a user gesture (this runs from useEffect). The header
+            // badge is the gesture-enabled path to upgrade.
+            const level = await queryFolderPermission(h);
+            if (level === 'none') {
+                throw new Error('Folder access not granted — click the badge in the header to grant.');
             }
             const snap = await readLocalRepo(h);
             setSnapshot(snap);
@@ -66,20 +74,34 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
         }
     }
 
-    async function handleFetch() {
-        if (!handle || !owner || !repo) return;
+    // Unified refresh — reread local state, and if readwrite is granted, do an
+    // opportunistic fetch + prune. No permission prompts here; the badge is
+    // the gesture-enabled path for upgrades.
+    async function runRefresh(h: FileSystemDirectoryHandle) {
+        await load(h);
+        if (!owner || !repo) return;
+        const level = await queryFolderPermission(h);
+        if (level !== 'readwrite') {
+            setLastFetch(null);
+            return;
+        }
         setFetching(true);
-        setLastFetch(null);
         try {
-            const result = await fetchOrigin(handle, owner, repo);
+            const result = await fetchOrigin(h, owner, repo);
             setLastFetch(result);
-            if (result.ok) {
-                // Reread branches so any new ones (or removed remote-tracking refs) show up.
-                await load(handle);
-            }
+            if (result.ok) await load(h);
         } finally {
             setFetching(false);
         }
+    }
+
+    // Called from button clicks — user gesture is present so requestPermission
+    // can actually prompt. Returns true if we now have readwrite.
+    async function ensureWritePermission(h: FileSystemDirectoryHandle): Promise<boolean> {
+        const level = await queryFolderPermission(h);
+        if (level === 'readwrite') return true;
+        const next = await requestFolderReadWrite(h);
+        return next === 'readwrite';
     }
 
     async function handlePush(branch: LocalBranch) {
@@ -90,6 +112,11 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
         setPushingBranch(branch.name);
         setLastPush(null);
         try {
+            const ok = await ensureWritePermission(handle);
+            if (!ok) {
+                setLastPush({ ok: false, branch: branch.name, message: 'Write permission denied — push needs to update local refs.' });
+                return;
+            }
             const pushResult = await pushBranch(handle, branch.name, owner, repo);
             if (!pushResult.ok) {
                 setLastPush({ ok: false, branch: branch.name, message: `Push failed: ${pushResult.error}` });
@@ -144,17 +171,6 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
         <section style={{ border: '1px solid #d0d7de', padding: 12, margin: '12px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <strong>Local branches</strong>
-                <button type="button" onClick={() => handle && void load(handle)} disabled={busy}>
-                    {busy ? 'Reading…' : '↻ Reread'}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => void handleFetch()}
-                    disabled={fetching || !owner || !repo}
-                    title="git fetch --prune origin (via server proxy)"
-                >
-                    {fetching ? 'Fetching…' : '↓ Fetch & prune'}
-                </button>
                 <button
                     type="button"
                     onClick={() => void runConflicts()}
@@ -162,6 +178,11 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
                 >
                     {conflictBusy ? 'Analyzing…' : 'Check conflicts'}
                 </button>
+                {(busy || fetching) && (
+                    <span style={{ fontSize: 12, color: '#57606a', fontStyle: 'italic' }}>
+                        {fetching ? 'Fetching origin…' : 'Reading…'}
+                    </span>
+                )}
                 {snapshot && (
                     <span style={{ fontSize: 12, color: '#57606a' }}>
                         default <code>{snapshot.defaultBranch ?? '(none)'}</code> ·
@@ -293,19 +314,6 @@ function DuplicatesBanner({ groups }: { groups: BranchGroup[] }) {
     );
 }
 
-
-async function ensureReadPermission(h: FileSystemDirectoryHandle): Promise<PermissionState> {
-    const handle = h as FileSystemDirectoryHandle & {
-        queryPermission?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
-        requestPermission?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
-    };
-    if (handle.queryPermission) {
-        const existing = await handle.queryPermission({ mode: 'read' });
-        if (existing === 'granted') return existing;
-    }
-    if (!handle.requestPermission) return 'denied';
-    return await handle.requestPermission({ mode: 'read' });
-}
 
 const th: React.CSSProperties = { padding: '6px 8px', fontWeight: 600 };
 const thNum: React.CSSProperties = { ...th, textAlign: 'right' };

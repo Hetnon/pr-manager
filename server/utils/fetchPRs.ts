@@ -35,6 +35,7 @@ export async function fetchPRs(owner: string, repo: string, token: string): Prom
                 number: pr.number,
                 title: pr.title,
                 headRefName: pr.head.ref,
+                headSha: pr.head.sha,
                 mergeable: 'UNKNOWN',          // computed in the conflicts endpoint, not here
                 mergeStateStatus: pr.draft ? 'DRAFT' : 'UNKNOWN',
                 files: files.map((f) => ({

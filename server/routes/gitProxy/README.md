@@ -21,7 +21,9 @@ parser doesn't touch the binary body.
   forwarded; anything else returns 400. Target host is hard-coded to
   `https://github.com/...` — no user-controlled URL.
 - **Auth**: session-gated. The user's OAuth token is fetched from Firestore
-  (KMS-decrypted on demand) and added as `Authorization: Bearer`.
+  (KMS-decrypted on demand) and added as `Authorization: Basic` (username
+  `x-access-token`, password = token). Git smart-HTTP requires Basic Auth —
+  Bearer is REST-API-only and returns "Bad credentials" against `github.com/<repo>.git/`.
 - **CSRF**: GET is exempt (safe method); the POST goes through
   `syncCSRFProtection` like every other state-changing route. The browser
   adapter (`ui/src/repo/gitHttpAdapter.ts`) injects `CSRF-Token` for non-GETs.

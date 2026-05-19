@@ -1,7 +1,4 @@
-// AppError extends Error with an HTTP statusCode — used throughout the server
-export interface AppError extends Error {
-    statusCode?: number;
-}
+import type { AppError } from '@shared/error.js';
 
 /**
  * Throws a 400 error if value is falsy.
@@ -23,7 +20,7 @@ export function requireParam(value: unknown, message: string, type: string | nul
  *   if (typeof x !== 'number') throwValidationError('Must be a number');
  */
 export function throwValidationError(message: string): never {
-    const newError: AppError = new Error(message);
+    const newError = new Error(message) as AppError;
     newError.statusCode = 400;
     throw newError;
 }

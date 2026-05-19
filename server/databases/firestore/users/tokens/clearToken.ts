@@ -1,4 +1,4 @@
-import { getFirestoreCollection } from '../../firebase_apis.js';
+import { getFirestoreCollection } from '../../firebaseApis.js';
 import { requireParam } from '../../../../utils/requireParam/requireParam.js';
 
 export async function clearUserToken(userEmail: string): Promise<void> {

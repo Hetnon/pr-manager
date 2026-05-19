@@ -1,18 +1,6 @@
-import { getFirestoreCollection } from '../../../firebase_apis.js';
-import { requireParam } from '../../../../../utils/requireParam/requireParam.js';
-
-export interface GetUsersListPayload {
-    payload: {
-        pageNumber: number;
-        usersPerPage: number;
-    };
-}
-
-export interface UsersListResult {
-    users: Array<Record<string, unknown>>;
-    page: number;
-    perPage: number;
-}
+import type { GetUsersListPayload, UsersListResult } from '@shared/user.js';
+import { getFirestoreCollection } from '../../firebaseApis.js';
+import { requireParam } from '../../../../utils/requireParam/requireParam.js';
 
 /**
  * Admin-only paged listing of users in the system.

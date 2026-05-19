@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getFirestoreCollection } from '../../firebase_apis.js';
+import { getFirestoreCollection } from '../../firebaseApis.js';
 import { mockBrowserInfoData } from 'testing/mocks/expressServer/browserInfoFixtures.js';
 import { TEST_USERS } from 'testing/mocks/expressServer/testUsers.js';
 

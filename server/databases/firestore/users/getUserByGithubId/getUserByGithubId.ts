@@ -1,12 +1,6 @@
-import { getFirestoreCollection } from '../../../firebase_apis.js';
-import { requireParam } from '../../../../../utils/requireParam/requireParam.js';
-
-export interface UserRecord {
-    userEmail: string;
-    githubLogin: string;
-    githubId: number;
-    [key: string]: unknown;
-}
+import type { UserRecord } from '@shared/user.js';
+import { getFirestoreCollection } from '../../firebaseApis.js';
+import { requireParam } from '../../../../utils/requireParam/requireParam.js';
 
 /**
  * Look up a user by their stable GitHub numeric ID.

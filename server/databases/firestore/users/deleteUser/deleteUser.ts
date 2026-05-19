@@ -1,4 +1,4 @@
-import { getFirestoreCollection, getFirebaseDB } from '../../firebase_apis.js';
+import { getFirestoreCollection, getFirebaseDB } from '../../firebaseApis.js';
 import { requireParam } from '../../../../utils/requireParam/requireParam.js';
 
 export async function deleteUser(userEmail: string): Promise<{ success: boolean; message: string }> {

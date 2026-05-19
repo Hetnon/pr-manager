@@ -30,7 +30,7 @@ describe('Session Store Tests', () => {
         });
 
         it('should use the same database instance as Firebase', async () => {
-            const { getFirebaseDB } = await import('../../firebase_apis.js');
+            const { getFirebaseDB } = await import('../../firebaseApis.js');
             const db = getFirebaseDB();
             expect(store.db).toBe(db);
         });

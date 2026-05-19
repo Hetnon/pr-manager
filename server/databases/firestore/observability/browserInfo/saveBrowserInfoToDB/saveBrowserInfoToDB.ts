@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getFirestoreCollection, FieldValue } from '../../../firebase_apis.js';
+import { getFirestoreCollection, FieldValue } from '../../../firebaseApis.js';
 import { requireParam } from '../../../../../utils/requireParam/requireParam.js';
 
 export async function saveBrowserInfoToDB(payload) {

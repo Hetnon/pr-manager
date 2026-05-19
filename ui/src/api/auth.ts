@@ -1,13 +1,5 @@
+import type { SessionInfo, SessionResponse } from '@shared/session.js';
 import { apiFetch } from './client.js';
-
-export interface SessionInfo {
-    loggedIn: boolean;
-    token?: string;
-}
-
-interface SessionResponse {
-    responseObject: SessionInfo;
-}
 
 export async function checkSession(): Promise<SessionInfo> {
     const data = await apiFetch<SessionResponse>('/api/check-user-session');

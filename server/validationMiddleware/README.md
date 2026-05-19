@@ -1,4 +1,4 @@
-# validation_middleware
+# validationMiddleware
 
 Express middleware that gates routes behind auth and CSRF checks.
 

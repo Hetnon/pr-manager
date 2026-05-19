@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { getFirestoreCollection, FieldValue } from '../../../firebase_apis.js';
-import { requireParam, throwValidationError } from '../../../../../utils/requireParam/requireParam.js';
+import { getFirestoreCollection, FieldValue } from '../../firebaseApis.js';
+import { requireParam, throwValidationError } from '../../../../utils/requireParam/requireParam.js';
 
 export async function updateUserFields(userEmail, fields, fieldName = '', merge = false) {
     requireParam(userEmail, 'User email is required to update user document');

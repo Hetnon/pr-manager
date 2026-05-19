@@ -9,7 +9,7 @@
  * Updated by: updateUserFields (any field) or the dedicated token methods.
  */
 
-export const userDocumentSchema = {
+export const userSchema = {
     collection: 'users',
     documentIdType: 'userEmail',
     fields: {

@@ -1,4 +1,5 @@
 import { spawn, exec } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import path, { dirname }  from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
@@ -8,6 +9,12 @@ const __dirname = dirname(__filename);
 let saveInterval = null;
 
 const pathToFirebaseRoot = path.resolve(__dirname, '.');  // ✅ Now works!
+// Firebase CLI writes firestore-debug.log (and friends) into its CWD with no
+// way to relocate. Launch the emulator from this dedicated logs folder so the
+// debug logs land here and stay out of the repo root.
+const logsDir = path.resolve(pathToFirebaseRoot, 'logs');
+const firebaseConfigPath = path.resolve(pathToFirebaseRoot, 'firebase.json');
+const importPath = path.resolve(pathToFirebaseRoot, 'firebase-runtime', 'firebase-data');
 
 export async function firestoreEmulatorUp() {
     // check if childProcess is not an error
@@ -25,9 +32,12 @@ export async function firestoreEmulatorUp() {
 
 async function spawnFirebase() {
     console.log('pathToFirebaseRoot:', pathToFirebaseRoot);
+    mkdirSync(logsDir, { recursive: true });
     // --export-on-exit pins any auto-export to the same runtime subfolder so
     // we don't end up with a sea of firebase-export-<timestamp><hash>/ siblings.
-    const cmdLine = `cd /d "${pathToFirebaseRoot}" && firebase emulators:start --project=demo-project --import=./firebase-runtime/firebase-data --export-on-exit=./firebase-runtime/firebase-data`;
+    // Launch from logsDir so the CLI's hardcoded firestore-debug.log lands there;
+    // pass everything else by absolute path so the relocated CWD doesn't matter.
+    const cmdLine = `cd /d "${logsDir}" && firebase emulators:start --config "${firebaseConfigPath}" --project=demo-project --import="${importPath}" --export-on-exit="${importPath}"`;
     const args = [
         '/c',
         'start',

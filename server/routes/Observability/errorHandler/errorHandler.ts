@@ -1,10 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { AppError } from '@shared/error.js';
 import { saveErrorsToDB } from '../../../databases/databases.js';
-
-interface AppError extends Error {
-    statusCode?: number;
-    [key: string]: unknown;
-}
 
 export function errorHandler(error: AppError, req: Request, res: Response, _next: NextFunction): void {
     console.error(error);

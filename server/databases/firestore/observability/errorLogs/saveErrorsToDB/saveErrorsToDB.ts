@@ -1,4 +1,4 @@
-import { getFirestoreCollection, FieldValue } from '../../../firebase_apis.js';
+import { getFirestoreCollection, FieldValue } from '../../../firebaseApis.js';
 
 export async function saveErrorsToDB(payload: Record<string, unknown>): Promise<void> {
     const errorCollection = getFirestoreCollection('errorLogs');

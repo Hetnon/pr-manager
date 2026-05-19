@@ -1,14 +1,16 @@
-// @ts-nocheck
-import {CSRFTokenGenerator} from "../../validation_middleware/validationMiddleware.js";
+import type { Request, Response } from 'express';
+import type { SessionInfo, SessionResponse } from '@shared/session.js';
+import { CSRFTokenGenerator } from '../../validationMiddleware/validationMiddleware.js';
 
-export async function checkUserSession(req, res) {
+// Reports whether the caller has an active session. If yes, also returns a
+// fresh CSRF token the UI echoes back in the CSRF-Token header on writes.
+export async function checkUserSession(req: Request, res: Response): Promise<void> {
     const userEmail = req.session?.userEmail;
     const userStatus = req.session?.userStatus;
-    // if user is logged in return true, if not return false. 
-    const responseObject = {loggedIn: !!userEmail && userStatus === 'active'}; // also check if user status is active, if not consider user as not logged in
-    if(responseObject.loggedIn){
-        responseObject.token = CSRFTokenGenerator(req)
+    const responseObject: SessionInfo = { loggedIn: !!userEmail && userStatus === 'active' };
+    if (responseObject.loggedIn) {
+        responseObject.token = CSRFTokenGenerator(req);
     }
-    return res.status(200).json({responseObject});
+    const payload: SessionResponse = { responseObject };
+    res.status(200).json(payload);
 }
-

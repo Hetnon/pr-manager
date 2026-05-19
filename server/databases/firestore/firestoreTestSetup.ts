@@ -1,12 +1,12 @@
 import admin from 'firebase-admin';
-import { initializeAllFirebase, allCollections, _resetFirestoreDB } from './firebase_apis.js';
+import { initializeAllFirebase, allCollections, _resetFirestoreDB } from './firebaseApis.js';
 import { clearTimedSaves } from './setupAndRun/runFirebase.js';
 import { _resetSessionStore } from './sessions/sessionStore/sessionStore.js';
 
 // Test fixture helpers — imported directly so the production import chain
 // (databases.ts → firestoreMethods.ts → *Methods.ts) does not pull in the
 // `testing/` package, which only resolves under jest's moduleNameMapper.
-import { initializeUserDocumentsForTests, cleanupUserDocumentsForTests } from './users/userDocument/userDocumentMethodsForTesting.js';
+import { initializeUserDocumentsForTests, cleanupUserDocumentsForTests } from './users/userMethodsForTesting.js';
 import { initializeSessionForTests, cleanupSessionsForTests } from './sessions/sessionStore/sessionMethodsForTesting.js';
 import { initializeSessionMapForTests, cleanupSessionMapForTests } from './sessions/sessionsMap/sessionMapMethodsForTesting.js';
 import { initializeBrowserInfoForTests, cleanupBrowserInfoForTests } from './observability/browserInfo/browserInfoMethodsForTesting.js';

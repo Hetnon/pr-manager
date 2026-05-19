@@ -7,7 +7,7 @@ let providers: Record<string, Record<string, (...args: unknown[]) => unknown>> =
 let initialized = false;
 
 export default async function loadDatabaseMethods(): Promise<void> {
-    const { initializeAllFirebase } = await import('./firestore/firebase_apis.js');
+    const { initializeAllFirebase } = await import('./firestore/firebaseApis.js');
     await initializeAllFirebase(process.env.NODE_ENV ?? '');
     await loadMethods();
 }

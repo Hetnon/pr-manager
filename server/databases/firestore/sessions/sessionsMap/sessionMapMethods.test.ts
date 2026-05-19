@@ -3,7 +3,7 @@ import { removeSessionFromMap, includeSessionInMap, getUserSessionsMap } from '.
 import { TEST_SESSION_IDS } from 'testing/mocks/expressServer/sessionsMapFixtures.js';
 import { TEST_USERS } from 'testing/mocks/expressServer/testUsers.js';
 import { firestoreSetupForTests, firestoreTeardownForTests } from '../../firestoreTestSetup.js';
-import { Timestamp } from '../../firebase_apis.js';
+import { Timestamp } from '../../firebaseApis.js';
 
 describe('Session Map Integration Tests', () => {
     beforeAll(async () => {

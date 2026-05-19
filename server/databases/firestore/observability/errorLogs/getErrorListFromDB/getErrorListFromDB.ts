@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getFirestoreCollection } from '../../../firebase_apis.js';
+import { getFirestoreCollection } from '../../../firebaseApis.js';
 
 function timestampToISO(value) {
     if (value && typeof value.toDate === 'function') return value.toDate().toISOString();

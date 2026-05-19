@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getFirestoreCollection } from '../../firebase_apis.js';
+import { getFirestoreCollection } from '../firebaseApis.js';
 import { mockUserDocumentsData } from 'testing/mocks/expressServer/userDocumentFixtures.js';
 
 export async function initializeUserDocumentsForTests(): Promise<void> {

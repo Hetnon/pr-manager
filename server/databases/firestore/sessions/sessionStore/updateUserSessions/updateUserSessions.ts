@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getFirestoreCollection, getFirebaseDB } from '../../../firebase_apis.js';
+import { getFirestoreCollection, getFirebaseDB } from '../../../firebaseApis.js';
 import { getUserSessionsMap } from '../../sessionsMap/sessionMapMethods.js';
 import { throwValidationError } from '../../../../../utils/requireParam/requireParam.js';
 

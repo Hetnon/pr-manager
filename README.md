@@ -1,57 +1,37 @@
 # PR Matrix
 
-Visual matrix of which files are touched by which open PRs in any local git repo.
-Standalone — point it at any repo from the UI.
+A tech-lead tool for managing concurrent PRs. Hosted service: GitHub OAuth in,
+local repo folder picked in-browser, file-by-PR overlap matrix out.
 
-## Requirements
+## Architecture at a glance
 
-- Node.js ≥ 20 (uses `node --watch`)
-- GitHub CLI (`gh`) authenticated to the relevant account
-- One-time UI setup: `cd ui && npm install && npm run build`
+- **`server/`** — Node/Express. Owns auth (GitHub OAuth + sessions), GitHub API
+  calls (list PRs, merge), and user/observability persistence in Firestore.
+  OAuth tokens are KMS-envelope-encrypted at rest.
+- **`ui/`** — React + TypeScript (Webpack). Browser-only local-git compute over
+  the user's picked folder via the File System Access API + `isomorphic-git`.
+- **`TypesAndInterfaces/`** — shared type definitions imported by both sides as
+  `@shared/*` (alias configured in both tsconfigs).
 
-## Usage
-
-Start the server:
+## Running locally
 
 ```powershell
 cd server
-npm start
+npm install
+npm start          # https://localhost:3030
 ```
-
-The browser opens to `http://localhost:7654`.
-
-- **First run:** the UI prompts you to pick a repository. Click **Browse…** to open a native folder picker, or paste a path. The choice is saved to `config.json`.
-- **Subsequent runs:** the saved repo loads automatically.
-- **Change repo at any time:** click **Change repo** in the header.
-
-If the configured folder isn't a git repo, the UI shows an error and re-opens the picker.
-
-### Editing the UI
-
-The server only serves the bundled UI in `ui/public/`. To rebuild on save, run in a second terminal:
 
 ```powershell
 cd ui
-npm run watch
+npm install
+npm run watch      # rebuilds ui/public/app.js on save
 ```
 
-Webpack watches `ui/src/` and rewrites `ui/public/app.js` on every save. The server pushes a reload event over SSE and the browser refreshes itself — no manual reload needed.
+The Firestore emulator is launched automatically by the server in dev. Debug
+logs land under `server/databases/firestore/setupAndRun/logs/` (gitignored).
 
-For a one-shot build: `npm run build`.
+## Where to look first
 
-### Matrix legend
-
-- **Rows** = files touched by any open PR
-- **Columns** = open PRs (sorted by PR number)
-- **●** at a cell = that PR touches that file
-- **Heat colors** on files: white (1 PR) → red (2+)
-- **"Safe?" column** (after file name) = ✓ if file is in only 1 PR
-- **"Good to Merge?" row** (top of body) = ✓ if PR shares no files with any other open PR
-- **PR header background**: green = safe to merge alone, red = will conflict if merged with another open PR
-
-Click ↻ Refresh to re-fetch from GitHub.
-
-## Customization
-
-- Change port: edit `PORT` in `server/server.js`
-- Reset configured repo: delete `config.json` (or use **Change repo** in the UI)
+- New to the server? Read `server/README.md`.
+- New to the UI? Read `ui/README.md`.
+- Adding a shared type? Read `TypesAndInterfaces/README.md`.

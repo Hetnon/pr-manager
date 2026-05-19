@@ -1,5 +1,5 @@
 import { FirestoreStore } from '@google-cloud/connect-firestore';
-import { getFirebaseDB } from '../../firebase_apis.js';
+import { getFirebaseDB } from '../../firebaseApis.js';
 
 let _sessionStore: FirestoreStore | null = null;
 let _storePromise: Promise<FirestoreStore> | null = null;

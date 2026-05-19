@@ -1,4 +1,4 @@
-import { getFirestoreCollection, FieldValue } from '../../firebase_apis.js';
+import { getFirestoreCollection, FieldValue } from '../../firebaseApis.js';
 import type { DocumentData } from 'firebase-admin/firestore';
 
 export async function removeSessionFromMap(userEmail: string, sessionId: string): Promise<void> {

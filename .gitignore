@@ -1,3 +1,4 @@
 config.json
 ui/node_modules/
 ui/public/app.js
+server/databases/firestore/setupAndRun/logs/

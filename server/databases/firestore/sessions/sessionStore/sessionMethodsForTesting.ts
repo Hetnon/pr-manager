@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { getFirestoreCollection } from '../../firebase_apis.js';
+import { getFirestoreCollection } from '../../firebaseApis.js';
 import { mockSessionsData } from 'testing/mocks/expressServer/sessionFixtures.js';
 
 // Seed sessions collection with mock data

@@ -6,7 +6,6 @@ import AuthGate from './auth/AuthGate.js';
 import LogoutButton from './auth/LogoutButton.js';
 import RepoSelector from './repo/RepoSelector.js';
 import { useRepoSelection } from './repo/useRepoSelection.js';
-import GitSpikePanel from './repo/GitSpikePanel.js';
 import LocalBranchesPanel from './localBranches/LocalBranchesPanel.js';
 import { listPrs } from './api/prs.js';
 import { ApiError } from './api/client.js';
@@ -71,7 +70,6 @@ function PrMatrixApp() {
                 </div>
             </header>
             <main>
-                <GitSpikePanel handle={folderHandle} />
                 <LocalBranchesPanel handle={folderHandle} prs={prs} />
                 {contentError && <p className="error">{contentError}</p>}
                 {!contentError && parsed && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs…' : 'Loading…'}</p>}

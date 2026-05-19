@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { saveBrowserInfoToDB } from './saveBrowserInfoToDB.js';
 import { firestoreSetupForTests, firestoreTeardownForTests } from '../../../firestoreTestSetup.js';
-import { getFirestoreCollection } from '../../../firebase_apis.js';
+import { getFirestoreCollection } from '../../../firebaseApis.js';
 import { TEST_USERS } from 'testing/mocks/expressServer/testUsers.js';
 
 describe('saveBrowserInfoToDB', () => {

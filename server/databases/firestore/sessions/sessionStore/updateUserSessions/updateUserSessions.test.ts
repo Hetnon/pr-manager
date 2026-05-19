@@ -3,7 +3,7 @@ import { updateUserSessions } from './updateUserSessions.js';
 import { firestoreSetupForTests, firestoreTeardownForTests } from '../../../firestoreTestSetup.js';
 import { TEST_USERS } from 'testing/mocks/expressServer/testUsers.js';
 import { TEST_SESSION_IDS } from 'testing/mocks/expressServer/sessionsMapFixtures.js';
-import { getFirestoreCollection } from '../../../firebase_apis.js';
+import { getFirestoreCollection } from '../../../firebaseApis.js';
 
 const getSessionData = async (sessionId) => {
     const doc = await getFirestoreCollection('sessions').doc(sessionId).get();

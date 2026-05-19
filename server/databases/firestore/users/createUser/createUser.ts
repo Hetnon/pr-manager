@@ -1,15 +1,6 @@
-import { getFirestoreCollection } from '../../firebase_apis.js';
+import type { CreateUserData } from '@shared/user.js';
+import { getFirestoreCollection } from '../../firebaseApis.js';
 import { requireParam } from '../../../../utils/requireParam/requireParam.js';
-
-export interface CreateUserData {
-    userEmail: string;
-    githubLogin: string;
-    githubId: number;
-    name?: string;
-    avatarUrl?: string;
-    userType?: string;
-    userStatus?: string;
-}
 
 export async function createUserDB(userData: CreateUserData): Promise<{ success: boolean; message: string }> {
     requireParam(userData?.userEmail, 'User data with userEmail is required to create a user');

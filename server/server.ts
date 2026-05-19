@@ -24,7 +24,7 @@ import {
     initializeCSRF,
     validateUser,
     validateAdmin,
-} from './validation_middleware/validationMiddleware.js';
+} from './validationMiddleware/validationMiddleware.js';
 
 const app = express();
 app.disable('x-powered-by');

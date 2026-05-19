@@ -2,25 +2,36 @@ import { useEffect, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import { readLocalRepo, type LocalBranch, type LocalRepoSnapshot } from './readLocalRepo.js';
 import { checkLocalConflicts, type LocalConflictReport } from './checkLocalConflicts.js';
+import { pushBranch } from './pushBranch.js';
+import { createPr } from '../api/git.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 
 interface Props {
     handle: FileSystemDirectoryHandle | null;
     prs: PR[] | null;
+    owner: string | null;
+    repo: string | null;
+    onPushed?: () => void;
 }
+
+type PushOutcome =
+    | { ok: true; branch: string; prNumber: number; prUrl: string }
+    | { ok: false; branch: string; message: string };
 
 interface Row {
     branch: LocalBranch;
     pr: PR | null;
 }
 
-export default function LocalBranchesPanel({ handle, prs }: Props) {
+export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed }: Props) {
     const [snapshot, setSnapshot] = useState<LocalRepoSnapshot | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [conflictReport, setConflictReport] = useState<LocalConflictReport | null>(null);
     const [conflictError, setConflictError] = useState<string | null>(null);
     const [conflictBusy, setConflictBusy] = useState(false);
+    const [pushingBranch, setPushingBranch] = useState<string | null>(null);
+    const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
 
     useEffect(() => {
         if (!handle) {
@@ -49,6 +60,38 @@ export default function LocalBranchesPanel({ handle, prs }: Props) {
             setError(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
         } finally {
             setBusy(false);
+        }
+    }
+
+    async function handlePush(branch: LocalBranch) {
+        if (!handle || !owner || !repo || !snapshot?.defaultBranch) return;
+        const defaultTitle = branch.head?.message ?? branch.name;
+        const title = window.prompt(`PR title for ${branch.name} → ${snapshot.defaultBranch}?`, defaultTitle);
+        if (title === null) return; // cancelled
+        setPushingBranch(branch.name);
+        setLastPush(null);
+        try {
+            const pushResult = await pushBranch(handle, branch.name, owner, repo);
+            if (!pushResult.ok) {
+                setLastPush({ ok: false, branch: branch.name, message: `Push failed: ${pushResult.error}` });
+                return;
+            }
+            try {
+                const pr = await createPr({
+                    owner, repo,
+                    head: branch.name,
+                    base: snapshot.defaultBranch,
+                    title,
+                });
+                setLastPush({ ok: true, branch: branch.name, prNumber: pr.number, prUrl: pr.url });
+                onPushed?.();
+            } catch (e) {
+                // Push succeeded but PR creation failed — surface both facts.
+                const msg = e instanceof Error ? e.message : String(e);
+                setLastPush({ ok: false, branch: branch.name, message: `Push OK, but PR create failed: ${msg}` });
+            }
+        } finally {
+            setPushingBranch(null);
         }
     }
 
@@ -103,6 +146,13 @@ export default function LocalBranchesPanel({ handle, prs }: Props) {
             </div>
             {error && <p style={{ color: '#cf222e', marginTop: 8 }}>{error}</p>}
             {conflictError && <p style={{ color: '#cf222e', marginTop: 8 }}>{conflictError}</p>}
+            {lastPush && (
+                <p style={{ marginTop: 8, color: lastPush.ok ? '#1a7f37' : '#cf222e' }}>
+                    {lastPush.ok
+                        ? <>✓ Pushed <code>{lastPush.branch}</code> and opened <a href={lastPush.prUrl} target="_blank" rel="noreferrer">PR #{lastPush.prNumber}</a></>
+                        : <>✗ <code>{lastPush.branch}</code>: {lastPush.message}</>}
+                </p>
+            )}
             {conflictReport && snapshot && (
                 <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 12, color: '#57606a', marginBottom: 6 }}>
@@ -125,36 +175,52 @@ export default function LocalBranchesPanel({ handle, prs }: Props) {
                             <th style={thNum}>Ahead</th>
                             <th style={thNum}>Behind</th>
                             <th style={th}>Last commit</th>
+                            <th style={th}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map(({ branch, pr }) => (
-                            <tr key={branch.name} style={{ borderBottom: '1px solid #eaeef2' }}>
-                                <td style={td}>
-                                    {branch.current && <span title="current branch">● </span>}
-                                    <code>{branch.name}</code>
-                                </td>
-                                <td style={td}>
-                                    {pr
-                                        ? <a href={pr.url} target="_blank" rel="noreferrer">#{pr.number}</a>
-                                        : <span style={{ color: '#8c959f' }}>—</span>}
-                                </td>
-                                <td style={td}><code>{branch.sha.slice(0, 8)}</code></td>
-                                <td style={tdNum}>
-                                    {branch.name === snapshot.defaultBranch ? '—' : formatCount(branch.aheadOfDefault, branch.truncated)}
-                                </td>
-                                <td style={tdNum}>
-                                    {branch.name === snapshot.defaultBranch ? '—' : formatCount(branch.behindDefault, branch.truncated)}
-                                </td>
-                                <td style={td}>
-                                    {branch.error
-                                        ? <span style={{ color: '#cf222e' }}>{branch.error}</span>
-                                        : branch.head
-                                            ? <span title={`${branch.head.authorName} · ${new Date(branch.head.date).toLocaleString()}`}>{branch.head.message}</span>
-                                            : '—'}
-                                </td>
-                            </tr>
-                        ))}
+                        {rows.map(({ branch, pr }) => {
+                            const isDefault = branch.name === snapshot.defaultBranch;
+                            const canPush = !isDefault && !pr && branch.aheadOfDefault > 0 && !!owner && !!repo;
+                            return (
+                                <tr key={branch.name} style={{ borderBottom: '1px solid #eaeef2' }}>
+                                    <td style={td}>
+                                        {branch.current && <span title="current branch">● </span>}
+                                        <code>{branch.name}</code>
+                                    </td>
+                                    <td style={td}>
+                                        {pr
+                                            ? <a href={pr.url} target="_blank" rel="noreferrer">#{pr.number}</a>
+                                            : <span style={{ color: '#8c959f' }}>—</span>}
+                                    </td>
+                                    <td style={td}><code>{branch.sha.slice(0, 8)}</code></td>
+                                    <td style={tdNum}>
+                                        {isDefault ? '—' : formatCount(branch.aheadOfDefault, branch.truncated)}
+                                    </td>
+                                    <td style={tdNum}>
+                                        {isDefault ? '—' : formatCount(branch.behindDefault, branch.truncated)}
+                                    </td>
+                                    <td style={td}>
+                                        {branch.error
+                                            ? <span style={{ color: '#cf222e' }}>{branch.error}</span>
+                                            : branch.head
+                                                ? <span title={`${branch.head.authorName} · ${new Date(branch.head.date).toLocaleString()}`}>{branch.head.message}</span>
+                                                : '—'}
+                                    </td>
+                                    <td style={td}>
+                                        {canPush && (
+                                            <button
+                                                type="button"
+                                                onClick={() => void handlePush(branch)}
+                                                disabled={pushingBranch !== null}
+                                            >
+                                                {pushingBranch === branch.name ? 'Pushing…' : 'Push & open PR'}
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             )}

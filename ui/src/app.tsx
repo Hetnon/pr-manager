@@ -70,7 +70,13 @@ function PrMatrixApp() {
                 </div>
             </header>
             <main>
-                <LocalBranchesPanel handle={folderHandle} prs={prs} />
+                <LocalBranchesPanel
+                    handle={folderHandle}
+                    prs={prs}
+                    owner={parsed?.owner ?? null}
+                    repo={parsed?.name ?? null}
+                    onPushed={() => parsed && void loadPRs(parsed)}
+                />
                 {contentError && <p className="error">{contentError}</p>}
                 {!contentError && parsed && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs…' : 'Loading…'}</p>}
                 {!contentError && parsed && Array.isArray(prs) && (

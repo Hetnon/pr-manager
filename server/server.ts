@@ -109,9 +109,24 @@ async function initializeServer(): Promise<void> {
         const { listPrs } = await import('./routes/prs/listPrs/listPrs.js');
         const { mergePr } = await import('./routes/prs/mergePr/mergePr.js');
         const { checkMasterConflicts } = await import('./routes/prs/checkMasterConflicts/checkMasterConflicts.js');
+        const { createPr } = await import('./routes/prs/createPr/createPr.js');
         app.get('/api/prs', validateUser, listPrs);
         app.post('/api/merge-pr', validateUser, mergePr);
         app.post('/api/master-conflicts', validateUser, checkMasterConflicts);
+        app.post('/api/create-pr', validateUser, createPr);
+
+        // Git smart-HTTP proxy — forwards browser-side isomorphic-git pushes to
+        // github.com with the user's OAuth token attached server-side. POST body is
+        // binary pack data; mount bodyParser.raw on the POST route only so the
+        // global JSON parser doesn't touch it.
+        const { gitProxyInfoRefs, gitProxyService } = await import('./routes/gitProxy/gitProxy.js');
+        app.get('/api/git-proxy/:owner/:repo/info/refs', validateUser, gitProxyInfoRefs);
+        app.post(
+            '/api/git-proxy/:owner/:repo/:service',
+            validateUser,
+            bodyParser.raw({ type: '*/*', limit: '50mb' }),
+            gitProxyService,
+        );
 
         console.log('All routes mounted');
 

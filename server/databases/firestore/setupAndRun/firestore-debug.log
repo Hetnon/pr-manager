@@ -94,3 +94,17 @@ May 19, 2026 11:11:31 AM io.gapi.emulators.netty.HttpVersionRoutingHandler chann
 INFO: Detected non-HTTP/2 connection.
 May 19, 2026 11:11:31 AM com.google.cloud.datastore.emulator.impl.firestore.CloudFirestoreV1 exportData
 INFO: Exporting emulator data to firebase-export-17791530916579iFBkm/firestore_export
+May 19, 2026 11:16:31 AM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected non-HTTP/2 connection.
+May 19, 2026 11:16:31 AM com.google.cloud.datastore.emulator.impl.firestore.CloudFirestoreV1 exportData
+INFO: Exporting emulator data to firebase-export-1779153391684idCsiS/firestore_export
+May 19, 2026 11:21:31 AM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected non-HTTP/2 connection.
+May 19, 2026 11:21:31 AM com.google.cloud.datastore.emulator.impl.firestore.CloudFirestoreV1 exportData
+INFO: Exporting emulator data to firebase-export-1779153691625KpvCbd/firestore_export
+May 19, 2026 11:24:32 AM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected non-HTTP/2 connection.
+May 19, 2026 11:24:39 AM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected non-HTTP/2 connection.
+May 19, 2026 11:24:39 AM com.google.cloud.datastore.emulator.impl.firestore.CloudFirestoreV1 exportData
+INFO: Exporting emulator data to firebase-export-1779153879421AyiBKQ/firestore_export

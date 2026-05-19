@@ -1,12 +1,20 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import styles from '../prMatrix/PrMatrix.module.css';
 import type { LocalBranch } from './readLocalRepo.js';
-import type { BranchChanges } from './checkLocalConflicts.js';
+import type { BranchChanges, BranchGroup } from './checkLocalConflicts.js';
+import type { FileSeverity } from './lineLevelConflicts.js';
 
 interface Props {
     defaultBranch: string;
     branches: LocalBranch[];
     branchChanges: BranchChanges[];
+    // Groups of branches sharing a HEAD sha. Each branchChange column maps to
+    // one group via canonical === branchChange.branch. When omitted, every
+    // column is treated as a 1-branch group.
+    branchGroups?: BranchGroup[];
+    // Per-file line-level severity from the conflict report. If omitted, falls
+    // back to file-level coloring (multi-branch = pink, no warning tier).
+    fileSeverity?: Record<string, FileSeverity>;
 }
 
 interface MatrixData {
@@ -45,6 +53,20 @@ function buildBranchMatrix(branchChanges: BranchChanges[]): MatrixData {
     };
 }
 
+// Maps a file's line-level severity to a heat class. Without a severity map,
+// falls back to the file-level rule (multi-branch = heatConflict).
+function severityOf(file: string, safe: boolean, fileSeverity?: Record<string, FileSeverity>): FileSeverity {
+    if (safe) return 'safe';
+    if (!fileSeverity) return 'conflict';
+    return fileSeverity[file] ?? 'conflict';
+}
+
+function heatFor(severity: FileSeverity): string {
+    if (severity === 'safe') return styles.heat1;
+    if (severity === 'warning') return styles.heatWarning;
+    return styles.heatConflict;
+}
+
 function formatRelative(iso: string | undefined): string {
     if (!iso) return '';
     const days = Math.round((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -55,7 +77,7 @@ function formatRelative(iso: string | undefined): string {
     return `${Math.round(days / 365)}y ago`;
 }
 
-export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges }: Props) {
+export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges, branchGroups, fileSeverity }: Props) {
     const [expanded, setExpanded] = useState(true);
     const [fileColWidth, setFileColWidth] = useState<number | null>(null);
     const fileColRef = useRef<HTMLTableHeaderCellElement>(null);
@@ -72,6 +94,7 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
     }
 
     const headByBranch = new Map(branches.map((b) => [b.name, b]));
+    const groupByCanonical = new Map((branchGroups ?? []).map((g) => [g.canonical, g]));
     const fileColStyle = fileColWidth ? { minWidth: `${fileColWidth}px` } : undefined;
 
     return (
@@ -88,13 +111,19 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
                         <th rowSpan={5} className={styles.statusCol}>Safe?</th>
                         {matrix.columns.map((col) => {
                             const safe = matrix.branchSafe.get(col.branch);
+                            const group = groupByCanonical.get(col.branch);
+                            const extras = group && group.branches.length > 1 ? group.branches.length - 1 : 0;
+                            const tooltip = group && group.branches.length > 1
+                                ? `Identical (same HEAD) branches:\n${group.branches.join('\n')}`
+                                : col.branch;
                             return (
                                 <th
                                     key={col.branch}
                                     className={`${styles.prCol} ${safe ? styles.prSafe : styles.prConflict}`}
-                                    title={col.branch}
+                                    title={tooltip}
                                 >
                                     <code>{col.branch}</code>
+                                    {extras > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: '#57606a' }}>(+{extras})</span>}
                                 </th>
                             );
                         })}
@@ -171,14 +200,17 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
                     <tbody>
                         {matrix.files.map(([filePath, branchSet]) => {
                             const safe = branchSet.size === 1;
-                            const heat = safe ? styles.heat1 : styles.heatConflict;
+                            const severity = severityOf(filePath, safe, fileSeverity);
+                            const heat = heatFor(severity);
+                            const statusGlyph = safe ? '✓' : severity === 'warning' ? `⚠ ${branchSet.size}` : `✗ ${branchSet.size}`;
+                            const statusCls = safe ? styles.safe : severity === 'warning' ? '' : styles.conflict;
                             return (
                                 <tr key={filePath}>
                                     <td className={`${styles.fileCell} ${heat}`} title={filePath}>
                                         <div>{filePath}</div>
                                     </td>
-                                    <td className={`${styles.statusCell} ${safe ? styles.safe : styles.conflict}`}>
-                                        {safe ? '✓' : `✗ ${branchSet.size}`}
+                                    <td className={`${styles.statusCell} ${statusCls} ${severity === 'warning' ? heat : ''}`}>
+                                        {statusGlyph}
                                     </td>
                                     {matrix.columns.map((col) => (
                                         branchSet.has(col.branch)

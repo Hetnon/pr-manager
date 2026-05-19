@@ -80,6 +80,7 @@ table.matrix {
 
 /* Heat colors for files */
 .heat-1 { /* default white */ }
+.heat-warning { background: #fff8c5; }
 .heat-conflict { background: #ffcecb; }
 
 /* Status column (Safe? / per-row safe-or-conflict) */

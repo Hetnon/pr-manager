@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import { readLocalRepo, type LocalBranch, type LocalRepoSnapshot } from './readLocalRepo.js';
-import { checkLocalConflicts, type LocalConflictReport } from './checkLocalConflicts.js';
+import { checkLocalConflicts, type BranchGroup, type LocalConflictReport } from './checkLocalConflicts.js';
 import { pushBranch } from './pushBranch.js';
+import { fetchOrigin, type FetchResult } from './fetchOrigin.js';
 import { createPr } from '../api/git.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 
@@ -32,6 +33,8 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
     const [conflictBusy, setConflictBusy] = useState(false);
     const [pushingBranch, setPushingBranch] = useState<string | null>(null);
     const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
+    const [fetching, setFetching] = useState(false);
+    const [lastFetch, setLastFetch] = useState<FetchResult | null>(null);
 
     useEffect(() => {
         if (!handle) {
@@ -60,6 +63,22 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
             setError(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
         } finally {
             setBusy(false);
+        }
+    }
+
+    async function handleFetch() {
+        if (!handle || !owner || !repo) return;
+        setFetching(true);
+        setLastFetch(null);
+        try {
+            const result = await fetchOrigin(handle, owner, repo);
+            setLastFetch(result);
+            if (result.ok) {
+                // Reread branches so any new ones (or removed remote-tracking refs) show up.
+                await load(handle);
+            }
+        } finally {
+            setFetching(false);
         }
     }
 
@@ -130,6 +149,14 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
                 </button>
                 <button
                     type="button"
+                    onClick={() => void handleFetch()}
+                    disabled={fetching || !owner || !repo}
+                    title="git fetch --prune origin (via server proxy)"
+                >
+                    {fetching ? 'Fetching…' : '↓ Fetch & prune'}
+                </button>
+                <button
+                    type="button"
                     onClick={() => void runConflicts()}
                     disabled={conflictBusy || !snapshot || snapshot.branches.length < 2}
                 >
@@ -146,6 +173,13 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
             </div>
             {error && <p style={{ color: '#cf222e', marginTop: 8 }}>{error}</p>}
             {conflictError && <p style={{ color: '#cf222e', marginTop: 8 }}>{conflictError}</p>}
+            {lastFetch && (
+                <p style={{ marginTop: 8, color: lastFetch.ok ? '#1a7f37' : '#cf222e' }}>
+                    {lastFetch.ok
+                        ? <>✓ Fetched at {new Date(lastFetch.fetchedAt).toLocaleTimeString()}{lastFetch.prunedRefs > 0 ? ` · pruned ${lastFetch.prunedRefs} stale ref(s)` : ''}</>
+                        : <>✗ Fetch failed: {lastFetch.error}</>}
+                </p>
+            )}
             {lastPush && (
                 <p style={{ marginTop: 8, color: lastPush.ok ? '#1a7f37' : '#cf222e' }}>
                     {lastPush.ok
@@ -156,12 +190,15 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
             {conflictReport && snapshot && (
                 <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 12, color: '#57606a', marginBottom: 6 }}>
-                        Analyzed in {conflictReport.elapsedMs}ms · file-level overlap (line-level overlap TBD)
+                        Analyzed in {conflictReport.elapsedMs}ms · line-level overlap (red = same lines, yellow = same file diff lines)
                     </div>
+                    <DuplicatesBanner groups={conflictReport.branchGroups} />
                     <LocalBranchesMatrix
                         defaultBranch={conflictReport.defaultBranch}
                         branches={snapshot.branches}
                         branchChanges={conflictReport.branchChanges}
+                        branchGroups={conflictReport.branchGroups}
+                        fileSeverity={conflictReport.fileSeverity}
                     />
                 </div>
             )}
@@ -231,6 +268,29 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, onPushed 
 function formatCount(n: number, truncated: boolean): string {
     if (truncated) return `${n}+`;
     return String(n);
+}
+
+function DuplicatesBanner({ groups }: { groups: BranchGroup[] }) {
+    const dupes = groups.filter((g) => g.branches.length > 1);
+    if (dupes.length === 0) return null;
+    const totalRedundant = dupes.reduce((n, g) => n + g.branches.length - 1, 0);
+    return (
+        <div style={{ marginBottom: 8, padding: '8px 12px', background: '#fff8c5', border: '1px solid #d4a72c', borderRadius: 4, fontSize: 13 }}>
+            <strong>⚠ {dupes.length} group{dupes.length === 1 ? '' : 's'} of identical branches</strong> ({totalRedundant} redundant). Consider deleting the duplicates:
+            <ul style={{ margin: '6px 0 0 0', paddingLeft: 18 }}>
+                {dupes.map((g) => (
+                    <li key={g.sha} style={{ marginBottom: 2 }}>
+                        At <code>{g.sha.slice(0, 8)}</code>: {g.branches.map((b, i) => (
+                            <span key={b}>
+                                <code>{b}</code>{i === 0 ? ' (keep)' : ''}
+                                {i < g.branches.length - 1 ? ', ' : ''}
+                            </span>
+                        ))}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 }
 
 

@@ -1,5 +1,6 @@
 import * as git from 'isomorphic-git';
 import { makeFsApiFs } from '../repo/fsApiAdapter.js';
+import { computeFileSeverity, type FileSeverity } from './lineLevelConflicts.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 
@@ -24,12 +25,25 @@ export interface BranchPair {
     intersection: string[];
 }
 
+export interface BranchGroup {
+    sha: string;
+    branches: string[];  // sorted; every branch name pointing at this sha
+    canonical: string;   // alphabetically-first member — represents the group in analysis
+}
+
 export interface LocalConflictReport {
     defaultBranch: string;
     defaultSha: string;
+    // Branches grouped by HEAD sha. Duplicates collapse to one canonical for analysis.
+    branchGroups: BranchGroup[];
+    // Only contains canonicals (one per group). Duplicate branches share the
+    // canonical's analysis verbatim — no need to recompute.
     branchChanges: BranchChanges[];
     branchVsDefault: BranchVsDefault[];
     pairs: BranchPair[];
+    // Per-file severity from the line-level pass. Files only appear here if
+    // they're touched by 2+ branches; single-branch files don't need a check.
+    fileSeverity: Record<string, FileSeverity>;
     elapsedMs: number;
 }
 
@@ -44,23 +58,58 @@ export async function checkLocalConflicts(
 
     const defaultSha = await git.resolveRef({ fs, dir, ref: `refs/heads/${defaultBranch}` });
 
-    const branchChanges: BranchChanges[] = [];
+    // Resolve every branch's HEAD up front so we can group by sha and skip
+    // recomputing analysis for duplicates (a common pattern when several agents
+    // converge on the same merge commit).
+    const resolved: { name: string; sha: string; error: string | null }[] = [];
     for (const name of branchesToCheck) {
         if (name === defaultBranch) continue;
-        const bc: BranchChanges = { branch: name, sha: '', base: '', files: [], error: null };
         try {
-            bc.sha = await git.resolveRef({ fs, dir, ref: `refs/heads/${name}` });
-            const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, bc.sha] });
+            const sha = await git.resolveRef({ fs, dir, ref: `refs/heads/${name}` });
+            resolved.push({ name, sha, error: null });
+        } catch (e) {
+            resolved.push({ name, sha: '', error: (e as Error).message });
+        }
+    }
+
+    // Group by sha. Errored branches each get their own group (sha = '') so the
+    // UI can still surface them but they don't pollute the dedup.
+    const groupsBySha = new Map<string, string[]>();
+    for (const r of resolved) {
+        if (r.error) continue;
+        if (!groupsBySha.has(r.sha)) groupsBySha.set(r.sha, []);
+        groupsBySha.get(r.sha)!.push(r.name);
+    }
+    const branchGroups: BranchGroup[] = [];
+    for (const [sha, names] of groupsBySha) {
+        const sorted = [...names].sort();
+        branchGroups.push({ sha, branches: sorted, canonical: sorted[0] });
+    }
+    branchGroups.sort((a, b) => a.canonical.localeCompare(b.canonical));
+
+    // Run the expensive per-branch analysis only on canonicals.
+    const branchChanges: BranchChanges[] = [];
+    for (const g of branchGroups) {
+        const bc: BranchChanges = { branch: g.canonical, sha: g.sha, base: '', files: [], error: null };
+        try {
+            const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, g.sha] });
             if (!base) {
                 bc.error = 'no merge base with default';
             } else {
                 bc.base = base;
-                bc.files = await changedFiles(fs, dir, base, bc.sha);
+                bc.files = await changedFiles(fs, dir, base, g.sha);
             }
         } catch (e) {
             bc.error = (e as Error).message;
         }
         branchChanges.push(bc);
+    }
+    // Carry forward errored (unresolvable) branches as their own pseudo-groups
+    // so they show up in the report without participating in analysis.
+    for (const r of resolved) {
+        if (!r.error) continue;
+        branchGroups.push({ sha: '', branches: [r.name], canonical: r.name });
+        branchChanges.push({ branch: r.name, sha: '', base: '', files: [], error: r.error });
     }
 
     // Cache "files default changed since base" by base sha — usually all branches share
@@ -111,8 +160,12 @@ export async function checkLocalConflicts(
     }
     pairs.sort((x, y) => y.intersection.length - x.intersection.length);
 
+    const severityMap = await computeFileSeverity(handle, branchChanges);
+    const fileSeverity: Record<string, FileSeverity> = {};
+    for (const [f, s] of severityMap) fileSeverity[f] = s;
+
     return {
-        defaultBranch, defaultSha, branchChanges, branchVsDefault, pairs,
+        defaultBranch, defaultSha, branchGroups, branchChanges, branchVsDefault, pairs, fileSeverity,
         elapsedMs: Math.round(performance.now() - t0),
     };
 }

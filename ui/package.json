@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@types/diff": "^7.0.2",
     "buffer": "^6.0.3",
+    "diff": "^9.0.0",
     "isomorphic-git": "^1.37.8",
     "react": "latest",
     "react-dom": "latest"

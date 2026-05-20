@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import { readLocalRepo, type LocalBranch, type LocalRepoSnapshot } from './readLocalRepo.js';
-import { checkLocalConflicts, type BranchGroup, type LocalConflictReport } from './checkLocalConflicts.js';
+import { checkLocalConflicts, type BranchGroup, type ConflictProgress, type LocalConflictReport } from './checkLocalConflicts.js';
+import { loadCachedReport, saveCachedReport } from './conflictCache.js';
+import Modal from '../ui/Modal.js';
 import { pushBranch } from './pushBranch.js';
 import { fetchOrigin, type FetchResult } from './fetchOrigin.js';
 import { createPr } from '../api/git.js';
 import { queryFolderPermission, requestFolderReadWrite } from '../repo/folderPermission.js';
+import { deleteBranchEverywhere } from '../repo/branchDeletion.js';
+import type { DeleteBranchResult } from '@shared/branches.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 
 interface Props {
@@ -35,10 +39,16 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
     const [conflictReport, setConflictReport] = useState<LocalConflictReport | null>(null);
     const [conflictError, setConflictError] = useState<string | null>(null);
     const [conflictBusy, setConflictBusy] = useState(false);
+    const [conflictProgress, setConflictProgress] = useState<ConflictProgress | null>(null);
+    const [processedFiles, setProcessedFiles] = useState<string[]>([]);
+    const [progressModalOpen, setProgressModalOpen] = useState(false);
+    const [cacheHit, setCacheHit] = useState<{ savedAt: string } | null>(null);
     const [pushingBranch, setPushingBranch] = useState<string | null>(null);
     const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
     const [fetching, setFetching] = useState(false);
     const [lastFetch, setLastFetch] = useState<FetchResult | null>(null);
+    const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
+    const [lastDelete, setLastDelete] = useState<DeleteBranchResult | null>(null);
 
     useEffect(() => {
         if (!handle) {
@@ -77,6 +87,12 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
     // Unified refresh — reread local state, and if readwrite is granted, do an
     // opportunistic fetch + prune. No permission prompts here; the badge is
     // the gesture-enabled path for upgrades.
+    //
+    // Note: we DON'T reread after a successful fetch. fetch only updates
+    // refs/remotes/origin/*; readLocalRepo only reads refs/heads/* — local
+    // branches and their SHAs are unchanged by fetch. Skipping the post-fetch
+    // reread avoids a visible flash where the matrix unmounts (load clears
+    // conflictReport) then re-mounts on cache hit.
     async function runRefresh(h: FileSystemDirectoryHandle) {
         await load(h);
         if (!owner || !repo) return;
@@ -85,14 +101,14 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
             setLastFetch(null);
             return;
         }
+        let result: FetchResult;
         setFetching(true);
         try {
-            const result = await fetchOrigin(h, owner, repo);
-            setLastFetch(result);
-            if (result.ok) await load(h);
+            result = await fetchOrigin(h, owner, repo);
         } finally {
             setFetching(false);
         }
+        setLastFetch(result);
     }
 
     // Called from button clicks — user gesture is present so requestPermission
@@ -102,6 +118,31 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
         if (level === 'readwrite') return true;
         const next = await requestFolderReadWrite(h);
         return next === 'readwrite';
+    }
+
+    async function handleDeleteDuplicate(branchName: string) {
+        if (!handle) return;
+        if (!window.confirm(`Delete branch ${branchName} locally and on origin? This is destructive.`)) return;
+        setDeletingBranch(branchName);
+        setLastDelete(null);
+        try {
+            const ok = await ensureWritePermission(handle);
+            if (!ok) {
+                setLastDelete({
+                    branch: branchName,
+                    local: { attempted: true, ok: false, error: 'Write permission denied' },
+                    origin: { attempted: false, ok: false },
+                });
+                return;
+            }
+            const result = await deleteBranchEverywhere(handle, owner, repo, branchName, 'both');
+            setLastDelete(result);
+            if (result.local.ok || result.origin.ok) {
+                await runRefresh(handle);
+            }
+        } finally {
+            setDeletingBranch(null);
+        }
     }
 
     async function handlePush(branch: LocalBranch) {
@@ -141,21 +182,66 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
         }
     }
 
-    async function runConflicts() {
-        if (!handle || !snapshot?.defaultBranch) return;
-        setConflictBusy(true);
-        setConflictError(null);
-        setConflictReport(null);
-        try {
-            const others = snapshot.branches.map((b) => b.name).filter((n) => n !== snapshot.defaultBranch);
-            const report = await checkLocalConflicts(handle, snapshot.defaultBranch, others);
-            setConflictReport(report);
-        } catch (e) {
-            setConflictError(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
-        } finally {
-            setConflictBusy(false);
+    // Auto-run conflict analysis whenever a fresh snapshot lands. Same pattern
+    // as MasterCheck does for PR-vs-master conflict checks — no explicit button.
+    useEffect(() => {
+        if (!handle || !snapshot?.defaultBranch || snapshot.branches.length < 2) {
+            setConflictReport(null);
+            setConflictError(null);
+            setConflictProgress(null);
+            setProcessedFiles([]);
+            setProgressModalOpen(false);
+            setCacheHit(null);
+            return;
         }
-    }
+        const defaultBranch = snapshot.defaultBranch;
+        const others = snapshot.branches.map((b) => b.name).filter((n) => n !== defaultBranch);
+        let cancelled = false;
+        (async () => {
+            setConflictBusy(true);
+            setConflictError(null);
+            setConflictReport(null);
+            setCacheHit(null);
+
+            // Cache check first — skip the heavy analysis entirely if every
+            // branch SHA matches the last saved run.
+            const cached = await loadCachedReport(handle, snapshot);
+            if (cancelled) return;
+            if (cached) {
+                setConflictReport(cached.report);
+                setCacheHit({ savedAt: cached.savedAt });
+                setConflictBusy(false);
+                return;
+            }
+
+            setProcessedFiles([]);
+            setConflictProgress({ phase: 'init' });
+            setProgressModalOpen(true);
+            try {
+                const report = await checkLocalConflicts(handle, defaultBranch, others, (event) => {
+                    if (cancelled) return;
+                    setConflictProgress(event);
+                    if (event.phase === 'line-level') {
+                        setProcessedFiles((prev) => [...prev, event.file]);
+                    }
+                });
+                if (!cancelled) {
+                    setConflictReport(report);
+                    setProgressModalOpen(false);
+                    // Save async — don't block UI on cache write.
+                    void saveCachedReport(handle, snapshot, report);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setConflictError(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
+                    setProgressModalOpen(false);
+                }
+            } finally {
+                if (!cancelled) setConflictBusy(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [snapshot, handle]);
 
     if (!handle) return null;
 
@@ -171,16 +257,9 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
         <section style={{ border: '1px solid #d0d7de', padding: 12, margin: '12px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <strong>Local branches</strong>
-                <button
-                    type="button"
-                    onClick={() => void runConflicts()}
-                    disabled={conflictBusy || !snapshot || snapshot.branches.length < 2}
-                >
-                    {conflictBusy ? 'Analyzing…' : 'Check conflicts'}
-                </button>
-                {(busy || fetching) && (
+                {(busy || fetching || conflictBusy) && (
                     <span style={{ fontSize: 12, color: '#57606a', fontStyle: 'italic' }}>
-                        {fetching ? 'Fetching origin…' : 'Reading…'}
+                        {fetching ? 'Fetching origin…' : conflictBusy ? 'Analyzing conflicts…' : 'Reading…'}
                     </span>
                 )}
                 {snapshot && (
@@ -211,9 +290,16 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
             {conflictReport && snapshot && (
                 <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 12, color: '#57606a', marginBottom: 6 }}>
-                        Analyzed in {conflictReport.elapsedMs}ms · line-level overlap (red = same lines, yellow = same file diff lines)
+                        {cacheHit
+                            ? <>📦 Loaded from cache (saved {new Date(cacheHit.savedAt).toLocaleString()}) · line-level overlap (red = same lines, yellow = same file diff lines)</>
+                            : <>Analyzed in {conflictReport.elapsedMs}ms · line-level overlap (red = same lines, yellow = same file diff lines)</>}
                     </div>
-                    <DuplicatesBanner groups={conflictReport.branchGroups} />
+                    <DuplicatesBanner
+                        groups={conflictReport.branchGroups}
+                        onDelete={handleDeleteDuplicate}
+                        deletingBranch={deletingBranch}
+                        lastDelete={lastDelete}
+                    />
                     <LocalBranchesMatrix
                         defaultBranch={conflictReport.defaultBranch}
                         branches={snapshot.branches}
@@ -282,7 +368,100 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
                     </tbody>
                 </table>
             )}
+            <Modal
+                open={progressModalOpen}
+                onClose={() => setProgressModalOpen(false)}
+                title="Analyzing local conflicts"
+                maxWidth="sm"
+                disableBackdropClose
+            >
+                <ConflictProgressView progress={conflictProgress} processedFiles={processedFiles} />
+            </Modal>
         </section>
+    );
+}
+
+function ConflictProgressView({ progress, processedFiles }: { progress: ConflictProgress | null; processedFiles: string[] }) {
+    if (!progress) return <p>Starting…</p>;
+    const stepLabel: Record<ConflictProgress['phase'], string> = {
+        'init': 'Initializing',
+        'resolving': 'Resolving branch HEADs',
+        'branch-changes': 'Computing changes vs default',
+        'default-diff': "Computing default branch's changes since base",
+        'pairwise': 'Cross-referencing touched files',
+        'line-level': 'Running 3-way merge per shared file',
+        'done': 'Done',
+    };
+    const step = stepLabel[progress.phase];
+    const pct = ('total' in progress && progress.total > 0)
+        ? Math.round((progress.current / progress.total) * 100)
+        : null;
+    return (
+        <div style={{ fontSize: 13, fontFamily: 'inherit' }}>
+            <p style={{ margin: '0 0 8px', fontWeight: 600 }}>{step}</p>
+            {pct !== null && 'current' in progress && 'total' in progress && (
+                <>
+                    <div style={{ height: 6, background: '#eaeef2', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: '#0969da', transition: 'width 0.15s linear' }} />
+                    </div>
+                    <p style={{ margin: '0 0 4px', color: '#57606a', fontSize: 12 }}>
+                        {progress.current} / {progress.total}
+                    </p>
+                </>
+            )}
+            {progress.phase === 'pairwise' && (
+                <p style={{ margin: 0, color: '#57606a', fontSize: 12 }}>
+                    {progress.multiTouchFiles} file(s) touched by 2+ branches will be checked
+                </p>
+            )}
+            {progress.phase === 'resolving' && (
+                <p style={{ margin: 0, color: '#57606a', fontSize: 12, fontFamily: 'monospace' }}>{progress.branch}</p>
+            )}
+            {progress.phase === 'branch-changes' && (
+                <p style={{ margin: 0, color: '#57606a', fontSize: 12, fontFamily: 'monospace' }}>{progress.branch}</p>
+            )}
+            {progress.phase === 'default-diff' && (
+                <p style={{ margin: 0, color: '#57606a', fontSize: 12, fontFamily: 'monospace' }}>base: {progress.base.slice(0, 8)}</p>
+            )}
+            {progress.phase === 'line-level' && (
+                <ProcessedFilesList files={processedFiles} />
+            )}
+            {progress.phase === 'done' && (
+                <p style={{ margin: 0, color: '#1a7f37' }}>✓ Finished in {progress.elapsedMs}ms</p>
+            )}
+        </div>
+    );
+}
+
+function ProcessedFilesList({ files }: { files: string[] }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+    }, [files]);
+    return (
+        <div
+            ref={ref}
+            style={{
+                maxHeight: 240,
+                overflowY: 'auto',
+                border: '1px solid #d0d7de',
+                borderRadius: 4,
+                padding: '6px 8px',
+                background: '#f6f8fa',
+                fontFamily: 'ui-monospace, "Cascadia Mono", Consolas, monospace',
+                fontSize: 11,
+                lineHeight: 1.6,
+                marginTop: 6,
+            }}
+        >
+            {files.length === 0
+                ? <div style={{ color: '#8c959f', fontStyle: 'italic' }}>(no files processed yet)</div>
+                : files.map((f, i) => (
+                    <div key={i} style={{ color: '#24292f', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f}>
+                        <span style={{ color: '#1a7f37', marginRight: 4 }}>✓</span>{f}
+                    </div>
+                ))}
+        </div>
     );
 }
 
@@ -291,25 +470,68 @@ function formatCount(n: number, truncated: boolean): string {
     return String(n);
 }
 
-function DuplicatesBanner({ groups }: { groups: BranchGroup[] }) {
+interface DuplicatesBannerProps {
+    groups: BranchGroup[];
+    onDelete: (branch: string) => void;
+    deletingBranch: string | null;
+    lastDelete: DeleteBranchResult | null;
+}
+
+function DuplicatesBanner({ groups, onDelete, deletingBranch, lastDelete }: DuplicatesBannerProps) {
     const dupes = groups.filter((g) => g.branches.length > 1);
     if (dupes.length === 0) return null;
     const totalRedundant = dupes.reduce((n, g) => n + g.branches.length - 1, 0);
     return (
         <div style={{ marginBottom: 8, padding: '8px 12px', background: '#fff8c5', border: '1px solid #d4a72c', borderRadius: 4, fontSize: 13 }}>
-            <strong>⚠ {dupes.length} group{dupes.length === 1 ? '' : 's'} of identical branches</strong> ({totalRedundant} redundant). Consider deleting the duplicates:
+            <strong>⚠ {dupes.length} group{dupes.length === 1 ? '' : 's'} of identical branches</strong> ({totalRedundant} redundant).
+            Delete the duplicates (local + origin) — the canonical one is kept:
+            {lastDelete && <DeleteOutcomeNote outcome={lastDelete} />}
             <ul style={{ margin: '6px 0 0 0', paddingLeft: 18 }}>
                 {dupes.map((g) => (
-                    <li key={g.sha} style={{ marginBottom: 2 }}>
-                        At <code>{g.sha.slice(0, 8)}</code>: {g.branches.map((b, i) => (
-                            <span key={b}>
-                                <code>{b}</code>{i === 0 ? ' (keep)' : ''}
-                                {i < g.branches.length - 1 ? ', ' : ''}
-                            </span>
-                        ))}
+                    <li key={g.sha} style={{ marginBottom: 4 }}>
+                        At <code>{g.sha.slice(0, 8)}</code>:
+                        <ul style={{ margin: '2px 0 0 0', paddingLeft: 18, listStyle: 'none' }}>
+                            {g.branches.map((b, i) => (
+                                <li key={b} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
+                                    <code>{b}</code>
+                                    {i === 0 ? (
+                                        <span style={{ fontSize: 11, color: '#1a7f37', fontWeight: 600 }}>keep</span>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => onDelete(b)}
+                                            disabled={deletingBranch !== null}
+                                            style={{ fontSize: 11, padding: '1px 6px' }}
+                                        >
+                                            {deletingBranch === b ? 'Deleting…' : 'Delete (local + origin)'}
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
                     </li>
                 ))}
             </ul>
+        </div>
+    );
+}
+
+function DeleteOutcomeNote({ outcome }: { outcome: DeleteBranchResult }) {
+    const bits: string[] = [];
+    if (outcome.local.attempted) {
+        bits.push(outcome.local.ok
+            ? (outcome.local.alreadyGone ? 'local ✓ (was already gone)' : 'local ✓')
+            : `local ✗ (${outcome.local.error ?? 'failed'})`);
+    }
+    if (outcome.origin.attempted) {
+        bits.push(outcome.origin.ok
+            ? (outcome.origin.alreadyGone ? 'origin ✓ (was already gone)' : 'origin ✓')
+            : `origin ✗ (${outcome.origin.error ?? 'failed'})`);
+    }
+    const allOk = (!outcome.local.attempted || outcome.local.ok) && (!outcome.origin.attempted || outcome.origin.ok);
+    return (
+        <div style={{ marginTop: 6, fontSize: 12, color: allOk ? '#1a7f37' : '#9a6700' }}>
+            <code>{outcome.branch}</code>: {bits.join(' · ')}
         </div>
     );
 }

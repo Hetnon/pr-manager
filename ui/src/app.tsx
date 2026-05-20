@@ -15,7 +15,11 @@ import DevActions from './report/DevActions.js';
 import MasterCheck from './masterCheck/MasterCheck.js';
 
 function PrMatrixApp() {
-    const { repo, setRepo, parsed, folderHandle } = useRepoSelection();
+    const { 
+        repo, setRepoCallBack, // currently chosen repo
+        parsed, // 
+        folderHandle 
+    } = useRepoSelection();
     const [pickerOpen, setPickerOpen] = useState(false);
     const [prs, setPrs] = useState<PR[] | null>(null);
     const [status, setStatus] = useState('');
@@ -58,7 +62,7 @@ function PrMatrixApp() {
     }
 
     function handleSelectRepo(ownerRepo: string, handle: FileSystemDirectoryHandle) {
-        setRepo(ownerRepo, handle);
+        setRepoCallBack(ownerRepo, handle);
         setPickerOpen(false);
     }
 

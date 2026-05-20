@@ -47,14 +47,29 @@ export interface LocalConflictReport {
     elapsedMs: number;
 }
 
+// Progress events emitted during conflict analysis. The UI uses these to drive
+// the live progress modal so the user knows the long-running work is moving.
+export type ConflictProgress =
+    | { phase: 'init' }
+    | { phase: 'resolving'; current: number; total: number; branch: string }
+    | { phase: 'branch-changes'; current: number; total: number; branch: string }
+    | { phase: 'default-diff'; current: number; total: number; base: string }
+    | { phase: 'pairwise'; multiTouchFiles: number }
+    | { phase: 'line-level'; current: number; total: number; file: string }
+    | { phase: 'done'; elapsedMs: number };
+
+export type ConflictProgressCallback = (event: ConflictProgress) => void;
+
 export async function checkLocalConflicts(
     handle: FileSystemDirectoryHandle,
     defaultBranch: string,
     branchesToCheck: string[],
+    onProgress?: ConflictProgressCallback,
 ): Promise<LocalConflictReport> {
     const t0 = performance.now();
     const fs = makeFsApiFs(handle);
     const dir = '/';
+    onProgress?.({ phase: 'init' });
 
     const defaultSha = await git.resolveRef({ fs, dir, ref: `refs/heads/${defaultBranch}` });
 
@@ -62,8 +77,10 @@ export async function checkLocalConflicts(
     // recomputing analysis for duplicates (a common pattern when several agents
     // converge on the same merge commit).
     const resolved: { name: string; sha: string; error: string | null }[] = [];
-    for (const name of branchesToCheck) {
-        if (name === defaultBranch) continue;
+    const toResolve = branchesToCheck.filter((n) => n !== defaultBranch);
+    for (let i = 0; i < toResolve.length; i++) {
+        const name = toResolve[i];
+        onProgress?.({ phase: 'resolving', current: i + 1, total: toResolve.length, branch: name });
         try {
             const sha = await git.resolveRef({ fs, dir, ref: `refs/heads/${name}` });
             resolved.push({ name, sha, error: null });
@@ -89,7 +106,9 @@ export async function checkLocalConflicts(
 
     // Run the expensive per-branch analysis only on canonicals.
     const branchChanges: BranchChanges[] = [];
-    for (const g of branchGroups) {
+    for (let i = 0; i < branchGroups.length; i++) {
+        const g = branchGroups[i];
+        onProgress?.({ phase: 'branch-changes', current: i + 1, total: branchGroups.length, branch: g.canonical });
         const bc: BranchChanges = { branch: g.canonical, sha: g.sha, base: '', files: [], error: null };
         try {
             const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, g.sha] });
@@ -116,6 +135,8 @@ export async function checkLocalConflicts(
     // one base (default = base for newly-branched work), so we only pay this once.
     const defaultChangedCache = new Map<string, string[]>();
     const branchVsDefault: BranchVsDefault[] = [];
+    const uniqueBases = [...new Set(branchChanges.filter((b) => !b.error && b.base).map((b) => b.base))];
+    let baseProgressIdx = 0;
     for (const bc of branchChanges) {
         if (bc.error || !bc.base) {
             branchVsDefault.push({
@@ -126,6 +147,8 @@ export async function checkLocalConflicts(
         }
         let defaultChanged = defaultChangedCache.get(bc.base);
         if (!defaultChanged) {
+            baseProgressIdx++;
+            onProgress?.({ phase: 'default-diff', current: baseProgressIdx, total: uniqueBases.length, base: bc.base });
             try {
                 defaultChanged = await changedFiles(fs, dir, bc.base, defaultSha);
                 defaultChangedCache.set(bc.base, defaultChanged);
@@ -160,13 +183,16 @@ export async function checkLocalConflicts(
     }
     pairs.sort((x, y) => y.intersection.length - x.intersection.length);
 
-    const severityMap = await computeFileSeverity(handle, branchChanges);
+    const severityMap = await computeFileSeverity(handle, branchChanges, onProgress);
     const fileSeverity: Record<string, FileSeverity> = {};
     for (const [f, s] of severityMap) fileSeverity[f] = s;
 
+    const elapsedMs = Math.round(performance.now() - t0);
+    onProgress?.({ phase: 'done', elapsedMs });
+
     return {
         defaultBranch, defaultSha, branchGroups, branchChanges, branchVsDefault, pairs, fileSeverity,
-        elapsedMs: Math.round(performance.now() - t0),
+        elapsedMs,
     };
 }
 

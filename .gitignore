@@ -1,4 +1,9 @@
 config.json
 ui/node_modules/
-ui/public/app.js
-server/databases/firestore/setupAndRun/logs/
+ui/dist/
+server/node_modules/
+server/.env
+server/.env.dev
+server/.env.shared
+server/.env.prod
+server/keys/

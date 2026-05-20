@@ -7,11 +7,11 @@ export interface RepoSelection {
     repo: string | null;        // canonical "owner/name" form
     parsed: { owner: string; name: string } | null;
     folderHandle: FileSystemDirectoryHandle | null;
-    setRepo: (value: string | null, handle?: FileSystemDirectoryHandle | null) => void;
+    setRepoCallBack: (value: string | null, handle?: FileSystemDirectoryHandle | null) => void;
 }
 
 export function useRepoSelection(): RepoSelection {
-    const [repo, setRepoState] = useState<string | null>(() => {
+    const [repo, setRepo] = useState<string | null>(() => {
         try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
     });
     const [folderHandle, setFolderHandle] = useState<FileSystemDirectoryHandle | null>(null);
@@ -20,8 +20,8 @@ export function useRepoSelection(): RepoSelection {
         void loadFolderHandle().then((h) => { if (h) setFolderHandle(h); });
     }, []);
 
-    const setRepo = useCallback((value: string | null, handle?: FileSystemDirectoryHandle | null) => {
-        setRepoState(value);
+    const setRepoCallBack = useCallback((value: string | null, handle?: FileSystemDirectoryHandle | null) => {
+        setRepo(value);
         try {
             if (value) localStorage.setItem(STORAGE_KEY, value);
             else localStorage.removeItem(STORAGE_KEY);
@@ -32,7 +32,7 @@ export function useRepoSelection(): RepoSelection {
         else void clearFolderHandle();
     }, []);
 
-    return { repo, parsed: parseRepo(repo), folderHandle, setRepo };
+    return { repo, parsed: parseRepo(repo), folderHandle, setRepoCallBack };
 }
 
 export function parseRepo(value: string | null): { owner: string; name: string } | null {

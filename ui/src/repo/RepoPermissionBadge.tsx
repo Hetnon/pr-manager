@@ -10,18 +10,20 @@ export default function RepoPermissionBadge({ handle, onChange }: Props) {
     const [level, setLevel] = useState<FolderPermLevel | null>(null);
     const [busy, setBusy] = useState(false);
 
+    // Passive query on mount/handle change. Does NOT fire onChange — discovery
+    // isn't a change, and the parent's onChange typically triggers a refresh,
+    // which would race with the parent's own mount-time refresh.
     useEffect(() => {
         if (!handle) { setLevel(null); return; }
         let cancelled = false;
         void queryFolderPermission(handle).then((l) => {
-            if (cancelled) return;
-            setLevel(l);
-            onChange?.(l);
+            if (!cancelled) setLevel(l);
         });
         return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [handle]);
 
+    // User-initiated upgrade. THIS is where onChange fires — a real state
+    // transition the parent should react to.
     async function upgrade() {
         if (!handle) return;
         setBusy(true);

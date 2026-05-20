@@ -1,7 +1,7 @@
 import * as git from 'isomorphic-git';
 import { structuredPatch } from 'diff';
 import { makeFsApiFs } from '../repo/fsApiAdapter.js';
-import type { BranchChanges } from './checkLocalConflicts.js';
+import type { BranchChanges, ConflictProgressCallback } from './checkLocalConflicts.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 
@@ -26,6 +26,11 @@ interface BranchFileDiff {
 //     one branch deleted the file while another modified it
 //   - warning: multi-branch but no overlap (or undecidable due to binary/error)
 //
+// Processed strictly per-file so the progress callback can report each one
+// as it's worked on. Base blobs are cached across branches that share the
+// same merge-base — meaningful saving when several branches forked from the
+// same upstream commit (the common case).
+//
 // Files touched by exactly one branch are marked safe without any blob reads.
 // Known v1 limitation: pure additions (baseLines === 0) never "overlap" in our
 // model, so two branches that both add the same file at line 1 are marked
@@ -33,9 +38,13 @@ interface BranchFileDiff {
 export async function computeFileSeverity(
     handle: FileSystemDirectoryHandle,
     branchChanges: BranchChanges[],
+    onProgress?: ConflictProgressCallback,
 ): Promise<Map<string, FileSeverity>> {
     const fs = makeFsApiFs(handle);
     const dir = '/';
+
+    const bcByName = new Map<string, BranchChanges>();
+    for (const bc of branchChanges) bcByName.set(bc.branch, bc);
 
     const fileToBranches = new Map<string, string[]>();
     for (const bc of branchChanges) {
@@ -56,33 +65,50 @@ export async function computeFileSeverity(
         }
     }
 
+    onProgress?.({ phase: 'pairwise', multiTouchFiles: multiTouchFiles.length });
     if (multiTouchFiles.length === 0) return severity;
 
-    // Compute diffs only for branches that touch a multi-touch file, and only
-    // for those specific files. Caches per (branch.base, branch.sha, file).
-    const diffByBranchFile = new Map<string, Map<string, BranchFileDiff>>();
-    for (const bc of branchChanges) {
-        if (bc.error || !bc.base) continue;
-        const relevant = bc.files.filter((f) => fileToBranches.get(f)!.length > 1);
-        if (relevant.length === 0) continue;
-        const m = new Map<string, BranchFileDiff>();
-        for (const f of relevant) {
-            m.set(f, await diffOneFile(fs, dir, bc.base, bc.sha, f));
-        }
-        diffByBranchFile.set(bc.branch, m);
-    }
+    // Shared base-blob cache, keyed by (baseOid, filepath). Reused across
+    // every branch that shares the same merge-base — for newly-forked work
+    // (the common case) every branch hits the same base, so this cuts the
+    // total blob reads by ~ (branchCount - 1) / branchCount.
+    const baseBlobCache = new Map<string, Uint8Array | null>();
 
-    for (const f of multiTouchFiles) {
-        const brs = fileToBranches.get(f)!;
-        let result: FileSeverity = 'warning';
-        outer: for (let i = 0; i < brs.length; i++) {
-            const di = diffByBranchFile.get(brs[i])?.get(f);
-            for (let j = i + 1; j < brs.length; j++) {
-                const dj = diffByBranchFile.get(brs[j])?.get(f);
-                if (!di || !dj) continue;
-                if (pairConflicts(di, dj)) { result = 'conflict'; break outer; }
-            }
+    for (let i = 0; i < multiTouchFiles.length; i++) {
+        const f = multiTouchFiles[i];
+        onProgress?.({ phase: 'line-level', current: i + 1, total: multiTouchFiles.length, file: f });
+
+        // Yield to the React render loop every so often so the progress modal
+        // actually paints. Awaits in the diff loop are microtasks which don't
+        // unblock rendering; setTimeout(0) is a macrotask which does.
+        if (i % 25 === 0 && i > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
         }
+
+        const branchesTouching = fileToBranches.get(f)!;
+
+        // Compute one diff per branch that touches this file. Stop early if a
+        // confirmed conflict is found (any subsequent pair would just confirm).
+        const diffs = new Map<string, BranchFileDiff>();
+        let result: FileSeverity = 'warning';
+
+        for (const branchName of branchesTouching) {
+            const bc = bcByName.get(branchName);
+            if (!bc || bc.error || !bc.base) continue;
+            const diff = await diffOneFile(fs, dir, bc.base, bc.sha, f, baseBlobCache);
+            diffs.set(branchName, diff);
+
+            // Pairwise check against branches we've already diffed.
+            for (const [otherName, otherDiff] of diffs) {
+                if (otherName === branchName) continue;
+                if (pairConflicts(diff, otherDiff)) {
+                    result = 'conflict';
+                    break;
+                }
+            }
+            if (result === 'conflict') break;
+        }
+
         severity.set(f, result);
     }
     return severity;
@@ -118,8 +144,9 @@ async function diffOneFile(
     fs: Fs, dir: string,
     baseOid: string, headOid: string,
     filepath: string,
+    baseCache: Map<string, Uint8Array | null>,
 ): Promise<BranchFileDiff> {
-    const baseBlob = await tryReadBlob(fs, dir, baseOid, filepath);
+    const baseBlob = await readBaseBlobCached(fs, dir, baseOid, filepath, baseCache);
     const headBlob = await tryReadBlob(fs, dir, headOid, filepath);
     const baseMissing = baseBlob === null;
     const headMissing = headBlob === null;
@@ -139,6 +166,18 @@ async function diffOneFile(
         baseLines: h.oldLines,
     }));
     return { baseMissing, headMissing, binary: false, hunks };
+}
+
+async function readBaseBlobCached(
+    fs: Fs, dir: string,
+    baseOid: string, filepath: string,
+    cache: Map<string, Uint8Array | null>,
+): Promise<Uint8Array | null> {
+    const key = `${baseOid}\0${filepath}`;
+    if (cache.has(key)) return cache.get(key) ?? null;
+    const blob = await tryReadBlob(fs, dir, baseOid, filepath);
+    cache.set(key, blob);
+    return blob;
 }
 
 async function tryReadBlob(fs: Fs, dir: string, commitOid: string, filepath: string): Promise<Uint8Array | null> {

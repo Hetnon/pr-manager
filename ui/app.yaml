@@ -9,14 +9,15 @@ automatic_scaling:
   target_cpu_utilization: 0.65
 
 # All handlers are static_files, so App Engine doesn't need an entrypoint.
+# Build output lives in ui/dist/ (webpack target).
 handlers:
   - url: /(.*\.(json|ico|js|css|html|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|map))$
-    static_files: public/\1
-    upload: public/.*\.(json|ico|js|css|html|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|map)$
+    static_files: dist/\1
+    upload: dist/.*\.(json|ico|js|css|html|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|map)$
     secure: always
 
   # SPA fallback: any other path serves index.html
   - url: /.*
-    static_files: public/index.html
-    upload: public/index.html
+    static_files: dist/index.html
+    upload: dist/index.html
     secure: always

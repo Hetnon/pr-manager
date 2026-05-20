@@ -1,5 +1,6 @@
 import { spawn, exec } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import os from 'node:os';
 import path, { dirname }  from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
@@ -8,16 +9,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 let saveInterval = null;
 
-const pathToFirebaseRoot = path.resolve(__dirname, '.');  // ✅ Now works!
-// Firebase CLI writes firestore-debug.log (and friends) into its CWD with no
-// way to relocate. Launch the emulator from this dedicated logs folder so the
-// debug logs land here and stay out of the repo root.
-const logsDir = path.resolve(pathToFirebaseRoot, 'logs');
+// firebase.json lives in this folder (per-repo, identical across boilerplate-derived repos).
+const pathToFirebaseRoot = path.resolve(__dirname, '.');
 const firebaseConfigPath = path.resolve(pathToFirebaseRoot, 'firebase.json');
-const importPath = path.resolve(pathToFirebaseRoot, 'firebase-runtime', 'firebase-data');
+
+// Shared snapshot dir across all boilerplate-derived repos so multiple projects
+// can run against the same emulator on :8080 with isolated, persisted data.
+// Each project sets a distinct GOOGLE_CLOUD_PROJECT in its .env.dev; the
+// emulator namespaces collections by project ID inside this one snapshot folder.
+// Override the location with FIRESTORE_EMULATOR_DATA_DIR.
+const dataDir = process.env.FIRESTORE_EMULATOR_DATA_DIR
+    || path.join(os.homedir(), '.firestore-emulator-data');
+const importPath = path.resolve(dataDir, 'firebase-data');
+// Firebase CLI writes firestore-debug.log into its CWD with no way to relocate.
+// Launch from this shared logs folder so the log lands there and stays out of
+// any repo. The spawning project owns the log file for that emulator session.
+const logsDir = path.resolve(dataDir, 'logs');
 
 export async function firestoreEmulatorUp() {
-    // check if childProcess is not an error
     const isEmulatorRunning = await checkFirestoreReady();
     if (isEmulatorRunning) {
         setTimedSavesForFirestoreEmulator();
@@ -31,12 +40,12 @@ export async function firestoreEmulatorUp() {
 }
 
 async function spawnFirebase() {
-    console.log('pathToFirebaseRoot:', pathToFirebaseRoot);
+    console.log('Firestore emulator data dir:', dataDir);
     mkdirSync(logsDir, { recursive: true });
-    // --export-on-exit pins any auto-export to the same runtime subfolder so
-    // we don't end up with a sea of firebase-export-<timestamp><hash>/ siblings.
+    mkdirSync(importPath, { recursive: true });
+    // --export-on-exit pins any auto-export to the shared snapshot folder.
     // Launch from logsDir so the CLI's hardcoded firestore-debug.log lands there;
-    // pass everything else by absolute path so the relocated CWD doesn't matter.
+    // everything else passed by absolute path so the CWD doesn't matter.
     const cmdLine = `cd /d "${logsDir}" && firebase emulators:start --config "${firebaseConfigPath}" --project=demo-project --import="${importPath}" --export-on-exit="${importPath}"`;
     const args = [
         '/c',
@@ -45,7 +54,7 @@ async function spawnFirebase() {
         'cmd',
         '/k',
         `"${cmdLine}"`
-    ];   
+    ];
 
     spawn('cmd.exe', args, {
         shell: true,
@@ -86,17 +95,21 @@ function checkFirestoreReady() {
         });
     });
 }
-        
+
 function setTimedSavesForFirestoreEmulator() {
     if(saveInterval) {
         clearInterval(saveInterval);
     }
-    const saveIntervalMs = 1000 * 60 * 5; 
+    const saveIntervalMs = 1000 * 60 * 5;
     console.log('Setting timed saves for Firestore emulator every', saveIntervalMs / 1000, 'seconds');
-    
+
+    // Export the whole emulator state (all projects' data) into the shared
+    // snapshot folder. If multiple projects' intervals fire close together they
+    // race, but the destination and source are both shared, so it's a benign
+    // last-write-wins.
     saveInterval = setInterval(() => {
-        exec('firebase emulators:export ./firebase-runtime/firebase-data --force --project=demo-project',
-            {cwd: pathToFirebaseRoot, shell: true},
+        exec(`firebase emulators:export "${importPath}" --force --project=demo-project`,
+            {cwd: logsDir, shell: true},
             (err, stdout, stderr) => {
             if (err) {
                 console.error('Error saving Firestore emulator data:', err.message);

@@ -97,6 +97,10 @@ Recommended:
 
 Optional:
   --project-name=NAME        Display name (default: project-id)
+  --organization=ID          Org ID to nest the project under (find yours:
+                             gcloud organizations list). If omitted, the project
+                             is created at your personal account root and won't
+                             appear in org-filtered Console views.
   --region=REGION            App Engine region (default: australia-southeast1 / Sydney)
   --firestore-location=LOC   Firestore location (default: australia-southeast1 / Sydney)
   --kms-keyring=NAME         KMS keyring name (default: pr-matrix-keys)
@@ -160,17 +164,19 @@ function checkPrereqs() {
 }
 
 // ─── project / billing / APIs ─────────────────────────────────────────────────
-function ensureProject(projectId, projectName) {
+function ensureProject(projectId, projectName, organizationId) {
     step(`Project: ${projectId}`);
     const exists = gcloud(['projects', 'describe', projectId, '--format=value(projectId)']);
     if (exists.code === 0 && exists.stdout.trim() === projectId) {
         skip('Project already exists');
         return;
     }
-    info('Creating project...');
-    const r = gcloud(['projects', 'create', projectId, '--name', projectName, '--quiet']);
+    info(organizationId ? `Creating project under org ${organizationId}...` : 'Creating project...');
+    const createArgs = ['projects', 'create', projectId, '--name', projectName, '--quiet'];
+    if (organizationId) createArgs.push(`--organization=${organizationId}`);
+    const r = gcloud(createArgs);
     if (r.code !== 0) throw new Error(`Failed to create project:\n${r.stderr.trim()}`);
-    ok('Project created');
+    ok(organizationId ? `Project created under org ${organizationId}` : 'Project created');
 }
 
 function ensureBilling(projectId, billingAccount) {
@@ -553,6 +559,7 @@ async function main() {
 
     const projectId          = args['project-id'];
     const projectName        = args['project-name'] || projectId;
+    const organizationId     = args['organization'];
     const billing            = args.billing;
     const region             = args.region || 'australia-southeast1';
     const firestoreLocation  = args['firestore-location'] || defaultFirestoreLocation(region);
@@ -572,7 +579,7 @@ async function main() {
 
     // ─── execute ────────────────────────────────────────────────────────────────
     checkPrereqs();
-    ensureProject(projectId, projectName);
+    ensureProject(projectId, projectName, organizationId);
     ensureBilling(projectId, billing);
     setActiveProject(projectId);
 
@@ -641,7 +648,10 @@ async function main() {
             POST_LOGIN_REDIRECT: 'https://localhost:3000/',
             KMS_KEY_NAME: kmsKeyName,
             GOOGLE_PROJECT_ID: projectId,
-            GOOGLE_CLOUD_PROJECT: 'demo-project',
+            // Unique per project so multiple boilerplate-derived repos can share
+            // one Firestore emulator on :8080 without trampling each other's data
+            // (the emulator namespaces by this project ID inside the shared snapshot).
+            GOOGLE_CLOUD_PROJECT: `dev-${projectId}`,
             FIRESTORE_EMULATOR_HOST: 'localhost:8080',
             COOKIE_DOMAIN: 'localhost',
             ALLOWED_ORIGINS: 'https://localhost:3000',

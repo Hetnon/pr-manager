@@ -1,6 +1,7 @@
 import * as git from 'isomorphic-git';
 import { makeFsApiFs } from '../repo/fsApiAdapter.js';
 import { computeFileSeverity, type FileSeverity } from './lineLevelConflicts.js';
+import type { ConflictCache } from './conflictCache.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 
@@ -45,6 +46,8 @@ export interface LocalConflictReport {
     // they're touched by 2+ branches; single-branch files don't need a check.
     fileSeverity: Record<string, FileSeverity>;
     elapsedMs: number;
+    cacheHits: number;
+    cacheMisses: number;
 }
 
 // Progress events emitted during conflict analysis. The UI uses these to drive
@@ -64,6 +67,7 @@ export async function checkLocalConflicts(
     handle: FileSystemDirectoryHandle,
     defaultBranch: string,
     branchesToCheck: string[],
+    cache: ConflictCache,
     onProgress?: ConflictProgressCallback,
 ): Promise<LocalConflictReport> {
     const t0 = performance.now();
@@ -74,8 +78,7 @@ export async function checkLocalConflicts(
     const defaultSha = await git.resolveRef({ fs, dir, ref: `refs/heads/${defaultBranch}` });
 
     // Resolve every branch's HEAD up front so we can group by sha and skip
-    // recomputing analysis for duplicates (a common pattern when several agents
-    // converge on the same merge commit).
+    // recomputing analysis for duplicates.
     const resolved: { name: string; sha: string; error: string | null }[] = [];
     const toResolve = branchesToCheck.filter((n) => n !== defaultBranch);
     for (let i = 0; i < toResolve.length; i++) {
@@ -89,8 +92,6 @@ export async function checkLocalConflicts(
         }
     }
 
-    // Group by sha. Errored branches each get their own group (sha = '') so the
-    // UI can still surface them but they don't pollute the dedup.
     const groupsBySha = new Map<string, string[]>();
     for (const r of resolved) {
         if (r.error) continue;
@@ -104,39 +105,37 @@ export async function checkLocalConflicts(
     }
     branchGroups.sort((a, b) => a.canonical.localeCompare(b.canonical));
 
-    // Run the expensive per-branch analysis only on canonicals.
+    // Per-branch: merge-base + changed files. Both cached by SHA-pair keys —
+    // valid as long as the involved SHAs are unchanged.
     const branchChanges: BranchChanges[] = [];
     for (let i = 0; i < branchGroups.length; i++) {
         const g = branchGroups[i];
         onProgress?.({ phase: 'branch-changes', current: i + 1, total: branchGroups.length, branch: g.canonical });
         const bc: BranchChanges = { branch: g.canonical, sha: g.sha, base: '', files: [], error: null };
         try {
-            const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, g.sha] });
-            if (!base) {
+            bc.base = await getOrComputeMergeBase(fs, dir, g.sha, defaultSha, cache);
+            if (!bc.base) {
                 bc.error = 'no merge base with default';
             } else {
-                bc.base = base;
-                bc.files = await changedFiles(fs, dir, base, g.sha);
+                bc.files = await getOrComputeBranchFiles(fs, dir, g.sha, bc.base, cache);
             }
         } catch (e) {
             bc.error = (e as Error).message;
         }
         branchChanges.push(bc);
     }
-    // Carry forward errored (unresolvable) branches as their own pseudo-groups
-    // so they show up in the report without participating in analysis.
+    // Errored branches show up but don't participate in analysis.
     for (const r of resolved) {
         if (!r.error) continue;
         branchGroups.push({ sha: '', branches: [r.name], canonical: r.name });
         branchChanges.push({ branch: r.name, sha: '', base: '', files: [], error: r.error });
     }
 
-    // Cache "files default changed since base" by base sha — usually all branches share
-    // one base (default = base for newly-branched work), so we only pay this once.
-    const defaultChangedCache = new Map<string, string[]>();
+    // Default-changed-since-base, cached per (defaultSha, baseSha).
     const branchVsDefault: BranchVsDefault[] = [];
     const uniqueBases = [...new Set(branchChanges.filter((b) => !b.error && b.base).map((b) => b.base))];
     let baseProgressIdx = 0;
+    const defaultChangedByBase = new Map<string, string[]>();
     for (const bc of branchChanges) {
         if (bc.error || !bc.base) {
             branchVsDefault.push({
@@ -145,13 +144,13 @@ export async function checkLocalConflicts(
             });
             continue;
         }
-        let defaultChanged = defaultChangedCache.get(bc.base);
+        let defaultChanged = defaultChangedByBase.get(bc.base);
         if (!defaultChanged) {
             baseProgressIdx++;
             onProgress?.({ phase: 'default-diff', current: baseProgressIdx, total: uniqueBases.length, base: bc.base });
             try {
-                defaultChanged = await changedFiles(fs, dir, bc.base, defaultSha);
-                defaultChangedCache.set(bc.base, defaultChanged);
+                defaultChanged = await getOrComputeDefaultSinceBase(fs, dir, defaultSha, bc.base, cache);
+                defaultChangedByBase.set(bc.base, defaultChanged);
             } catch (e) {
                 branchVsDefault.push({
                     branch: bc.branch, defaultChangedFiles: [], intersection: [],
@@ -183,7 +182,7 @@ export async function checkLocalConflicts(
     }
     pairs.sort((x, y) => y.intersection.length - x.intersection.length);
 
-    const severityMap = await computeFileSeverity(handle, branchChanges, onProgress);
+    const severityMap = await computeFileSeverity(handle, branchChanges, cache, onProgress);
     const fileSeverity: Record<string, FileSeverity> = {};
     for (const [f, s] of severityMap) fileSeverity[f] = s;
 
@@ -193,7 +192,46 @@ export async function checkLocalConflicts(
     return {
         defaultBranch, defaultSha, branchGroups, branchChanges, branchVsDefault, pairs, fileSeverity,
         elapsedMs,
+        cacheHits: cache.hits,
+        cacheMisses: cache.misses,
     };
+}
+
+async function getOrComputeMergeBase(
+    fs: Fs, dir: string, branchSha: string, defaultSha: string, cache: ConflictCache,
+): Promise<string> {
+    const key = cache.mergeBaseKey(branchSha, defaultSha);
+    const cached = cache.mergeBases.get(key);
+    if (cached !== undefined) { cache.hits++; return cached; }
+    cache.misses++;
+    const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, branchSha] });
+    const value = base ?? '';
+    cache.mergeBases.set(key, value);
+    return value;
+}
+
+async function getOrComputeBranchFiles(
+    fs: Fs, dir: string, branchSha: string, baseSha: string, cache: ConflictCache,
+): Promise<string[]> {
+    const key = cache.branchFilesKey(branchSha, baseSha);
+    const cached = cache.branchFiles.get(key);
+    if (cached !== undefined) { cache.hits++; return cached; }
+    cache.misses++;
+    const files = await changedFiles(fs, dir, baseSha, branchSha);
+    cache.branchFiles.set(key, files);
+    return files;
+}
+
+async function getOrComputeDefaultSinceBase(
+    fs: Fs, dir: string, defaultSha: string, baseSha: string, cache: ConflictCache,
+): Promise<string[]> {
+    const key = cache.defaultSinceBaseKey(defaultSha, baseSha);
+    const cached = cache.defaultSinceBase.get(key);
+    if (cached !== undefined) { cache.hits++; return cached; }
+    cache.misses++;
+    const files = await changedFiles(fs, dir, baseSha, defaultSha);
+    cache.defaultSinceBase.set(key, files);
+    return files;
 }
 
 async function changedFiles(fs: Fs, dir: string, fromOid: string, toOid: string): Promise<string[]> {
@@ -208,7 +246,6 @@ async function changedFiles(fs: Fs, dir: string, fromOid: string, toOid: string)
             if (!a && !b) return;
             const aType = a ? await a.type() : null;
             const bType = b ? await b.type() : null;
-            // Let walker descend into trees; only emit on blob differences.
             if (aType === 'tree' || bType === 'tree') return;
             const aOid = a ? await a.oid() : null;
             const bOid = b ? await b.oid() : null;

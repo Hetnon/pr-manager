@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import { readLocalRepo, type LocalBranch, type LocalRepoSnapshot } from './readLocalRepo.js';
 import { checkLocalConflicts, type BranchGroup, type ConflictProgress, type LocalConflictReport } from './checkLocalConflicts.js';
-import { loadCachedReport, saveCachedReport } from './conflictCache.js';
+import { loadCache, saveCache } from './conflictCache.js';
 import Modal from '../ui/Modal.js';
 import { pushBranch } from './pushBranch.js';
 import { fetchOrigin, type FetchResult } from './fetchOrigin.js';
@@ -42,7 +42,6 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
     const [conflictProgress, setConflictProgress] = useState<ConflictProgress | null>(null);
     const [processedFiles, setProcessedFiles] = useState<string[]>([]);
     const [progressModalOpen, setProgressModalOpen] = useState(false);
-    const [cacheHit, setCacheHit] = useState<{ savedAt: string } | null>(null);
     const [pushingBranch, setPushingBranch] = useState<string | null>(null);
     const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
     const [fetching, setFetching] = useState(false);
@@ -191,34 +190,26 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
             setConflictProgress(null);
             setProcessedFiles([]);
             setProgressModalOpen(false);
-            setCacheHit(null);
             return;
         }
         const defaultBranch = snapshot.defaultBranch;
         const others = snapshot.branches.map((b) => b.name).filter((n) => n !== defaultBranch);
         let cancelled = false;
+        // Only open the modal if analysis is actually slow — cache hits often
+        // complete in <300ms and the modal flash would be jarring.
+        const modalDelayTimer = setTimeout(() => {
+            if (!cancelled) setProgressModalOpen(true);
+        }, 300);
         (async () => {
             setConflictBusy(true);
             setConflictError(null);
             setConflictReport(null);
-            setCacheHit(null);
-
-            // Cache check first — skip the heavy analysis entirely if every
-            // branch SHA matches the last saved run.
-            const cached = await loadCachedReport(handle, snapshot);
-            if (cancelled) return;
-            if (cached) {
-                setConflictReport(cached.report);
-                setCacheHit({ savedAt: cached.savedAt });
-                setConflictBusy(false);
-                return;
-            }
-
             setProcessedFiles([]);
             setConflictProgress({ phase: 'init' });
-            setProgressModalOpen(true);
             try {
-                const report = await checkLocalConflicts(handle, defaultBranch, others, (event) => {
+                const cache = await loadCache(handle);
+                if (cancelled) return;
+                const report = await checkLocalConflicts(handle, defaultBranch, others, cache, (event) => {
                     if (cancelled) return;
                     setConflictProgress(event);
                     if (event.phase === 'line-level') {
@@ -229,7 +220,7 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
                     setConflictReport(report);
                     setProgressModalOpen(false);
                     // Save async — don't block UI on cache write.
-                    void saveCachedReport(handle, snapshot, report);
+                    void saveCache(handle, cache);
                 }
             } catch (e) {
                 if (!cancelled) {
@@ -237,10 +228,11 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
                     setProgressModalOpen(false);
                 }
             } finally {
+                clearTimeout(modalDelayTimer);
                 if (!cancelled) setConflictBusy(false);
             }
         })();
-        return () => { cancelled = true; };
+        return () => { cancelled = true; clearTimeout(modalDelayTimer); };
     }, [snapshot, handle]);
 
     if (!handle) return null;
@@ -290,9 +282,7 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
             {conflictReport && snapshot && (
                 <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 12, color: '#57606a', marginBottom: 6 }}>
-                        {cacheHit
-                            ? <>📦 Loaded from cache (saved {new Date(cacheHit.savedAt).toLocaleString()}) · line-level overlap (red = same lines, yellow = same file diff lines)</>
-                            : <>Analyzed in {conflictReport.elapsedMs}ms · line-level overlap (red = same lines, yellow = same file diff lines)</>}
+                        Analyzed in {conflictReport.elapsedMs}ms · {conflictReport.cacheHits} cache hits, {conflictReport.cacheMisses} computed · line-level overlap (red = same lines, yellow = same file diff lines)
                     </div>
                     <DuplicatesBanner
                         groups={conflictReport.branchGroups}
@@ -375,19 +365,23 @@ export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNo
                 maxWidth="sm"
                 disableBackdropClose
             >
-                <ConflictProgressView progress={conflictProgress} processedFiles={processedFiles} />
+                <ConflictProgressView
+                    progress={conflictProgress}
+                    processedFiles={processedFiles}
+                    defaultBranchName={snapshot?.defaultBranch ?? 'default'}
+                />
             </Modal>
         </section>
     );
 }
 
-function ConflictProgressView({ progress, processedFiles }: { progress: ConflictProgress | null; processedFiles: string[] }) {
+function ConflictProgressView({ progress, processedFiles, defaultBranchName }: { progress: ConflictProgress | null; processedFiles: string[]; defaultBranchName: string }) {
     if (!progress) return <p>Starting…</p>;
     const stepLabel: Record<ConflictProgress['phase'], string> = {
         'init': 'Initializing',
         'resolving': 'Resolving branch HEADs',
-        'branch-changes': 'Computing changes vs default',
-        'default-diff': "Computing default branch's changes since base",
+        'branch-changes': `Listing files each branch changed since ${defaultBranchName}`,
+        'default-diff': `Listing files ${defaultBranchName} changed since each branch's merge-base`,
         'pairwise': 'Cross-referencing touched files',
         'line-level': 'Running 3-way merge per shared file',
         'done': 'Done',

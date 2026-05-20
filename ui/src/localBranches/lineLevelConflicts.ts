@@ -2,17 +2,14 @@ import * as git from 'isomorphic-git';
 import { structuredPatch } from 'diff';
 import { makeFsApiFs } from '../repo/fsApiAdapter.js';
 import type { BranchChanges, ConflictProgressCallback } from './checkLocalConflicts.js';
+import type { ConflictCache, PairVerdict } from './conflictCache.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 
 export type FileSeverity = 'safe' | 'warning' | 'conflict';
 
-// A hunk's coordinates in the BASE (merge-base) file. baseLines === 0 means a
-// pure addition with no base lines touched.
 interface BaseHunk { baseStart: number; baseLines: number; }
 
-// Per-(branch, file) record. blob === null means the file doesn't exist at
-// that side — pure add when missing on base, deletion when missing on head.
 interface BranchFileDiff {
     baseMissing: boolean;
     headMissing: boolean;
@@ -20,24 +17,14 @@ interface BranchFileDiff {
     hunks: BaseHunk[];
 }
 
-// For every file touched by 2+ branches, computes line-level severity:
-//   - safe: only one branch touched the file
-//   - conflict: at least one pair of branches has overlapping base hunks, OR
-//     one branch deleted the file while another modified it
-//   - warning: multi-branch but no overlap (or undecidable due to binary/error)
-//
-// Processed strictly per-file so the progress callback can report each one
-// as it's worked on. Base blobs are cached across branches that share the
-// same merge-base — meaningful saving when several branches forked from the
-// same upstream commit (the common case).
-//
-// Files touched by exactly one branch are marked safe without any blob reads.
-// Known v1 limitation: pure additions (baseLines === 0) never "overlap" in our
-// model, so two branches that both add the same file at line 1 are marked
-// warning even though real git would conflict.
+// For every file touched by 2+ branches, computes line-level severity. Each
+// (branch-pair, file) verdict is cached in the persistent ConflictCache —
+// keyed only by the SHAs involved, so any unchanged pair is hit on subsequent
+// runs even after other branches change or get deleted.
 export async function computeFileSeverity(
     handle: FileSystemDirectoryHandle,
     branchChanges: BranchChanges[],
+    cache: ConflictCache,
     onProgress?: ConflictProgressCallback,
 ): Promise<Map<string, FileSeverity>> {
     const fs = makeFsApiFs(handle);
@@ -68,45 +55,42 @@ export async function computeFileSeverity(
     onProgress?.({ phase: 'pairwise', multiTouchFiles: multiTouchFiles.length });
     if (multiTouchFiles.length === 0) return severity;
 
-    // Shared base-blob cache, keyed by (baseOid, filepath). Reused across
-    // every branch that shares the same merge-base — for newly-forked work
-    // (the common case) every branch hits the same base, so this cuts the
-    // total blob reads by ~ (branchCount - 1) / branchCount.
+    // Per-run scratch caches (don't get persisted — base blobs are big).
     const baseBlobCache = new Map<string, Uint8Array | null>();
+    const branchDiffCache = new Map<string, BranchFileDiff>();  // key: branchSha|baseSha|file
 
     for (let i = 0; i < multiTouchFiles.length; i++) {
         const f = multiTouchFiles[i];
         onProgress?.({ phase: 'line-level', current: i + 1, total: multiTouchFiles.length, file: f });
 
-        // Yield to the React render loop every so often so the progress modal
-        // actually paints. Awaits in the diff loop are microtasks which don't
-        // unblock rendering; setTimeout(0) is a macrotask which does.
         if (i % 25 === 0 && i > 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
         }
 
         const branchesTouching = fileToBranches.get(f)!;
-
-        // Compute one diff per branch that touches this file. Stop early if a
-        // confirmed conflict is found (any subsequent pair would just confirm).
-        const diffs = new Map<string, BranchFileDiff>();
         let result: FileSeverity = 'warning';
 
-        for (const branchName of branchesTouching) {
-            const bc = bcByName.get(branchName);
-            if (!bc || bc.error || !bc.base) continue;
-            const diff = await diffOneFile(fs, dir, bc.base, bc.sha, f, baseBlobCache);
-            diffs.set(branchName, diff);
+        outer: for (let a = 0; a < branchesTouching.length; a++) {
+            const bcA = bcByName.get(branchesTouching[a]);
+            if (!bcA || bcA.error || !bcA.base) continue;
+            for (let b = a + 1; b < branchesTouching.length; b++) {
+                const bcB = bcByName.get(branchesTouching[b]);
+                if (!bcB || bcB.error || !bcB.base) continue;
 
-            // Pairwise check against branches we've already diffed.
-            for (const [otherName, otherDiff] of diffs) {
-                if (otherName === branchName) continue;
-                if (pairConflicts(diff, otherDiff)) {
-                    result = 'conflict';
-                    break;
+                // Pair cache lookup — pure function of the two SHAs and the file path.
+                const cacheKey = cache.pairResultKey(bcA.sha, bcB.sha, f);
+                let verdict: PairVerdict | undefined = cache.pairResults.get(cacheKey);
+                if (verdict !== undefined) {
+                    cache.hits++;
+                } else {
+                    cache.misses++;
+                    const diffA = await getOrComputeBranchDiff(fs, dir, bcA.sha, bcA.base, f, baseBlobCache, branchDiffCache);
+                    const diffB = await getOrComputeBranchDiff(fs, dir, bcB.sha, bcB.base, f, baseBlobCache, branchDiffCache);
+                    verdict = pairVerdict(diffA, diffB);
+                    cache.pairResults.set(cacheKey, verdict);
                 }
+                if (verdict === 'conflict') { result = 'conflict'; break outer; }
             }
-            if (result === 'conflict') break;
         }
 
         severity.set(f, result);
@@ -114,17 +98,12 @@ export async function computeFileSeverity(
     return severity;
 }
 
-function pairConflicts(a: BranchFileDiff, b: BranchFileDiff): boolean {
-    // Delete-vs-modify is a real conflict — one side has no head blob, the
-    // other has changes.
-    if (a.headMissing && !b.headMissing && b.hunks.length > 0) return true;
-    if (b.headMissing && !a.headMissing && a.hunks.length > 0) return true;
-    // Both deleted: trivially mergeable (same outcome) — not a conflict.
-    if (a.headMissing && b.headMissing) return false;
-    // If either side is binary we can't reason about lines — conservative: not
-    // a conflict (caller leaves the file at 'warning').
-    if (a.binary || b.binary) return false;
-    return hunksOverlap(a.hunks, b.hunks);
+function pairVerdict(a: BranchFileDiff, b: BranchFileDiff): PairVerdict {
+    if (a.headMissing && !b.headMissing && b.hunks.length > 0) return 'conflict';
+    if (b.headMissing && !a.headMissing && a.hunks.length > 0) return 'conflict';
+    if (a.headMissing && b.headMissing) return 'clean';
+    if (a.binary || b.binary) return 'unknown';
+    return hunksOverlap(a.hunks, b.hunks) ? 'conflict' : 'clean';
 }
 
 function hunksOverlap(a: BaseHunk[], b: BaseHunk[]): boolean {
@@ -132,12 +111,25 @@ function hunksOverlap(a: BaseHunk[], b: BaseHunk[]): boolean {
         const aEnd = ai.baseStart + ai.baseLines;
         for (const bi of b) {
             const bEnd = bi.baseStart + bi.baseLines;
-            // Half-open interval overlap test. Both being zero-length adds at
-            // the same point intentionally doesn't count — see header comment.
             if (ai.baseStart < bEnd && bi.baseStart < aEnd) return true;
         }
     }
     return false;
+}
+
+async function getOrComputeBranchDiff(
+    fs: Fs, dir: string,
+    branchSha: string, baseSha: string,
+    filepath: string,
+    baseBlobCache: Map<string, Uint8Array | null>,
+    branchDiffCache: Map<string, BranchFileDiff>,
+): Promise<BranchFileDiff> {
+    const key = `${branchSha}|${baseSha}|${filepath}`;
+    const cached = branchDiffCache.get(key);
+    if (cached) return cached;
+    const computed = await diffOneFile(fs, dir, baseSha, branchSha, filepath, baseBlobCache);
+    branchDiffCache.set(key, computed);
+    return computed;
 }
 
 async function diffOneFile(
@@ -190,7 +182,6 @@ async function tryReadBlob(fs: Fs, dir: string, commitOid: string, filepath: str
 }
 
 function looksBinary(bytes: Uint8Array): boolean {
-    // Common heuristic: a NUL byte in the first 8KB means binary.
     const limit = Math.min(bytes.length, 8192);
     for (let i = 0; i < limit; i++) {
         if (bytes[i] === 0) return true;

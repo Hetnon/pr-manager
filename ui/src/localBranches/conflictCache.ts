@@ -1,88 +1,90 @@
-import type { LocalRepoSnapshot } from './readLocalRepo.js';
-import type { LocalConflictReport } from './checkLocalConflicts.js';
 import { makeFsApiFs } from '../repo/fsApiAdapter.js';
 
-const CACHE_FILE = '/.tech_lead/conflicts.json';
+const CACHE_FILE = '/.tech_lead/cache.json';
 const GIT_EXCLUDE = '/.git/info/exclude';
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 
-interface CachePayload {
-    version: number;
-    savedAt: string;
-    defaultBranch: string;
-    defaultSha: string;
-    branchShas: Record<string, string>;  // name → sha for every non-default branch in the snapshot
-    report: LocalConflictReport;
+export type PairVerdict = 'clean' | 'conflict' | 'unknown';
+
+// Granular cache of pure-function results. Each entry is keyed by the SHAs it
+// depends on, so it's always valid as long as the SHAs match — no staleness
+// checks needed. Deleting one branch doesn't invalidate cache entries that
+// don't involve it.
+export class ConflictCache {
+    // (branch.sha + default.sha) → merge-base sha
+    mergeBases = new Map<string, string>();
+    // (branch.sha + base.sha) → files the branch changed vs base
+    branchFiles = new Map<string, string[]>();
+    // (default.sha + base.sha) → files default changed vs base
+    defaultSinceBase = new Map<string, string[]>();
+    // (sorted sha pair + filepath) → 3-way merge verdict
+    pairResults = new Map<string, PairVerdict>();
+
+    hits = 0;
+    misses = 0;
+
+    mergeBaseKey(branchSha: string, defaultSha: string): string {
+        return `${branchSha}|${defaultSha}`;
+    }
+    branchFilesKey(branchSha: string, baseSha: string): string {
+        return `${branchSha}|${baseSha}`;
+    }
+    defaultSinceBaseKey(defaultSha: string, baseSha: string): string {
+        return `${defaultSha}|${baseSha}`;
+    }
+    pairResultKey(shaA: string, shaB: string, file: string): string {
+        const [first, second] = shaA < shaB ? [shaA, shaB] : [shaB, shaA];
+        return `${first}|${second}|${file}`;
+    }
 }
 
-// Returns a cached report iff every non-default branch in the current snapshot
-// still points at the same sha recorded in the cache. Any change (new branch,
-// removed branch, sha moved) invalidates — caller falls back to a fresh run.
-export async function loadCachedReport(
-    handle: FileSystemDirectoryHandle,
-    snapshot: LocalRepoSnapshot,
-): Promise<{ report: LocalConflictReport; savedAt: string } | null> {
-    if (!snapshot.defaultBranch) return null;
+interface CacheShape {
+    version: number;
+    savedAt: string;
+    mergeBases: Record<string, string>;
+    branchFiles: Record<string, string[]>;
+    defaultSinceBase: Record<string, string[]>;
+    pairResults: Record<string, PairVerdict>;
+}
+
+export async function loadCache(handle: FileSystemDirectoryHandle): Promise<ConflictCache> {
     const fs = makeFsApiFs(handle);
+    const cache = new ConflictCache();
     let text: string;
     try {
         text = (await fs.promises.readFile(CACHE_FILE, { encoding: 'utf8' })) as string;
     } catch {
-        return null;
+        return cache;
     }
-    let cached: CachePayload;
+    let parsed: CacheShape;
     try {
-        cached = JSON.parse(text) as CachePayload;
+        parsed = JSON.parse(text) as CacheShape;
     } catch {
-        return null;
+        return cache;
     }
-    if (cached.version !== CACHE_VERSION) return null;
-    if (cached.defaultBranch !== snapshot.defaultBranch) return null;
-
-    const currentShas = collectBranchShas(snapshot);
-    const cachedShas = cached.branchShas;
-    if (Object.keys(currentShas).length !== Object.keys(cachedShas).length) return null;
-    for (const [name, sha] of Object.entries(currentShas)) {
-        if (cachedShas[name] !== sha) return null;
-    }
-    if (cached.defaultSha !== cached.report.defaultSha) return null; // sanity
-
-    // Validate the default branch sha — find it in the snapshot.
-    const defaultBranchEntry = snapshot.branches.find((b) => b.name === snapshot.defaultBranch);
-    if (!defaultBranchEntry || defaultBranchEntry.sha !== cached.defaultSha) return null;
-
-    return { report: cached.report, savedAt: cached.savedAt };
+    if (parsed.version !== CACHE_VERSION) return cache; // start fresh on version bump
+    for (const [k, v] of Object.entries(parsed.mergeBases ?? {})) cache.mergeBases.set(k, v);
+    for (const [k, v] of Object.entries(parsed.branchFiles ?? {})) cache.branchFiles.set(k, v);
+    for (const [k, v] of Object.entries(parsed.defaultSinceBase ?? {})) cache.defaultSinceBase.set(k, v);
+    for (const [k, v] of Object.entries(parsed.pairResults ?? {})) cache.pairResults.set(k, v);
+    return cache;
 }
 
-export async function saveCachedReport(
-    handle: FileSystemDirectoryHandle,
-    snapshot: LocalRepoSnapshot,
-    report: LocalConflictReport,
-): Promise<void> {
+export async function saveCache(handle: FileSystemDirectoryHandle, cache: ConflictCache): Promise<void> {
     const fs = makeFsApiFs(handle);
     await ensureExcludeEntry(handle);
     try {
         await fs.promises.mkdir('/.tech_lead');
-    } catch { /* mkdir is idempotent in our adapter (create:true on each segment); ignore anyway */ }
-    const payload: CachePayload = {
+    } catch { /* idempotent */ }
+    const shape: CacheShape = {
         version: CACHE_VERSION,
         savedAt: new Date().toISOString(),
-        defaultBranch: snapshot.defaultBranch ?? '',
-        defaultSha: report.defaultSha,
-        branchShas: collectBranchShas(snapshot),
-        report,
+        mergeBases: Object.fromEntries(cache.mergeBases),
+        branchFiles: Object.fromEntries(cache.branchFiles),
+        defaultSinceBase: Object.fromEntries(cache.defaultSinceBase),
+        pairResults: Object.fromEntries(cache.pairResults),
     };
-    await fs.promises.writeFile(CACHE_FILE, JSON.stringify(payload));
-}
-
-function collectBranchShas(snapshot: LocalRepoSnapshot): Record<string, string> {
-    const out: Record<string, string> = {};
-    for (const b of snapshot.branches) {
-        if (b.name === snapshot.defaultBranch) continue;
-        if (!b.sha) continue;
-        out[b.name] = b.sha;
-    }
-    return out;
+    await fs.promises.writeFile(CACHE_FILE, JSON.stringify(shape));
 }
 
 // Append `.tech_lead/` to .git/info/exclude (local-only ignore; never tracked).
@@ -92,9 +94,7 @@ async function ensureExcludeEntry(handle: FileSystemDirectoryHandle): Promise<vo
     let current = '';
     try {
         current = (await fs.promises.readFile(GIT_EXCLUDE, { encoding: 'utf8' })) as string;
-    } catch {
-        // File missing — that's fine, we'll create it.
-    }
+    } catch { /* file missing — we'll create it */ }
     const lines = current.split(/\r?\n/);
     if (lines.some((l) => l.trim() === '.tech_lead/' || l.trim() === '.tech_lead')) return;
     const sep = current.length === 0 || current.endsWith('\n') ? '' : '\n';

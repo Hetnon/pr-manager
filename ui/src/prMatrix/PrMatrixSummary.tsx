@@ -1,4 +1,4 @@
-import styles from './PrMatrix.module.css';
+import styles from '../matrix/Matrix.module.css';
 
 interface Props {
     safeCount: number;

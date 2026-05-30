@@ -15,7 +15,7 @@ const firebaseConfigPath = path.resolve(pathToFirebaseRoot, 'firebase.json');
 
 // Shared snapshot dir across all boilerplate-derived repos so multiple projects
 // can run against the same emulator on :8080 with isolated, persisted data.
-// Each project sets a distinct GOOGLE_CLOUD_PROJECT in its .env.dev; the
+// Each project sets a distinct GOOGLE_CLOUD_PROJECT in its dev env file; the
 // emulator namespaces collections by project ID inside this one snapshot folder.
 // Override the location with FIRESTORE_EMULATOR_DATA_DIR.
 const dataDir = process.env.FIRESTORE_EMULATOR_DATA_DIR
@@ -26,7 +26,25 @@ const importPath = path.resolve(dataDir, 'firebase-data');
 // any repo. The spawning project owns the log file for that emulator session.
 const logsDir = path.resolve(dataDir, 'logs');
 
+// The emulator runs under whichever project the app uses (GOOGLE_CLOUD_PROJECT, set in
+// the dev env file), so each repo gets its own namespace in the shared emulator and
+// never collides with another. No fallback on purpose: two repos silently defaulting to
+// the same name would scribble over each other's data in the shared snapshot, so a
+// missing value is a hard error the dev must fix, not a silent default.
+function requireEmulatorProjectId() {
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+    if (!projectId) {
+        throw new Error(
+            'GOOGLE_CLOUD_PROJECT is not set — the Firestore emulator needs a unique per-project ' +
+            'namespace so projects sharing the emulator do not collide. Set it in your dev env file ' +
+            '(convention: dev-<gcp-project-id>).'
+        );
+    }
+    return projectId;
+}
+
 export async function firestoreEmulatorUp() {
+    requireEmulatorProjectId(); // fail fast if the per-project namespace is missing
     const isEmulatorRunning = await checkFirestoreReady();
     if (isEmulatorRunning) {
         setTimedSavesForFirestoreEmulator();
@@ -46,17 +64,14 @@ async function spawnFirebase() {
     // --export-on-exit pins any auto-export to the shared snapshot folder.
     // Launch from logsDir so the CLI's hardcoded firestore-debug.log lands there;
     // everything else passed by absolute path so the CWD doesn't matter.
-    const cmdLine = `cd /d "${logsDir}" && firebase emulators:start --config "${firebaseConfigPath}" --project=demo-project --import="${importPath}" --export-on-exit="${importPath}"`;
-    const args = [
-        '/c',
-        'start',
-        '""', // Empty title is important
-        'cmd',
-        '/k',
-        `"${cmdLine}"`
-    ];
+    const cmdLine = `cd /d "${logsDir}" && firebase emulators:start --config "${firebaseConfigPath}" --project=${requireEmulatorProjectId()} --import="${importPath}" --export-on-exit="${importPath}"`;
+    // `start ""` opens a new terminal window (empty title) running `cmd /k <cmdLine>`
+    // so it stays open. Pass the whole thing as one shell string: an args array with
+    // shell:true is deprecated (DEP0190) since the args are only concatenated, not
+    // escaped — this builds that same concatenation explicitly.
+    const command = `cmd.exe /c start "" cmd /k "${cmdLine}"`;
 
-    spawn('cmd.exe', args, {
+    spawn(command, {
         shell: true,
         detached: true,
         stdio: 'ignore'
@@ -108,7 +123,7 @@ function setTimedSavesForFirestoreEmulator() {
     // race, but the destination and source are both shared, so it's a benign
     // last-write-wins.
     saveInterval = setInterval(() => {
-        exec(`firebase emulators:export "${importPath}" --force --project=demo-project`,
+        exec(`firebase emulators:export "${importPath}" --force --project=${requireEmulatorProjectId()}`,
             {cwd: logsDir, shell: true},
             (err, stdout, stderr) => {
             if (err) {

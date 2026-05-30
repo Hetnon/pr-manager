@@ -1,0 +1,230 @@
+/* Reusable PR/branch overlap matrix, built from divs + flexbox (no <table>).
+
+   Layout model
+   ------------
+   Three column groups: a fixed-width label column, a spanning status column,
+   then one fixed-width column per entity (PR / branch).
+   - The header is laid out COLUMN-major (a stack per column) so the status
+     header ("Safe?") spans every meta row, the way a table rowSpan used to.
+   - The footer row and the body file rows are laid out ROW-major.
+   These two layouts line up because every column has a FIXED width (the vars
+   below) and the header rows have FIXED heights — so column-major and row-major
+   resolve to identical column/row geometry.
+
+   Gridlines
+   ---------
+   Each container sets `gap: 1px` over a grid-colored `background`, and every
+   leaf cell paints its own background. The 1px gaps between cells show the grid
+   color through — single, collapsed-looking gridlines without any borders. */
+
+.matrix {
+  --label-col-w: 300px;
+  --status-col-w: 60px;
+  --col-w: 160px;
+  --header-row-h: 38px;
+  --meta-row-h: 22px;
+  --grid: #d0d7de;
+  --header-bg: #f6f8fa;
+  --meta-bg: #fafbfc;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: max-content;
+  background: var(--grid);
+  border: 1px solid var(--grid);
+  font-size: 13px;
+  color: #24292f;
+}
+
+/* ---- Header (column-major) ---- */
+.headerBlock { display: flex; gap: 1px; background: var(--grid); align-items: stretch; }
+
+.labelColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--grid);
+  flex: 0 0 var(--label-col-w);
+}
+
+.rowLabel {
+  background: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6e7781;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cornerLabel { height: var(--header-row-h); }
+.metaLabel { height: var(--meta-row-h); }
+
+.statusHeader {
+  flex: 0 0 var(--status-col-w);
+  background: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 600;
+}
+
+.columns { display: flex; gap: 1px; background: var(--grid); }
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--grid);
+  /* A flex item's default `min-width: auto` lets wide content (long branch
+     names / titles) push the column past its basis, so header columns would
+     drift wider than the fixed-width body cells. `min-width: 0` + clipping
+     pins every column to exactly --col-w so header and body line up. */
+  flex: 0 0 var(--col-w);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.colHeader {
+  height: var(--header-row-h);
+  line-height: var(--header-row-h);
+  background: var(--header-bg);
+  padding: 0 8px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.colHeader a { color: #0969da; text-decoration: none; font-weight: 600; }
+.colHeader a:hover { text-decoration: underline; }
+
+.metaCell {
+  height: var(--meta-row-h);
+  background: var(--meta-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+/* Meta-cell text variants (composed by the adapters onto a node inside metaCell). */
+.metaContent {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #57606a;
+}
+.branch { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #6e7781; }
+.author { font-weight: 500; color: #24292f; }
+.title { font-style: italic; }
+.timestamp { color: #57606a; }
+
+/* Entity-header tints */
+.prSafe { background: #dafbe1; }
+.prConflict { background: #ffebe9; }
+
+/* ---- Footer toggle row (row-major) ---- */
+.footerRow { display: flex; gap: 1px; background: var(--grid); }
+.footerLabel {
+  background: var(--header-bg);
+  align-items: flex-start;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.footerCell {
+  flex: 0 0 var(--col-w);
+  background: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.triangle { width: 10px; text-align: center; font-size: 9px; color: #6e7781; }
+
+/* ---- Body file rows (row-major) ---- */
+.body { display: flex; flex-direction: column; gap: 1px; background: var(--grid); }
+.fileRow { display: flex; gap: 1px; background: var(--grid); align-items: stretch; }
+
+.fileCell {
+  flex: 0 0 var(--label-col-w);
+  min-width: 0;
+  overflow: hidden;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 10px;
+  text-align: left;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+.filePath { overflow-wrap: anywhere; }
+
+.statusCell {
+  flex: 0 0 var(--status-col-w);
+  background: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--meta-row-h);
+  font-weight: 600;
+}
+.bodyCell {
+  flex: 0 0 var(--col-w);
+  min-width: 0;
+  overflow: hidden;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--meta-row-h);
+}
+
+/* Status + per-cell states */
+.safe { color: #1f883d; background: #dafbe1; }
+.conflict { color: #cf222e; background: #ffebe9; }
+.hit { color: #1f883d; font-size: 16px; font-weight: bold; }
+.miss { color: #d0d7de; }
+.cellConflict { color: white; background: #cf222e; font-size: 14px; }
+.cellWarning { color: #24292f; background: #fff8c5; font-size: 14px; }
+
+/* File heat tints */
+.heat1 { background: white; }
+.heatIdentical { background: #ddf4ff; }
+.heatWarning { background: #fff8c5; }
+.heatConflict { background: #ffcecb; }
+
+/* Identical-content status glyph/cell */
+.identical { color: #0969da; background: #ddf4ff; }
+
+/* Summary line shown above the matrix (rendered by the adapters). */
+.summary {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 14px;
+}

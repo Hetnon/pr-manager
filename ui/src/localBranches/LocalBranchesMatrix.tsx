@@ -1,8 +1,10 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import styles from '../prMatrix/PrMatrix.module.css';
+import { useMemo, useState } from 'react';
+import styles from '../matrix/Matrix.module.css';
+import Matrix, { type MatrixColumn, type MatrixFileRow } from '../matrix/Matrix.js';
 import type { LocalBranch } from './readLocalRepo.js';
 import type { BranchChanges, BranchGroup } from './checkLocalConflicts.js';
-import type { FileSeverity } from './lineLevelConflicts.js';
+import type { FileConflictDetail, FileSeverity } from './lineLevelConflicts.js';
+import type { LineRange } from './conflictCache.js';
 
 interface Props {
     defaultBranch: string;
@@ -12,18 +14,17 @@ interface Props {
     // one group via canonical === branchChange.branch. When omitted, every
     // column is treated as a 1-branch group.
     branchGroups?: BranchGroup[];
-    // Per-file line-level severity from the conflict report. If omitted, falls
-    // back to file-level coloring (multi-branch = pink, no warning tier).
-    fileSeverity?: Record<string, FileSeverity>;
+    // Per-file 3-way-merge detail from the conflict report. When omitted, falls
+    // back to presence-only coloring (multi-branch = warning).
+    fileDetail?: Record<string, FileConflictDetail>;
 }
 
 interface MatrixData {
     columns: BranchChanges[];
     files: Array<[string, Set<string>]>;
-    branchSafe: Map<string, boolean>;
-    safeCount: number;
-    hotFileCount: number;
 }
+
+const META_LABELS = ['HEAD', 'Author', 'Last commit', 'When'];
 
 function buildBranchMatrix(branchChanges: BranchChanges[]): MatrixData {
     const usable = branchChanges.filter((b) => !b.error && b.files.length > 0);
@@ -39,32 +40,59 @@ function buildBranchMatrix(branchChanges: BranchChanges[]): MatrixData {
         if (b[1].size !== a[1].size) return b[1].size - a[1].size;
         return a[0].localeCompare(b[0]);
     });
-    const branchSafe = new Map<string, boolean>();
-    for (const b of columns) {
-        const sharesAny = b.files.some((f) => (fileToBranches.get(f)?.size ?? 0) > 1);
-        branchSafe.set(b.branch, !sharesAny);
-    }
-    return {
-        columns,
-        files,
-        branchSafe,
-        safeCount: [...branchSafe.values()].filter(Boolean).length,
-        hotFileCount: files.filter(([, b]) => b.size > 1).length,
-    };
+    return { columns, files };
 }
 
-// Maps a file's line-level severity to a heat class. Without a severity map,
-// falls back to the file-level rule (multi-branch = heatConflict).
-function severityOf(file: string, safe: boolean, fileSeverity?: Record<string, FileSeverity>): FileSeverity {
-    if (safe) return 'safe';
-    if (!fileSeverity) return 'conflict';
-    return fileSeverity[file] ?? 'conflict';
+// File severity with a presence-only fallback for when detail is unavailable.
+function severityOf(file: string, touchingCount: number, fileDetail?: Record<string, FileConflictDetail>): FileSeverity {
+    return fileDetail?.[file]?.severity ?? (touchingCount > 1 ? 'warning' : 'safe');
 }
 
 function heatFor(severity: FileSeverity): string {
-    if (severity === 'safe') return styles.heat1;
+    if (severity === 'conflict') return styles.heatConflict;
     if (severity === 'warning') return styles.heatWarning;
-    return styles.heatConflict;
+    if (severity === 'identical') return styles.heatIdentical;
+    return styles.heat1;
+}
+
+function fmtRanges(ranges: LineRange[]): string {
+    if (ranges.length === 0) return 'whole file';
+    return ranges.map(([start, end]) => (start === end ? `${start}` : `${start}–${end}`)).join(', ');
+}
+
+// Human-readable hover text explaining a multi-touch file: the verdict, where
+// genuine conflicts land, and what each branch changed.
+function describeFile(detail: FileConflictDetail | undefined, branchesTouching: string[]): string | undefined {
+    if (!detail || detail.severity === 'safe') return undefined;
+
+    if (detail.severity === 'identical') {
+        const group = detail.identicalGroups?.[0] ?? branchesTouching;
+        return `Identical content across ${group.length} branches:\n${group.join('\n')}\n\nMerging one makes the others no-ops for this file.`;
+    }
+
+    const lines: string[] = [];
+    if (detail.severity === 'conflict') {
+        lines.push('Real merge conflict on this file:');
+        for (const conflict of detail.conflicts) {
+            lines.push(`  ${conflict.a} ✗ ${conflict.b} — base lines ${fmtRanges(conflict.regions)}`);
+        }
+    } else {
+        lines.push(`Touched by ${branchesTouching.length} branches, but the changes don't overlap (clean 3-way merge).`);
+    }
+
+    if (detail.edits.length > 0) {
+        lines.push('', 'Each branch changes:');
+        for (const edit of detail.edits) {
+            if (edit.headMissing) lines.push(`  ${edit.branch}: deletes the file`);
+            else if (edit.binary) lines.push(`  ${edit.branch}: binary change`);
+            else lines.push(`  ${edit.branch}: lines ${fmtRanges(edit.ranges)}`);
+        }
+    }
+
+    for (const group of detail.identicalGroups ?? []) {
+        lines.push('', `Identical content in: ${group.join(', ')} (redundant — drop from all but one)`);
+    }
+    return lines.join('\n');
 }
 
 function formatRelative(iso: string | undefined): string {
@@ -77,152 +105,120 @@ function formatRelative(iso: string | undefined): string {
     return `${Math.round(days / 365)}y ago`;
 }
 
-export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges, branchGroups, fileSeverity }: Props) {
-    const [expanded, setExpanded] = useState(true);
-    const [fileColWidth, setFileColWidth] = useState<number | null>(null);
-    const fileColRef = useRef<HTMLTableHeaderCellElement>(null);
-    const matrix = useMemo(() => buildBranchMatrix(branchChanges), [branchChanges]);
+const STATUS_GLYPH: Record<FileSeverity, (count: number) => string> = {
+    safe: () => '✓',
+    identical: (count) => `= ${count}`,
+    warning: (count) => `⚠ ${count}`,
+    conflict: (count) => `✗ ${count}`,
+};
+const STATUS_CLASS: Record<FileSeverity, string> = {
+    safe: styles.safe,
+    identical: styles.identical,
+    warning: styles.heatWarning,
+    conflict: styles.conflict,
+};
 
-    useLayoutEffect(() => {
-        if (expanded && fileColRef.current) {
-            setFileColWidth(fileColRef.current.getBoundingClientRect().width);
-        }
-    }, [expanded, branchChanges]);
+export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges, branchGroups, fileDetail }: Props) {
+    const [expanded, setExpanded] = useState(true);
+    const matrix = useMemo(() => buildBranchMatrix(branchChanges), [branchChanges]);
 
     if (matrix.columns.length === 0) {
         return <p className={styles.summary}>No branches with changes vs <code>{defaultBranch}</code>.</p>;
     }
 
+    // A branch is "in conflict" only if it actually participates in a conflicting
+    // pair somewhere — identical/non-overlapping overlaps don't count.
+    const conflictBranches = new Set<string>();
+    let conflictFiles = 0;
+    let warningFiles = 0;
+    let identicalFiles = 0;
+    for (const [file, branchSet] of matrix.files) {
+        const severity = severityOf(file, branchSet.size, fileDetail);
+        if (severity === 'conflict') conflictFiles++;
+        else if (severity === 'warning') warningFiles++;
+        else if (severity === 'identical') identicalFiles++;
+        for (const conflict of fileDetail?.[file]?.conflicts ?? []) {
+            conflictBranches.add(conflict.a);
+            conflictBranches.add(conflict.b);
+        }
+    }
+    const branchSafe = (branch: string) => !conflictBranches.has(branch);
+    const safeCount = matrix.columns.filter((c) => branchSafe(c.branch)).length;
+
     const headByBranch = new Map(branches.map((b) => [b.name, b]));
     const groupByCanonical = new Map((branchGroups ?? []).map((g) => [g.canonical, g]));
-    const fileColStyle = fileColWidth ? { minWidth: `${fileColWidth}px` } : undefined;
+
+    const columns: MatrixColumn[] = matrix.columns.map((col) => {
+        const safe = branchSafe(col.branch);
+        const group = groupByCanonical.get(col.branch);
+        const extras = group && group.branches.length > 1 ? group.branches.length - 1 : 0;
+        const tooltip = group && group.branches.length > 1
+            ? `Identical (same HEAD) branches:\n${group.branches.join('\n')}`
+            : col.branch;
+        const head = headByBranch.get(col.branch)?.head;
+        return {
+            key: col.branch,
+            header: (
+                <>
+                    <code>{col.branch}</code>
+                    {extras > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: '#57606a' }}>(+{extras})</span>}
+                </>
+            ),
+            headerClassName: safe ? styles.prSafe : styles.prConflict,
+            headerTitle: tooltip,
+            meta: [
+                <div className={`${styles.metaContent} ${styles.branch}`} title={col.sha}>{col.sha.slice(0, 8)}</div>,
+                <div className={`${styles.metaContent} ${styles.author}`} title={head ? `${head.authorName} <${head.authorEmail}>` : ''}>{head?.authorName ?? '—'}</div>,
+                <div className={`${styles.metaContent} ${styles.title}`} title={head?.message ?? ''}>{head?.message ?? '—'}</div>,
+                <div className={`${styles.metaContent} ${styles.timestamp}`} title={head ? new Date(head.date).toLocaleString() : ''}>{head ? formatRelative(head.date) : '—'}</div>,
+            ],
+            footer: safe ? '✓' : '✗',
+            footerClassName: safe ? styles.safe : styles.conflict,
+        };
+    });
+
+    const fileRows: MatrixFileRow[] = matrix.files.map(([filePath, branchSet]) => {
+        const detail = fileDetail?.[filePath];
+        const severity = severityOf(filePath, branchSet.size, fileDetail);
+        const heat = heatFor(severity);
+        const branchesTouching = [...branchSet].sort();
+        // Branches whose content is identical to another touching branch's: their
+        // cells go identical-blue even when the file overall is warning/conflict
+        // (e.g. 2 of 3 branches match — those two are blue, the odd one keeps the
+        // warning/conflict color).
+        const identical = new Set((detail?.identicalGroups ?? []).flat());
+        return {
+            key: filePath,
+            label: filePath,
+            labelTitle: filePath,
+            labelClassName: heat,
+            status: STATUS_GLYPH[severity](branchSet.size),
+            statusClassName: STATUS_CLASS[severity],
+            statusTitle: describeFile(detail, branchesTouching),
+            cells: matrix.columns.map((col) => {
+                if (!branchSet.has(col.branch)) return { content: null, className: styles.miss };
+                const cellClass = identical.has(col.branch) ? styles.identical : heat;
+                return { content: '●', className: `${styles.hit} ${cellClass}` };
+            }),
+        };
+    });
 
     return (
         <>
             <div className={styles.summary}>
-                <strong>{matrix.safeCount}</strong> of <strong>{matrix.columns.length}</strong> branch(es)
-                touch files no other branch touches. Hot files: {matrix.hotFileCount}
+                <strong>{safeCount}</strong> of <strong>{matrix.columns.length}</strong> branch(es) have no real conflicts.
+                {' '}Conflicts: <strong>{conflictFiles}</strong> file(s) · Review: {warningFiles} · Identical: {identicalFiles}
                 {' · '}vs <code>{defaultBranch}</code>
             </div>
-            <table className={styles.matrix}>
-                <thead>
-                    <tr>
-                        <th ref={fileColRef} className={`${styles.fileCol} ${styles.rowLabel}`} style={fileColStyle}>Branch</th>
-                        <th rowSpan={5} className={styles.statusCol}>Safe?</th>
-                        {matrix.columns.map((col) => {
-                            const safe = matrix.branchSafe.get(col.branch);
-                            const group = groupByCanonical.get(col.branch);
-                            const extras = group && group.branches.length > 1 ? group.branches.length - 1 : 0;
-                            const tooltip = group && group.branches.length > 1
-                                ? `Identical (same HEAD) branches:\n${group.branches.join('\n')}`
-                                : col.branch;
-                            return (
-                                <th
-                                    key={col.branch}
-                                    className={`${styles.prCol} ${safe ? styles.prSafe : styles.prConflict}`}
-                                    title={tooltip}
-                                >
-                                    <code>{col.branch}</code>
-                                    {extras > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: '#57606a' }}>(+{extras})</span>}
-                                </th>
-                            );
-                        })}
-                    </tr>
-                    <tr className={styles.prMetaRow}>
-                        <th className={`${styles.fileCol} ${styles.rowLabel}`}>HEAD</th>
-                        {matrix.columns.map((col) => (
-                            <td key={col.branch} className={styles.prMetaCell}>
-                                <div className={`${styles.prMetaContent} ${styles.branch}`} title={col.sha}>
-                                    {col.sha.slice(0, 8)}
-                                </div>
-                            </td>
-                        ))}
-                    </tr>
-                    <tr className={styles.prMetaRow}>
-                        <th className={`${styles.fileCol} ${styles.rowLabel}`}>Author</th>
-                        {matrix.columns.map((col) => {
-                            const head = headByBranch.get(col.branch)?.head;
-                            return (
-                                <td key={col.branch} className={styles.prMetaCell}>
-                                    <div className={`${styles.prMetaContent} ${styles.author}`} title={head ? `${head.authorName} <${head.authorEmail}>` : ''}>
-                                        {head?.authorName ?? '—'}
-                                    </div>
-                                </td>
-                            );
-                        })}
-                    </tr>
-                    <tr className={styles.prMetaRow}>
-                        <th className={`${styles.fileCol} ${styles.rowLabel}`}>Last commit</th>
-                        {matrix.columns.map((col) => {
-                            const head = headByBranch.get(col.branch)?.head;
-                            return (
-                                <td key={col.branch} className={styles.prMetaCell}>
-                                    <div className={`${styles.prMetaContent} ${styles.title}`} title={head?.message ?? ''}>
-                                        {head?.message ?? '—'}
-                                    </div>
-                                </td>
-                            );
-                        })}
-                    </tr>
-                    <tr className={styles.prMetaRow}>
-                        <th className={`${styles.fileCol} ${styles.rowLabel}`}>When</th>
-                        {matrix.columns.map((col) => {
-                            const head = headByBranch.get(col.branch)?.head;
-                            return (
-                                <td key={col.branch} className={styles.prMetaCell}>
-                                    <div className={`${styles.prMetaContent} ${styles.timestamp}`} title={head ? new Date(head.date).toLocaleString() : ''}>
-                                        {head ? formatRelative(head.date) : '—'}
-                                    </div>
-                                </td>
-                            );
-                        })}
-                    </tr>
-                    <tr className={styles.footerRow}>
-                        <th className={`${styles.fileCol} ${styles.rowLabel}`}>
-                            <button
-                                className={styles.rowToggle}
-                                onClick={() => setExpanded((v) => !v)}
-                                aria-expanded={expanded}
-                                title={expanded ? 'Hide file rows' : 'Show file rows'}
-                            >
-                                <span className={styles.triangle}>{expanded ? '▼' : '▶'}</span>
-                                <strong>Good to merge? ({matrix.files.length} files)</strong>
-                            </button>
-                        </th>
-                        <td className={styles.statusCell} />
-                        {matrix.columns.map((col) => {
-                            const safe = matrix.branchSafe.get(col.branch);
-                            return <td key={col.branch} className={`${styles.statusCell} ${safe ? styles.safe : styles.conflict}`}>{safe ? '✓' : '✗'}</td>;
-                        })}
-                    </tr>
-                </thead>
-                {expanded && (
-                    <tbody>
-                        {matrix.files.map(([filePath, branchSet]) => {
-                            const safe = branchSet.size === 1;
-                            const severity = severityOf(filePath, safe, fileSeverity);
-                            const heat = heatFor(severity);
-                            const statusGlyph = safe ? '✓' : severity === 'warning' ? `⚠ ${branchSet.size}` : `✗ ${branchSet.size}`;
-                            const statusCls = safe ? styles.safe : severity === 'warning' ? '' : styles.conflict;
-                            return (
-                                <tr key={filePath}>
-                                    <td className={`${styles.fileCell} ${heat}`} title={filePath}>
-                                        <div>{filePath}</div>
-                                    </td>
-                                    <td className={`${styles.statusCell} ${statusCls} ${severity === 'warning' ? heat : ''}`}>
-                                        {statusGlyph}
-                                    </td>
-                                    {matrix.columns.map((col) => (
-                                        branchSet.has(col.branch)
-                                            ? <td key={col.branch} className={`${styles.hit} ${heat}`}>●</td>
-                                            : <td key={col.branch} className={styles.miss} />
-                                    ))}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                )}
-            </table>
+            <Matrix
+                cornerLabel="Branch"
+                metaLabels={META_LABELS}
+                columns={columns}
+                footerLabel={<strong>Good to merge? ({matrix.files.length} files)</strong>}
+                files={fileRows}
+                expanded={expanded}
+                onToggle={() => setExpanded((v) => !v)}
+            />
         </>
     );
 }

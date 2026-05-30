@@ -110,11 +110,13 @@ async function initializeServer(): Promise<void> {
         const { mergePr } = await import('./routes/prs/mergePr/mergePr.js');
         const { checkMasterConflicts } = await import('./routes/prs/checkMasterConflicts/checkMasterConflicts.js');
         const { createPr } = await import('./routes/prs/createPr/createPr.js');
+        const { closePr } = await import('./routes/prs/closePr/closePr.js');
         const { deleteBranch } = await import('./routes/prs/deleteBranch/deleteBranch.js');
         app.get('/api/prs', validateUser, listPrs);
         app.post('/api/merge-pr', validateUser, mergePr);
         app.post('/api/master-conflicts', validateUser, checkMasterConflicts);
         app.post('/api/create-pr', validateUser, createPr);
+        app.post('/api/close-pr', validateUser, closePr);
         app.post('/api/delete-branch', validateUser, deleteBranch);
 
         // Git smart-HTTP proxy — forwards browser-side isomorphic-git pushes to

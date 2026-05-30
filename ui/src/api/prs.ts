@@ -2,6 +2,7 @@ import { apiFetch } from './client.js';
 import type { PR } from '@shared/pr.js';
 import type { MergeStrategy, MergePrResult } from '@shared/merge.js';
 import type { CheckConflictsResponse } from '@shared/conflicts.js';
+import type { ClosePrResult } from '@shared/git.js';
 
 export function listPrs(owner: string, repo: string): Promise<PR[]> {
     return apiFetch<PR[]>('/api/prs', { query: { owner, repo } });
@@ -17,6 +18,14 @@ export function mergePr(
     return apiFetch<MergePrResult>('/api/merge-pr', {
         method: 'POST',
         body: { owner, repo, prNumber, strategy, deleteBranch },
+    });
+}
+
+// Closes a PR without merging (disregard it). GitHub has no delete; reopenable.
+export function closePr(owner: string, repo: string, prNumber: number): Promise<ClosePrResult> {
+    return apiFetch<ClosePrResult>('/api/close-pr', {
+        method: 'POST',
+        body: { owner, repo, prNumber },
     });
 }
 

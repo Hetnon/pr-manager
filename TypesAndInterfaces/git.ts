@@ -14,3 +14,9 @@ export interface CreatePrResult {
     number: number;
     url: string;
 }
+
+// Result of POST /api/close-pr. GitHub has no "delete PR" — closing is the
+// equivalent (disregard without merging; reopenable on GitHub).
+export type ClosePrResult =
+    | { ok: true; number: number }
+    | { ok: false; error: string };

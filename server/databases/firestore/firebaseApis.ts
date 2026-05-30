@@ -3,6 +3,7 @@ import type { Firestore, CollectionReference, DocumentData } from 'firebase-admi
 import { firestoreEmulatorUp } from './setupAndRun/runFirebase.js';
 import { getFirestore } from 'firebase-admin/firestore';
 import { requireParam } from '../../utils/requireParam/requireParam.js';
+import { isProduction } from '../../config.js';
 
 const firebaseEnvironments: Record<string, { initializationFunction: (key?: string | null) => Promise<void> }> = {
     'production': { initializationFunction: async (localProductionKeyPath) => await productionFirestoreInitialization(localProductionKeyPath ?? null) },
@@ -80,16 +81,58 @@ async function initializeFirebase(environment: string, localProductionKeyPath: s
 }
 
 async function developerFirestoreInitialization(): Promise<void> {
-    // Load service account from local file in development
     await firestoreEmulatorUp(); // Ensure Firestore emulator is running
-    // ② point every Admin-SDK call at the emulator
-    process.env.GOOGLE_CLOUD_PROJECT ||= 'demo-project';
+
+    // Dev/test ALWAYS talk to the local emulator — real Firestore must be unreachable
+    // here. firebase-admin only routes to the emulator when FIRESTORE_EMULATOR_HOST is
+    // set, so this assignment is the single thing keeping real Firestore out of dev.
     process.env.FIRESTORE_EMULATOR_HOST ||= 'localhost:8080';
-    admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT });
+    assertEmulatorHostIsLocal(process.env.FIRESTORE_EMULATOR_HOST);
+
+    // Each boilerplate-derived project uses a distinct GOOGLE_CLOUD_PROJECT so the
+    // shared emulator namespaces their data apart (convention: dev-<gcp-project-id>).
+    // Require it explicitly: a silent default ('demo-project') would merge every
+    // project's data into one partition, and the mismatch between that default and the
+    // .env value is exactly what makes emulator data look like it came from a real,
+    // foreign project. No default → misconfiguration fails loud instead of silently.
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+    if (!projectId) {
+        throw Object.assign(new Error(
+            'GOOGLE_CLOUD_PROJECT is not set. Dev/test needs a per-project emulator namespace ' +
+            '(convention: dev-<gcp-project-id>). Set it in server/.env.dev.'
+        ), { statusCode: 500 });
+    }
+
+    admin.initializeApp({ projectId });
     _db = admin.firestore();
 }
 
+// Guard against dev/test ever pointing at a remote Firestore. Only a loopback host is
+// the local emulator; anything else means FIRESTORE_EMULATOR_HOST was set to a real
+// endpoint, which would route writes to live data. Refuse rather than connect.
+function assertEmulatorHostIsLocal(emulatorHost: string): void {
+    const isLocal = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|::1)(:\d+)?$/i.test(emulatorHost);
+    if (!isLocal) {
+        throw Object.assign(new Error(
+            `Refusing to start dev/test against a non-local Firestore host "${emulatorHost}". ` +
+            'Dev must use the local emulator — point FIRESTORE_EMULATOR_HOST at localhost or unset it.'
+        ), { statusCode: 500 });
+    }
+}
+
 async function productionFirestoreInitialization(localProductionKeyPath: string | null): Promise<void> {
+    // Safety net: never connect to real Firestore unless the process actually booted in
+    // production. isProduction is frozen from NODE_ENV at module load, before any .env
+    // file can change it — so a dev server that later read NODE_ENV=production from an
+    // env file lands here by mistake. Refuse rather than touch live data.
+    if (!isProduction) {
+        throw Object.assign(new Error(
+            'Refusing to connect to real Firestore: the server did not boot in production ' +
+            '(isProduction=false) but the Firestore environment resolved to "production". ' +
+            'Check NODE_ENV in server/.env.dev / .env.shared — dev must stay on the emulator.'
+        ), { statusCode: 500 });
+    }
+
     let serviceAccount: unknown;
 
     if (localProductionKeyPath) {

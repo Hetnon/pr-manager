@@ -49,6 +49,7 @@ const routing: Record<string, string> = {
     createUserDB:           'firestore',
     deleteUserFirestore:    'firestore',
     updateUserFields:       'firestore',
+    getUser:                'firestore',
     getUserByGithubId:      'firestore',
     getUsersListDB:         'firestore',
 
@@ -92,6 +93,7 @@ export async function getSessionStore() {
 export const createUserDB           = (...args: unknown[]) => dispatch('createUserDB', args);
 export const deleteUserFirestore    = (...args: unknown[]) => dispatch('deleteUserFirestore', args);
 export const updateUserFields       = (...args: unknown[]) => dispatch('updateUserFields', args);
+export const getUser                = (...args: unknown[]) => dispatch('getUser', args);
 export const getUserByGithubId      = (...args: unknown[]) => dispatch('getUserByGithubId', args);
 export const getUsersListDB         = (...args: unknown[]) => dispatch('getUsersListDB', args);
 

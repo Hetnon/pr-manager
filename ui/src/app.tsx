@@ -10,7 +10,6 @@ import { useRepoSelection } from './repo/useRepoSelection.js';
 import LocalBranchesPanel from './localBranches/LocalBranchesPanel.js';
 import { listPrs } from './api/prs.js';
 import { ApiError } from './api/client.js';
-import PrMatrix from './prMatrix/PrMatrix.js';
 import DevActions from './report/DevActions.js';
 import MasterCheck from './masterCheck/MasterCheck.js';
 
@@ -102,7 +101,6 @@ function PrMatrixApp() {
                 {!contentError && parsed && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs…' : 'Loading…'}</p>}
                 {!contentError && parsed && Array.isArray(prs) && (
                     <>
-                        <PrMatrix prs={prs} />
                         <DevActions prs={prs} />
                         <MasterCheck prs={prs} owner={parsed.owner} repo={parsed.name} folderHandle={folderHandle} onMerged={() => void loadPRs()} />
                     </>

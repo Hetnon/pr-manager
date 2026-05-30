@@ -20,7 +20,9 @@ export async function firestoreSetupForTests(): Promise<void> {
         return;
     }
     process.env.NODE_ENV = 'development';
-    process.env.GOOGLE_CLOUD_PROJECT = 'demo-project';
+    // Project-specific test namespace so concurrent test runs from different repos
+    // don't collide on same-named collections in the shared emulator.
+    process.env.GOOGLE_CLOUD_PROJECT = 'test-pull-request-merger-manager';
     process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
     process.env.COOKIE_DOMAIN = 'localhost';
 

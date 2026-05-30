@@ -8,6 +8,13 @@ type Encoding = 'utf8' | 'utf-8' | undefined;
 interface ReadOpts { encoding?: Encoding }
 interface WriteOpts { encoding?: Encoding; mode?: number }
 
+// Node's fs accepts the encoding either as an options object (`{ encoding }`) or
+// as a bare string (`'utf8'`). isomorphic-git uses the string form (e.g. when
+// reading .gitignore), so we must accept both or text reads come back as binary.
+function encodingOf(opts: ReadOpts | WriteOpts | Encoding): Encoding {
+    return typeof opts === 'string' ? opts : opts?.encoding;
+}
+
 class StatsLike {
     type: 'file' | 'dir';
     mode: number;
@@ -31,13 +38,16 @@ class StatsLike {
 }
 
 function splitPath(p: string): string[] {
-    return p.replace(/^\/+/, '').replace(/\/+$/, '').split('/').filter(Boolean);
+    // Drop empty and `.` segments so `.`, `./`, `/`, and `''` all resolve to the
+    // repo root. isomorphic-git's working-tree walk lstats `.` for the root; only
+    // the literal `.` segment is dropped, so names like `.git`/`.gitignore` stay.
+    return p.replace(/^\/+/, '').replace(/\/+$/, '').split('/').filter((seg) => seg !== '' && seg !== '.');
 }
 
 export interface FsApiFs {
     promises: {
-        readFile(path: string, opts?: ReadOpts): Promise<Uint8Array | string>;
-        writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts): Promise<void>;
+        readFile(path: string, opts?: ReadOpts | Encoding): Promise<Uint8Array | string>;
+        writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts | Encoding): Promise<void>;
         unlink(path: string): Promise<void>;
         readdir(path: string): Promise<string[]>;
         mkdir(path: string): Promise<void>;
@@ -95,16 +105,17 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
 
     return {
         promises: {
-            async readFile(path: string, opts?: ReadOpts): Promise<Uint8Array | string> {
+            async readFile(path: string, opts?: ReadOpts | Encoding): Promise<Uint8Array | string> {
                 const fh = await getFile(path).catch(() => { throw new ENoEnt(path); });
                 const f = await fh.getFile();
-                if (opts?.encoding === 'utf8' || opts?.encoding === 'utf-8') {
+                const encoding = encodingOf(opts);
+                if (encoding === 'utf8' || encoding === 'utf-8') {
                     return await f.text();
                 }
                 return new Uint8Array(await f.arrayBuffer());
             },
 
-            async writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts): Promise<void> {
+            async writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts | Encoding): Promise<void> {
                 try {
                     const fh = await getFile(path, true);
                     const writable = await (fh as FileSystemFileHandle & {
@@ -114,8 +125,9 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
                         }>;
                     }).createWritable({ keepExistingData: false });
                     if (typeof data === 'string') {
-                        if (opts?.encoding && opts.encoding !== 'utf8' && opts.encoding !== 'utf-8') {
-                            throw new Error(`Unsupported encoding: ${opts.encoding}`);
+                        const encoding = encodingOf(opts);
+                        if (encoding && encoding !== 'utf8' && encoding !== 'utf-8') {
+                            throw new Error(`Unsupported encoding: ${encoding}`);
                         }
                         await writable.write(data);
                     } else {

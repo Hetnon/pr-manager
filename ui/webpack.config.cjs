@@ -108,7 +108,12 @@ module.exports = (_env, argv) => {
     devServer: {
       port: 7654,
       host: 'localhost',
-      hot: true,
+      // Hot-compile but DON'T auto-refresh the browser. webpack-dev-server still
+      // rebuilds the in-memory bundle on every save; with hot + liveReload off it
+      // never reloads the page, so you refresh manually to pick up changes — and
+      // whatever's on screen (used as a working reference) is never lost.
+      hot: false,
+      liveReload: false,
       historyApiFallback: true,
       // In dev, webpack-dev-server keeps the bundle in memory. We also expose
       // `public/` as a static directory so styles.css and other hand-written

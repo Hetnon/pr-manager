@@ -25,7 +25,7 @@ export default function Modal({
     maxWidth = 'sm',
     fullWidth = true,
     disableBackdropClose = false,
-}: Props) {
+}: Readonly<Props>) {
     return (
         <Dialog
             open={open}

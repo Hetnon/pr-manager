@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { requireParam, throwValidationError } from '../../utils/requireParam/requireParam.js';
 import {
+    getUser,
     getUserByGithubId,
     createUserDB,
     updateUserFields,
@@ -82,12 +83,19 @@ export async function githubCallback(req: Request, res: Response): Promise<void>
         throw Object.assign(new Error('Could not determine a verified email for this GitHub account'), { statusCode: 400 });
     }
 
-    // 3. Upsert user (look up by githubId so a changed email still finds them)
-    const existing = (await getUserByGithubId(ghUser.id)) as ExistingUser | null;
+    // 3. Upsert user. The email is the document id (primary key); githubId is a
+    //    secondary lookup so a changed email still resolves to the same record.
+    //    Check githubId first, then fall back to the email doc — otherwise a doc
+    //    that predates the githubId index would miss the lookup and we'd try to
+    //    create over an existing doc, which Firestore rejects with ALREADY_EXISTS.
+    const existing =
+        ((await getUserByGithubId(ghUser.id)) as ExistingUser | null) ??
+        ((await getUser(userEmail)) as ExistingUser | null);
     const recordEmail = existing?.userEmail ?? userEmail;
     if (existing) {
         await updateUserFields(recordEmail, {
             githubLogin: ghUser.login,
+            githubId: ghUser.id, // backfill for docs created before the githubId index existed
             name: ghUser.name ?? '',
             avatarUrl: ghUser.avatar_url,
             lastLogin: new Date().toISOString(),

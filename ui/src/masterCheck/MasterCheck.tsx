@@ -3,12 +3,11 @@ import type { PR } from '@shared/pr.js';
 import type { CheckConflictsResponse, MasterTouch, PairwisePrConflicts, PrGroup } from '@shared/conflicts.js';
 import type { MergePrResult } from '@shared/merge.js';
 import { buildMatrix } from '../lib/matrix.js';
-import { checkMasterConflicts as apiCheckConflicts, mergePr as apiMergePr } from '../api/prs.js';
+import { checkMasterConflicts as apiCheckConflicts, mergePr as apiMergePr, closePr as apiClosePr } from '../api/prs.js';
 import { fetchPrRefs } from './fetchPrRefs.js';
 import { computeBrowserPairwise } from './computeBrowserPairwise.js';
 import { queryFolderPermission } from '../repo/folderPermission.js';
-import PrMatrix from '../prMatrix/PrMatrix.js';
-import type { CellState } from '../prMatrix/PrMatrixBody.js';
+import PrMatrix, { type CellState } from '../prMatrix/PrMatrix.js';
 import styles from './MasterCheck.module.css';
 
 function formatRelativeShort(iso: string | undefined): string {
@@ -48,9 +47,11 @@ interface ConflictingPrsPanelProps {
     promoted: Set<number>;
     onToggle: (prNumber: number, on: boolean) => void;
     conflictsByPr: Map<number, Array<{ file: string; others: number[] }>>;
+    onClose: (prNumber: number) => void;
+    closingPr: number | null;
 }
 
-function ConflictingPrsPanel({ nonGreens, promoted, onToggle, conflictsByPr }: ConflictingPrsPanelProps) {
+function ConflictingPrsPanel({ nonGreens, promoted, onToggle, conflictsByPr, onClose, closingPr }: ConflictingPrsPanelProps) {
     return (
         <div style={{
             margin: '12px 0', padding: '12px 14px', background: '#fffbe6',
@@ -70,33 +71,44 @@ function ConflictingPrsPanel({ nonGreens, promoted, onToggle, conflictsByPr }: C
                             padding: '8px 0',
                             borderTop: '1px solid rgba(212, 167, 44, 0.3)',
                         }}>
-                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={isPromoted}
-                                    onChange={(e) => onToggle(pr.number, e.target.checked)}
-                                    style={{ marginTop: 3 }}
-                                />
-                                <div style={{ flex: 1, fontSize: 13 }}>
-                                    <div>
-                                        <a href={pr.url} target="_blank" rel="noreferrer"><strong>#{pr.number}</strong></a>
-                                        {' '}— {pr.title}{' '}
-                                        <span style={{ color: '#8c959f' }}>({pr.author.login} · <code>{pr.headRefName}</code>)</span>
-                                        {isPromoted && (
-                                            <span style={{ marginLeft: 8, fontSize: 11, color: '#1a7f37', fontWeight: 600 }}>
-                                                ✓ promoted
-                                            </span>
-                                        )}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', flex: 1 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={isPromoted}
+                                        onChange={(e) => onToggle(pr.number, e.target.checked)}
+                                        style={{ marginTop: 3 }}
+                                    />
+                                    <div style={{ flex: 1, fontSize: 13 }}>
+                                        <div>
+                                            <a href={pr.url} target="_blank" rel="noreferrer"><strong>#{pr.number}</strong></a>
+                                            {' '}— {pr.title}{' '}
+                                            <span style={{ color: '#8c959f' }}>({pr.author.login} · <code>{pr.headRefName}</code>)</span>
+                                            {isPromoted && (
+                                                <span style={{ marginLeft: 8, fontSize: 11, color: '#1a7f37', fontWeight: 600 }}>
+                                                    ✓ promoted
+                                                </span>
+                                            )}
+                                        </div>
+                                        <ul style={{ margin: '4px 0 0 0', paddingLeft: 16, fontSize: 12, color: '#57606a' }}>
+                                            {conflicts.map(({ file, others }) => (
+                                                <li key={file}>
+                                                    <code>{file}</code> — also in {others.map((n) => `#${n}`).join(', ')}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                    <ul style={{ margin: '4px 0 0 0', paddingLeft: 16, fontSize: 12, color: '#57606a' }}>
-                                        {conflicts.map(({ file, others }) => (
-                                            <li key={file}>
-                                                <code>{file}</code> — also in {others.map((n) => `#${n}`).join(', ')}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </label>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => onClose(pr.number)}
+                                    disabled={closingPr !== null}
+                                    title="Close this PR without merging (reopenable on GitHub)"
+                                    style={{ whiteSpace: 'nowrap' }}
+                                >
+                                    {closingPr === pr.number ? 'Closing…' : 'Close PR'}
+                                </button>
+                            </div>
                         </li>
                     );
                 })}
@@ -219,6 +231,8 @@ export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }
     const [error, setError] = useState<string | null>(null);
     const [merging, setMerging] = useState<number | null>(null);
     const [lastMerge, setLastMerge] = useState<LastMerge>(null);
+    const [closingPr, setClosingPr] = useState<number | null>(null);
+    const [lastClose, setLastClose] = useState<{ ok: boolean; prNumber: number; message: string } | null>(null);
     // Per-PR "skip branch delete" set. Default is delete; users opt out per PR.
     const [skipBranchDelete, setSkipBranchDelete] = useState<Set<number>>(new Set());
     function toggleSkipBranchDelete(prNumber: number, skip: boolean) {
@@ -354,6 +368,27 @@ export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }
         }
     }
 
+    // Close a PR without merging (disregard it). GitHub has no delete-PR; closing
+    // is the equivalent and is reopenable. Refetches PRs after so it drops off.
+    async function handleClosePr(prNumber: number) {
+        if (!window.confirm(`Close PR #${prNumber} without merging? You can reopen it on GitHub.`)) return;
+        setClosingPr(prNumber);
+        setLastClose(null);
+        try {
+            const result = await apiClosePr(owner, repo, prNumber);
+            if (result.ok) {
+                setLastClose({ ok: true, prNumber, message: `Closed #${prNumber} (not merged).` });
+                onMerged?.();
+            } else {
+                setLastClose({ ok: false, prNumber, message: result.error });
+            }
+        } catch (e) {
+            setLastClose({ ok: false, prNumber, message: (e as Error).message });
+        } finally {
+            setClosingPr(null);
+        }
+    }
+
     if (greens.length === 0 && nonGreens.length === 0) return null;
 
     // Combine two severity sources into one cellState:
@@ -410,6 +445,11 @@ export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }
 
             {loading && <p className={styles.status}>Checking {readyToCheck.length} candidate PR(s) against master…</p>}
             {error && <p className="picker-error">{error}</p>}
+            {lastClose && (
+                <p style={{ margin: '6px 0', color: lastClose.ok ? '#1a7f37' : '#cf222e', fontSize: 13 }}>
+                    {lastClose.ok ? '✓ ' : `✗ Couldn't close #${lastClose.prNumber}: `}{lastClose.message}
+                </p>
+            )}
             <LocalPairwiseStatus state={localPairwise} />
             {pairwise && <PrDuplicatesBanner groups={pairwise.prGroups} />}
             {errors.length > 0 && (
@@ -429,6 +469,8 @@ export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }
                     promoted={promoted}
                     onToggle={togglePromoted}
                     conflictsByPr={conflictsByPr}
+                    onClose={handleClosePr}
+                    closingPr={closingPr}
                 />
             )}
 
@@ -438,7 +480,7 @@ export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }
 
             {readyToMerge.length > 0 && (
                 <div className={styles.mergeReady}>
-                    <h3>Ready to merge ({readyToMerge.length})</h3>
+                    <h3>Tech Lead Actions ({readyToMerge.length})</h3>
                     <p className={styles.mergeIntro}>
                         One-click squash-merge via the GitHub API. Branch protection / required checks still apply.
                     </p>
@@ -477,9 +519,17 @@ export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }
                                 <button
                                     className={`primary ${styles.mergeBtn}`}
                                     onClick={() => handleMerge(pr.number)}
-                                    disabled={merging !== null}
+                                    disabled={merging !== null || closingPr !== null}
                                 >
                                     {merging === pr.number ? 'Merging…' : 'Squash & merge'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleClosePr(pr.number)}
+                                    disabled={merging !== null || closingPr !== null}
+                                    title="Close this PR without merging (reopenable on GitHub)"
+                                >
+                                    {closingPr === pr.number ? 'Closing…' : 'Close PR'}
                                 </button>
                             </li>
                         ))}

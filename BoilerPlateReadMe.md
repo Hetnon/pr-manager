@@ -83,16 +83,29 @@ on `localhost:8080` and the same shared snapshot folder
 - Each repo sets a **unique** `GOOGLE_CLOUD_PROJECT` in its `server/.env.dev`
   (convention: `dev-<gcp-project-id>`). The emulator namespaces collections
   by that project ID, so data is fully isolated between repos inside the
-  single shared snapshot.
+  single shared snapshot. `runFirebase.js` launches the emulator under that
+  same id (`requireEmulatorProjectId()`) and **errors out** if it's unset — no
+  silent fallback, since two repos defaulting to one name would corrupt each
+  other's data. Tests use a separate `test-<gcp-project-id>` namespace (set in
+  `firestoreTestSetup.ts`) so different repos' test runs don't collide either.
+- `firebase.json` sets `"singleProjectMode": false` so the one emulator
+  accepts every repo's distinct project id without the "multiple projectIds"
+  warning. Without it the emulator pins to one project and complains when a
+  second repo connects.
 - Seed data persists across dev sessions because the snapshot is shared and
   doesn't live inside any repo. Graceful emulator shutdown (Ctrl-C in its
   terminal window) triggers `--export-on-exit`; a 5-min periodic export
   bounds data loss from ungraceful kills.
 
-The bootstrap script (`scripts/gcp-bootstrap.js`) now writes
+`server/databases/firestore/firebaseApis.ts` **requires** `GOOGLE_CLOUD_PROJECT`
+in dev/test (no silent `demo-project` default), refuses any non-local
+`FIRESTORE_EMULATOR_HOST`, and refuses the real-Firestore path unless the
+process booted in production — so dev can never reach live Firestore. The
+bootstrap script (`scripts/gcp-bootstrap.js`) writes
 `GOOGLE_CLOUD_PROJECT=dev-${projectId}` so new derived repos get a unique
-value automatically. Existing `.env.dev` files predating this change may
-still say `demo-project` — fix them by hand.
+value automatically. A `dev~dev-<project>` Firestore partition is the
+**emulator**, not production (the `dev~` prefix and `dev-` id are both
+local-dev markers) — don't mistake it for a real connection.
 
 ## Known gaps
 
@@ -112,13 +125,21 @@ only.
 
 ### resumeAutomation alignment
 
-`D:\AI Projects\resumeAutomation_win11_laptop\webClient\` predates the
-boilerplate and has drifted significantly: separate `dist/` output, no shared
+`D:\AI Projects\resumeAutomation_win11_laptop\` predates the boilerplate and
+has drifted significantly: separate `dist/` output, no shared
 `TypesAndInterfaces`, no KMS-envelope token storage, no Firestore-backed
-sessions, different webpack/dev-server setup, different folder structure.
-Bringing it onto the boilerplate is a planned future task — not blocked by
-anything specific, just large. Until then, **do not assume changes to the
+sessions, different webpack/dev-server setup, different folder structure
+(its server lives under `expressServer/static/`, with `firebase_apis.ts`).
+Bringing it fully onto the boilerplate is a planned future task — not blocked
+by anything specific, just large. Until then, **do not assume changes to the
 boilerplate apply there**.
+
+**Aligned so far (2026-05-26):** the Firestore/emulator layer — the shared
+emulator (`runFirebase.js` shared snapshot + `requireEmulatorProjectId`),
+`firebaseApis.ts` dev-safety hardening, `singleProjectMode: false`, and a
+`dev-applyturbo` namespace in its `.env`. So resumeAutomation now runs against
+the same shared emulator as the derived repos. Everything else above is still
+unaligned.
 
 ## When to update this file
 

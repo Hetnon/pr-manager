@@ -7,3 +7,9 @@ server/.env.dev
 server/.env.shared
 server/.env.prod
 server/keys/
+
+# Firestore emulator debug log — emulator logs normally live in the shared
+# ~/.firestore-emulator-data dir, but a stray `firebase` command run from
+# setupAndRun drops this into the repo. Ignore it.
+firestore-debug.log
+firebase-debug.log

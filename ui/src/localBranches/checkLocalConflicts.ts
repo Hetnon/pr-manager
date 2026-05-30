@@ -1,6 +1,6 @@
 import * as git from 'isomorphic-git';
 import { makeFsApiFs } from '../repo/fsApiAdapter.js';
-import { computeFileSeverity, type FileSeverity } from './lineLevelConflicts.js';
+import { computeFileConflicts, type FileConflictDetail } from './lineLevelConflicts.js';
 import type { ConflictCache } from './conflictCache.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
@@ -42,9 +42,11 @@ export interface LocalConflictReport {
     branchChanges: BranchChanges[];
     branchVsDefault: BranchVsDefault[];
     pairs: BranchPair[];
-    // Per-file severity from the line-level pass. Files only appear here if
-    // they're touched by 2+ branches; single-branch files don't need a check.
-    fileSeverity: Record<string, FileSeverity>;
+    // Per-file conflict detail from the 3-way-merge pass: severity, which
+    // branches edit which line ranges, where genuine conflicts land, and any
+    // byte-identical groups. Multi-touch files carry full detail; single-branch
+    // files are simply 'safe'.
+    fileDetail: Record<string, FileConflictDetail>;
     elapsedMs: number;
     cacheHits: number;
     cacheMisses: number;
@@ -54,6 +56,9 @@ export interface LocalConflictReport {
 // the live progress modal so the user knows the long-running work is moving.
 export type ConflictProgress =
     | { phase: 'init' }
+    // Emitted by the working-tree scan (readWorkingTreeStatus), which runs as the
+    // first phase of a refresh — shares this modal/progress stream.
+    | { phase: 'worktree'; scanned: number; file: string }
     | { phase: 'resolving'; current: number; total: number; branch: string }
     | { phase: 'branch-changes'; current: number; total: number; branch: string }
     | { phase: 'default-diff'; current: number; total: number; base: string }
@@ -69,6 +74,9 @@ export async function checkLocalConflicts(
     branchesToCheck: string[],
     cache: ConflictCache,
     onProgress?: ConflictProgressCallback,
+    // Signals (non-blocking) that a file computed new results, so the caller can
+    // persist progress in the background. See computeFileConflicts.
+    persist?: () => void,
 ): Promise<LocalConflictReport> {
     const t0 = performance.now();
     const fs = makeFsApiFs(handle);
@@ -182,15 +190,15 @@ export async function checkLocalConflicts(
     }
     pairs.sort((x, y) => y.intersection.length - x.intersection.length);
 
-    const severityMap = await computeFileSeverity(handle, branchChanges, cache, onProgress);
-    const fileSeverity: Record<string, FileSeverity> = {};
-    for (const [f, s] of severityMap) fileSeverity[f] = s;
+    const detailMap = await computeFileConflicts(handle, branchChanges, cache, onProgress, persist);
+    const fileDetail: Record<string, FileConflictDetail> = {};
+    for (const [f, d] of detailMap) fileDetail[f] = d;
 
     const elapsedMs = Math.round(performance.now() - t0);
     onProgress?.({ phase: 'done', elapsedMs });
 
     return {
-        defaultBranch, defaultSha, branchGroups, branchChanges, branchVsDefault, pairs, fileSeverity,
+        defaultBranch, defaultSha, branchGroups, branchChanges, branchVsDefault, pairs, fileDetail,
         elapsedMs,
         cacheHits: cache.hits,
         cacheMisses: cache.misses,

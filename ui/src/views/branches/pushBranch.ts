@@ -1,6 +1,6 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../repo/fsApiAdapter.js';
-import { proxiedGitHttp } from '../repo/gitHttpAdapter.js';
+import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { proxiedGitHttp } from '../../repo/gitHttpAdapter.js';
 
 export type PushResult =
     | { ok: true; ref: string }

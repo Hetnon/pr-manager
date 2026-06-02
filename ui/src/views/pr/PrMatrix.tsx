@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
-import { buildMatrix, heatClass } from '../lib/matrix.js';
-import Matrix, { type MatrixColumn, type MatrixFileRow } from '../matrix/Matrix.js';
+import { buildSharedFileMatrix, heatClass } from './sharedFiles.js';
+import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../components/Matrix.js';
 import PrMatrixSummary from './PrMatrixSummary.js';
-import styles from '../matrix/Matrix.module.css';
+import styles from '../../components/Matrix.module.css';
 
 export type CellState = 'conflict' | 'warning' | undefined;
 
@@ -63,7 +63,7 @@ interface Props {
 
 export default function PrMatrix({ prs, cellState, renderFileExtra }: Props) {
     const [expanded, setExpanded] = useState(true);
-    const matrix = useMemo(() => buildMatrix(prs), [prs]);
+    const matrix = useMemo(() => buildSharedFileMatrix(prs), [prs]);
 
     if (prs.length === 0) {
         return <p className="empty">No open PRs. 🎉</p>;

@@ -21,9 +21,9 @@ for the tech-lead tool. Two layers:
 | `planDedup.ts` | Pure planner: from the per-file identical groups + an ordered branch list, the ordered pairwise dedup options (drop files identical to a later branch from the earlier one) |
 | `createDedupBranch.ts` | Object-level git op: build a `‹branch›-dedup` branch from HEAD with chosen files reverted to the merge-base (or deleted), via writeTree/writeCommit/writeRef. Never touches the working tree; leaves the original branch alone |
 | `DedupPanel.tsx` | "Reduce redundancy" UI — lists the dedup options and applies the chosen ones |
-| `LocalBranchesPanel.tsx` | Container — reads branches on mount, runs conflict check on demand, renders the list, matrix, legend, dedup panel, and the vs-default assessment panel |
+| `BranchesView.tsx` | Container — reads branches on mount, runs conflict check on demand, renders the list, matrix, legend, dedup panel, and the vs-default assessment panel |
 
-And in `../repo/`:
+And in `../../repo/`:
 
 | File | Responsibility |
 |---|---|
@@ -91,7 +91,7 @@ report is patched in place (`applyDedupToReport`): each donor's deduped files ar
 dropped and the affected files' verdicts re-derived from the existing data (a
 pure filter — removing a branch can only reduce a conflict). The blue overlaps
 collapse instantly. On a later manual refresh, the `others` filter in
-`LocalBranchesPanel` analyzes each `‹branch›-dedup` **instead of** its original,
+`BranchesView` analyzes each `‹branch›-dedup` **instead of** its original,
 so the deduplicated picture persists.
 
 Both the matrix and the bottom branch list show the **effective** set: once a

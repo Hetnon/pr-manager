@@ -1,9 +1,8 @@
-import { useMemo } from 'react';
 import type { PR } from '@shared/pr.js';
-import { buildMatrix } from '../lib/matrix.js';
+import type { SharedFileMatrix } from './sharedFiles.js';
 
 interface Props {
-    prs: PR[];
+    matrix: SharedFileMatrix;
 }
 
 interface SharedFile {
@@ -12,10 +11,9 @@ interface SharedFile {
     authors: Set<string>;
 }
 
-export default function DevActions({ prs }: Props) {
-    const matrix = useMemo(() => buildMatrix(prs), [prs]);
-    if (prs.length === 0) return null;
+export default function DevActions({ matrix }: Readonly<Props>) {
     const { sortedPrs, files } = matrix;
+    if (sortedPrs.length === 0) return null;
 
     const prByNumber = new Map<number, PR>(sortedPrs.map((pr) => [pr.number, pr]));
 
@@ -40,7 +38,7 @@ export default function DevActions({ prs }: Props) {
         <div className="recommendations">
             <h2>Dev Actions</h2>
             <div className="rec-section rec-warn">
-                <h3>Resolve solo — same author owns all PRs ({sameAuthorFiles.length})</h3>
+                <h3>Resolve solo — same author owns all ({sameAuthorFiles.length}) PRs</h3>
                 <p className="rec-tip">
                     For each file below, the same dev owns every PR touching it. No cross-team coordination needed.
                 </p>

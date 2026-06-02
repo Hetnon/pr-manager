@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import styles from '../matrix/Matrix.module.css';
-import Matrix, { type MatrixColumn, type MatrixFileRow } from '../matrix/Matrix.js';
+import styles from '../../components/Matrix.module.css';
+import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../components/Matrix.js';
 import type { LocalBranch } from './readLocalRepo.js';
 import type { BranchChanges, BranchGroup } from './checkLocalConflicts.js';
 import type { FileConflictDetail, FileSeverity } from './lineLevelConflicts.js';

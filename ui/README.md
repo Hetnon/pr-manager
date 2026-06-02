@@ -10,11 +10,10 @@ and any static assets that ship verbatim (e.g. `styles.css`, favicons).
 |---|---|
 | `api/` | Typed wrappers around server endpoints (`prs.ts`, `auth.ts`, `client.ts`, `csrf.ts`). |
 | `auth/` | OAuth UI + session context. `AuthGate` blocks the app until login resolves. |
-| `lib/` | Pure helpers (currently just `matrix.ts` — the file/PR overlap math). |
-| `localBranches/` | Browser-side local-git: read branches, conflicts, render the local matrix. See its README. |
-| `masterCheck/` | "Master conflict check" view — overlays master-side conflict data on the PR matrix. |
-| `prMatrix/` | The GitHub-PR overlap matrix (columns = PRs, rows = files). |
-| `report/` | `DevActions` — dev-only quick actions. |
+| `lib/` | View-agnostic helpers. `fileOverlap.ts` — the file-set overlap kernel shared by both views. |
+| `components/` | Reusable, view-agnostic UI: `Modal` (MUI Dialog wrapper) and the generic `Matrix` grid. |
+| `views/branches/` | "Branches" view — browser-side local-git: read branches, conflicts, render the local matrix. `BranchesView` is the container. See its README. |
+| `views/pr/` | "Pull Requests" view — `PrView` owns the shared-file matrix (`sharedFiles.ts`); `DevActions` (quick actions), `MasterCheck` (master conflict overlay), `PrMatrix` (the GitHub-PR overlap grid). |
 | `repo/` | Folder picker + IndexedDB-persisted FSAPI handle + `isomorphic-git` fs adapter. |
 | `types/` | Ambient declarations (`global.d.ts`). |
 | `public/` | Source HTML template (`index.html`) + static assets copied as-is. |

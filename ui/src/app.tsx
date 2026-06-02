@@ -3,23 +3,21 @@ import { createRoot } from 'react-dom/client';
 import type { PR } from '@shared/pr.js';
 import { AuthProvider, useAuth } from './auth/AuthContext.js';
 import AuthGate from './auth/AuthGate.js';
-import LogoutButton from './auth/LogoutButton.js';
 import RepoSelector from './repo/RepoSelector.js';
-import RepoPermissionBadge from './repo/RepoPermissionBadge.js';
 import { useRepoSelection } from './repo/useRepoSelection.js';
-import LocalBranchesPanel from './localBranches/LocalBranchesPanel.js';
 import { listPrs } from './api/prs.js';
 import { ApiError } from './api/client.js';
-import DevActions from './report/DevActions.js';
-import MasterCheck from './masterCheck/MasterCheck.js';
+import AppHeader, { type View } from './Header/AppHeader.js';
+import AppMain from './views/AppMain.js';
 
-function PrMatrixApp() {
+function App() {
     const { 
         repo, setRepoCallBack, // currently chosen repo
         parsed, // 
         folderHandle 
     } = useRepoSelection();
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [view, setView] = useState<View>('branches');
     const [prs, setPrs] = useState<PR[] | null>(null);
     const [status, setStatus] = useState('');
     const [contentError, setContentError] = useState<string | null>(null);
@@ -73,39 +71,26 @@ function PrMatrixApp() {
 
     return (
         <>
-            <header>
-                <div className="controls">
-                    {repo && <span className="repo-display" title={repo}>{repo}</span>}
-                    {repo && folderHandle && (
-                        <RepoPermissionBadge
-                            handle={folderHandle}
-                            onChange={(level) => { if (level === 'readwrite') triggerRefresh(); }}
-                        />
-                    )}
-                    {repo && <button onClick={() => setPickerOpen(true)}>Change repo</button>}
-                    {repo && <button onClick={triggerRefresh}>↻ Refresh</button>}
-                    <span id="status">{status}</span>
-                    <LogoutButton />
-                </div>
-            </header>
-            <main>
-                <LocalBranchesPanel
-                    handle={folderHandle}
-                    prs={prs}
-                    owner={parsed?.owner ?? null}
-                    repo={parsed?.name ?? null}
-                    refreshNonce={refreshNonce}
-                    onPushed={() => triggerRefresh()}
-                />
-                {contentError && <p className="error">{contentError}</p>}
-                {!contentError && parsed && prs === null && <p className="loading">{initializedRef.current ? 'Loading PRs…' : 'Loading…'}</p>}
-                {!contentError && parsed && Array.isArray(prs) && (
-                    <>
-                        <DevActions prs={prs} />
-                        <MasterCheck prs={prs} owner={parsed.owner} repo={parsed.name} folderHandle={folderHandle} onMerged={() => void loadPRs()} />
-                    </>
-                )}
-            </main>
+            <AppHeader
+                repo={repo}
+                folderHandle={folderHandle}
+                view={view}
+                status={status}
+                onSelectView={setView}
+                onOpenPicker={() => setPickerOpen(true)}
+                onRefresh={triggerRefresh}
+            />
+            <AppMain
+                view={view}
+                prs={prs}
+                parsed={parsed}
+                folderHandle={folderHandle}
+                contentError={contentError}
+                initialized={initializedRef.current}
+                refreshNonce={refreshNonce}
+                onPushed={triggerRefresh}
+                onMerged={() => void loadPRs()}
+            />
             {pickerOpen && (
                 <RepoSelector
                     currentRepo={repo}
@@ -118,11 +103,11 @@ function PrMatrixApp() {
     );
 }
 
-function App() {
+function Root() {
     return (
         <AuthProvider>
             <AuthGate>
-                <PrMatrixApp />
+                <App />
             </AuthGate>
         </AuthProvider>
     );
@@ -130,4 +115,4 @@ function App() {
 
 const root = document.getElementById('root');
 if (!root) throw new Error('No #root element');
-createRoot(root).render(<App />);
+createRoot(root).render(<Root />);

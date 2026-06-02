@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { CheckConflictsResponse, MasterTouch, PairwisePrConflicts, PrGroup } from '@shared/conflicts.js';
 import type { MergePrResult } from '@shared/merge.js';
-import { buildMatrix } from '../lib/matrix.js';
-import { checkMasterConflicts as apiCheckConflicts, mergePr as apiMergePr, closePr as apiClosePr } from '../api/prs.js';
+import type { SharedFileMatrix } from './sharedFiles.js';
+import { checkMasterConflicts as apiCheckConflicts, mergePr as apiMergePr, closePr as apiClosePr } from '../../api/prs.js';
 import { fetchPrRefs } from './fetchPrRefs.js';
 import { computeBrowserPairwise } from './computeBrowserPairwise.js';
-import { queryFolderPermission } from '../repo/folderPermission.js';
-import PrMatrix, { type CellState } from '../prMatrix/PrMatrix.js';
+import { queryFolderPermission } from '../../repo/folderPermission.js';
+import PrMatrix, { type CellState } from './PrMatrix.js';
 import styles from './MasterCheck.module.css';
 
 function formatRelativeShort(iso: string | undefined): string {
@@ -22,6 +22,7 @@ function formatRelativeShort(iso: string | undefined): string {
 
 interface Props {
     prs: PR[];
+    matrix: SharedFileMatrix;
     owner: string;
     repo: string;
     folderHandle: FileSystemDirectoryHandle | null;
@@ -175,8 +176,8 @@ function PrDuplicatesBanner({ groups }: { groups: PrGroup[] }) {
     );
 }
 
-export default function MasterCheck({ prs, owner, repo, folderHandle, onMerged }: Props) {
-    const { sortedPrs, prSafe } = useMemo(() => buildMatrix(prs), [prs]);
+export default function MasterCheck({ prs, matrix, owner, repo, folderHandle, onMerged }: Props) {
+    const { sortedPrs, prSafe } = matrix;
     const greens = useMemo(() => sortedPrs.filter((pr) => prSafe.get(pr.number)), [sortedPrs, prSafe]);
     const nonGreens = useMemo(() => sortedPrs.filter((pr) => !prSafe.get(pr.number)), [sortedPrs, prSafe]);
 

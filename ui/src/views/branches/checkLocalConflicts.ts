@@ -1,7 +1,8 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
 import { computeFileConflicts, type FileConflictDetail } from './lineLevelConflicts.js';
 import type { ConflictCache } from './conflictCache.js';
+import { pairwiseFileOverlap } from '../../lib/fileOverlap.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 
@@ -176,19 +177,11 @@ export async function checkLocalConflicts(
         });
     }
 
-    const pairs: BranchPair[] = [];
-    for (let i = 0; i < branchChanges.length; i++) {
-        const a = branchChanges[i];
-        if (a.error || a.files.length === 0) continue;
-        const setA = new Set(a.files);
-        for (let j = i + 1; j < branchChanges.length; j++) {
-            const b = branchChanges[j];
-            if (b.error || b.files.length === 0) continue;
-            const inter = b.files.filter((f) => setA.has(f));
-            if (inter.length > 0) pairs.push({ a: a.branch, b: b.branch, intersection: inter });
-        }
-    }
-    pairs.sort((x, y) => y.intersection.length - x.intersection.length);
+    // Pairwise file overlap across branches — the same kernel the PR matrix uses.
+    // Errored branches carry no files, so they naturally produce no pairs.
+    const pairs: BranchPair[] = pairwiseFileOverlap(
+        branchChanges.map((branchChange) => ({ id: branchChange.branch, files: branchChange.files })),
+    );
 
     const detailMap = await computeFileConflicts(handle, branchChanges, cache, onProgress, persist);
     const fileDetail: Record<string, FileConflictDetail> = {};

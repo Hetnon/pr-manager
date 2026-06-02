@@ -2,7 +2,7 @@ import * as git from 'isomorphic-git';
 import { merge as diff3Merge } from 'node-diff3';
 import type { PR } from '@shared/pr.js';
 import type { FileSeverity, PrGroup, PairwisePrConflicts } from '@shared/conflicts.js';
-import { makeFsApiFs } from '../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 

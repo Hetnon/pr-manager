@@ -3,13 +3,13 @@ import type { PR } from '@shared/pr.js';
 import { readLocalRepo, type LocalBranch, type LocalRepoSnapshot } from './readLocalRepo.js';
 import { checkLocalConflicts, type BranchGroup, type BranchVsDefault, type ConflictProgress, type LocalConflictReport } from './checkLocalConflicts.js';
 import { loadCache, createCacheWriter, ensureCacheIgnored } from './conflictCache.js';
-import Modal from '../resusableComponents/Modal.js';
+import Modal from '../../components/Modal.js';
 import { pushBranch } from './pushBranch.js';
 import { fetchOrigin, type FetchResult } from './fetchOrigin.js';
-import { createPr } from '../api/git.js';
-import { closePr } from '../api/prs.js';
-import { queryFolderPermission, requestFolderReadWrite } from '../repo/folderPermission.js';
-import { deleteBranchEverywhere } from '../repo/branchDeletion.js';
+import { createPr } from '../../api/git.js';
+import { closePr } from '../../api/prs.js';
+import { queryFolderPermission, requestFolderReadWrite } from '../../repo/folderPermission.js';
+import { deleteBranchEverywhere } from '../../repo/branchDeletion.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 import DedupPanel from './DedupPanel.js';
@@ -37,7 +37,7 @@ interface Row {
     pr: PR | null;
 }
 
-export default function LocalBranchesPanel({ handle, prs, owner, repo, refreshNonce, onPushed }: Props) {
+export default function BranchesView({ handle, prs, owner, repo, refreshNonce, onPushed }: Props) {
     const [snapshot, setSnapshot] = useState<LocalRepoSnapshot | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);

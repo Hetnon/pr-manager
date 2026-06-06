@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useAuth } from './AuthContext.js';
+import { useContext, useState } from 'react';
+import { AuthContext } from './AuthContext.js';
 
 export default function Login() {
-    const { login } = useAuth();
+    const { login } = useContext(AuthContext);
     const [error, setError] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
 
@@ -11,8 +11,8 @@ export default function Login() {
         setPending(true);
         try {
             await login();
-        } catch (e) {
-            setError((e as Error).message);
+        } catch (error) {
+            setError((error as Error).message);
             setPending(false);
         }
     }

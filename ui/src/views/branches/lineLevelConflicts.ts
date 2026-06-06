@@ -20,8 +20,8 @@ export interface BranchEdit {
 // A pair of branches that genuinely clash on this file, with the base-file
 // line spans where the 3-way merge couldn't reconcile them.
 export interface ConflictPair {
-    a: string;
-    b: string;
+    branchA: string;
+    branchB: string;
     regions: LineRange[];
 }
 
@@ -59,25 +59,25 @@ export async function computeFileConflicts(
     const fs = makeFsApiFs(handle);
     const dir = '/';
 
-    const bcByName = new Map<string, BranchChanges>();
-    for (const bc of branchChanges) bcByName.set(bc.branch, bc);
+    const branchChangeByName = new Map<string, BranchChanges>();
+    for (const branchChange of branchChanges) branchChangeByName.set(branchChange.branch, branchChange);
 
     const fileToBranches = new Map<string, string[]>();
-    for (const bc of branchChanges) {
-        if (bc.error) continue;
-        for (const f of bc.files) {
-            if (!fileToBranches.has(f)) fileToBranches.set(f, []);
-            fileToBranches.get(f)!.push(bc.branch);
+    for (const branchChange of branchChanges) {
+        if (branchChange.error) continue;
+        for (const file of branchChange.files) {
+            if (!fileToBranches.has(file)) fileToBranches.set(file, []);
+            fileToBranches.get(file)!.push(branchChange.branch);
         }
     }
 
     const detail = new Map<string, FileConflictDetail>();
     const multiTouchFiles: string[] = [];
-    for (const [f, brs] of fileToBranches) {
-        if (brs.length === 1) {
-            detail.set(f, { severity: 'safe', edits: [], conflicts: [] });
+    for (const [file, branchesForFile] of fileToBranches) {
+        if (branchesForFile.length === 1) {
+            detail.set(file, { severity: 'safe', edits: [], conflicts: [] });
         } else {
-            multiTouchFiles.push(f);
+            multiTouchFiles.push(file);
         }
     }
 
@@ -94,48 +94,48 @@ export async function computeFileConflicts(
     let lastFlushMisses = -1;
 
     for (let i = 0; i < multiTouchFiles.length; i++) {
-        const f = multiTouchFiles[i];
-        onProgress?.({ phase: 'line-level', current: i + 1, total: multiTouchFiles.length, file: f });
+        const file = multiTouchFiles[i];
+        onProgress?.({ phase: 'line-level', current: i + 1, total: multiTouchFiles.length, file });
 
         if (i % 25 === 0 && i > 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
         }
 
-        const branches = fileToBranches.get(f)!.filter((br) => {
-            const bc = bcByName.get(br);
-            return bc && !bc.error && bc.base;
+        const branches = fileToBranches.get(file)!.filter((branchName) => {
+            const branchChange = branchChangeByName.get(branchName);
+            return branchChange && !branchChange.error && branchChange.base;
         });
 
         // Per-branch facts (blob oid + changed line ranges), cached by SHA.
         const edits: BranchEdit[] = [];
         const infoByBranch = new Map<string, BranchFileInfo>();
-        for (const br of branches) {
-            const bc = bcByName.get(br)!;
-            const info = await getOrComputeBranchFileInfo(fs, dir, bc.sha, bc.base, f, cache, blobCache);
-            infoByBranch.set(br, info);
-            edits.push({ branch: br, ranges: info.ranges, headMissing: info.headMissing, binary: info.binary });
+        for (const branchName of branches) {
+            const branchChange = branchChangeByName.get(branchName)!;
+            const info = await getOrComputeBranchFileInfo(fs, dir, branchChange.sha, branchChange.base, file, cache, blobCache);
+            infoByBranch.set(branchName, info);
+            edits.push({ branch: branchName, ranges: info.ranges, headMissing: info.headMissing, binary: info.binary });
         }
 
         // Identical: every touching branch has the same (non-null) blob oid.
-        const oids = branches.map((br) => infoByBranch.get(br)?.oid ?? null);
-        const allPresentSame = oids.length >= 2 && oids.every((o) => o !== null && o === oids[0]);
+        const oids = branches.map((branchName) => infoByBranch.get(branchName)?.oid ?? null);
+        const allPresentSame = oids.length >= 2 && oids.every((oid) => oid !== null && oid === oids[0]);
         if (allPresentSame) {
-            detail.set(f, { severity: 'identical', edits, conflicts: [], identicalGroups: [[...branches]] });
+            detail.set(file, { severity: 'identical', edits, conflicts: [], identicalGroups: [[...branches]] });
         } else {
             // Otherwise, 3-way-merge every pair to find genuine conflicts.
             const conflicts: ConflictPair[] = [];
-            for (let a = 0; a < branches.length; a++) {
-                const bcA = bcByName.get(branches[a])!;
-                for (let b = a + 1; b < branches.length; b++) {
-                    const bcB = bcByName.get(branches[b])!;
-                    const result = await getOrComputePairResult(fs, dir, bcA.sha, bcB.sha, f, cache, blobCache, pairBaseCache);
+            for (let firstIndex = 0; firstIndex < branches.length; firstIndex++) {
+                const branchChangeA = branchChangeByName.get(branches[firstIndex])!;
+                for (let secondIndex = firstIndex + 1; secondIndex < branches.length; secondIndex++) {
+                    const branchChangeB = branchChangeByName.get(branches[secondIndex])!;
+                    const result = await getOrComputePairResult(fs, dir, branchChangeA.sha, branchChangeB.sha, file, cache, blobCache, pairBaseCache);
                     if (result.verdict === 'conflict') {
-                        conflicts.push({ a: branches[a], b: branches[b], regions: result.regions ?? [] });
+                        conflicts.push({ branchA: branches[firstIndex], branchB: branches[secondIndex], regions: result.regions ?? [] });
                     }
                 }
             }
             const severity: FileSeverity = conflicts.length > 0 ? 'conflict' : 'warning';
-            detail.set(f, { severity, edits, conflicts, identicalGroups: findIdenticalGroups(branches, infoByBranch) });
+            detail.set(file, { severity, edits, conflicts, identicalGroups: findIdenticalGroups(branches, infoByBranch) });
         }
 
         // Signal as soon as this file added new results, so a tab close / reload
@@ -186,7 +186,7 @@ async function getOrComputeBranchFileInfo(
             binary = true;
         } else {
             const patch = structuredPatch(file, file, decoder.decode(baseBytes ?? new Uint8Array()), decoder.decode(headBytes), '', '', { context: 0 });
-            ranges = patch.hunks.map((h): LineRange => [h.oldStart, h.oldStart + Math.max(h.oldLines, 1) - 1]);
+            ranges = patch.hunks.map((hunk): LineRange => [hunk.oldStart, hunk.oldStart + Math.max(hunk.oldLines, 1) - 1]);
         }
     }
     const info: BranchFileInfo = { oid: head?.oid ?? null, ranges, headMissing, binary };
@@ -219,9 +219,9 @@ async function getOrComputePairResult(
         result = { verdict: 'unknown' };
     } else {
         const baseBytes = await readBlobCached(fs, dir, baseOid, file, blobCache);
-        const a = await readBlobWithOid(fs, dir, shaA, file);
-        const b = await readBlobWithOid(fs, dir, shaB, file);
-        result = mergeVerdict(baseBytes, a?.bytes ?? null, b?.bytes ?? null);
+        const blobA = await readBlobWithOid(fs, dir, shaA, file);
+        const blobB = await readBlobWithOid(fs, dir, shaB, file);
+        result = mergeVerdict(baseBytes, blobA?.bytes ?? null, blobB?.bytes ?? null);
     }
     cache.pairResults.set(key, result);
     return result;
@@ -247,9 +247,9 @@ function mergeVerdict(baseBytes: Uint8Array | null, aBytes: Uint8Array | null, b
     const chunks = diff3Merge(aText, baseText, bText, { excludeFalseConflicts: true, stringSeparator: /\r?\n/ });
     for (const chunk of chunks) {
         if (chunk.conflict) {
-            const oIndex = chunk.conflict.oIndex;        // 0-based base line index
-            const oLen = chunk.conflict.o.length;
-            regions.push([oIndex + 1, oIndex + Math.max(oLen, 1)]);
+            const baseLineIndex = chunk.conflict.oIndex;        // 0-based base line index
+            const baseLineCount = chunk.conflict.o.length;
+            regions.push([baseLineIndex + 1, baseLineIndex + Math.max(baseLineCount, 1)]);
         }
     }
     return regions.length > 0 ? { verdict: 'conflict', regions } : { verdict: 'clean' };
@@ -261,8 +261,8 @@ async function readBlobCached(
 ): Promise<Uint8Array | null> {
     const key = `${commitOid}\0${file}`;
     if (cache.has(key)) return cache.get(key) ?? null;
-    const read = await readBlobWithOid(fs, dir, commitOid, file);
-    const bytes = read?.bytes ?? null;
+    const blob = await readBlobWithOid(fs, dir, commitOid, file);
+    const bytes = blob?.bytes ?? null;
     cache.set(key, bytes);
     return bytes;
 }

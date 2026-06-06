@@ -25,12 +25,12 @@ export async function pushBranch(
             ref: branch,
         });
         if (!result.ok) {
-            const errs = (result as { errors?: string[] }).errors;
-            return { ok: false, error: errs?.join('; ') ?? 'remote rejected push' };
+            const pushErrors = (result as { errors?: string[] }).errors;
+            return { ok: false, error: pushErrors?.join('; ') ?? 'remote rejected push' };
         }
         return { ok: true, ref: branch };
-    } catch (e) {
-        return { ok: false, error: (e as Error).message };
+    } catch (error) {
+        return { ok: false, error: (error as Error).message };
     }
 }
 

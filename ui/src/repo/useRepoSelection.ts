@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { clearFolderHandle, loadFolderHandle, saveFolderHandle } from './repoFolderStorage.js';
 
 const STORAGE_KEY = 'pr-matrix.repo';
 
 export interface RepoSelection {
     repo: string | null;        // canonical "owner/name" form
-    parsed: { owner: string; name: string } | null;
+    repoOwnerAndName: { owner: string; name: string } | null;  // the "owner/name" string split into its parts
     folderHandle: FileSystemDirectoryHandle | null;
     setRepoCallBack: (value: string | null, handle?: FileSystemDirectoryHandle | null) => void;
 }
@@ -17,7 +17,7 @@ export function useRepoSelection(): RepoSelection {
     const [folderHandle, setFolderHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
     useEffect(() => {
-        void loadFolderHandle().then((h) => { if (h) setFolderHandle(h); });
+        void loadFolderHandle().then((handle) => { if (handle) setFolderHandle(handle); });
     }, []);
 
     const setRepoCallBack = useCallback((value: string | null, handle?: FileSystemDirectoryHandle | null) => {
@@ -32,7 +32,11 @@ export function useRepoSelection(): RepoSelection {
         else void clearFolderHandle();
     }, []);
 
-    return { repo, parsed: parseRepo(repo), folderHandle, setRepoCallBack };
+    // Memoized so its identity is stable across renders (only changes when repo
+    // does) — consumers can safely use it as an effect dependency.
+    const repoOwnerAndName = useMemo(() => parseRepo(repo), [repo]);
+
+    return { repo, repoOwnerAndName, folderHandle, setRepoCallBack };
 }
 
 export function parseRepo(value: string | null): { owner: string; name: string } | null {

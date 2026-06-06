@@ -79,7 +79,7 @@ export async function checkLocalConflicts(
     // persist progress in the background. See computeFileConflicts.
     persist?: () => void,
 ): Promise<LocalConflictReport> {
-    const t0 = performance.now();
+    const startTime = performance.now();
     const fs = makeFsApiFs(handle);
     const dir = '/';
     onProgress?.({ phase: 'init' });
@@ -89,90 +89,90 @@ export async function checkLocalConflicts(
     // Resolve every branch's HEAD up front so we can group by sha and skip
     // recomputing analysis for duplicates.
     const resolved: { name: string; sha: string; error: string | null }[] = [];
-    const toResolve = branchesToCheck.filter((n) => n !== defaultBranch);
+    const toResolve = branchesToCheck.filter((name) => name !== defaultBranch);
     for (let i = 0; i < toResolve.length; i++) {
         const name = toResolve[i];
         onProgress?.({ phase: 'resolving', current: i + 1, total: toResolve.length, branch: name });
         try {
             const sha = await git.resolveRef({ fs, dir, ref: `refs/heads/${name}` });
             resolved.push({ name, sha, error: null });
-        } catch (e) {
-            resolved.push({ name, sha: '', error: (e as Error).message });
+        } catch (error) {
+            resolved.push({ name, sha: '', error: (error as Error).message });
         }
     }
 
     const groupsBySha = new Map<string, string[]>();
-    for (const r of resolved) {
-        if (r.error) continue;
-        if (!groupsBySha.has(r.sha)) groupsBySha.set(r.sha, []);
-        groupsBySha.get(r.sha)!.push(r.name);
+    for (const resolvedBranch of resolved) {
+        if (resolvedBranch.error) continue;
+        if (!groupsBySha.has(resolvedBranch.sha)) groupsBySha.set(resolvedBranch.sha, []);
+        groupsBySha.get(resolvedBranch.sha)!.push(resolvedBranch.name);
     }
     const branchGroups: BranchGroup[] = [];
     for (const [sha, names] of groupsBySha) {
         const sorted = [...names].sort();
         branchGroups.push({ sha, branches: sorted, canonical: sorted[0] });
     }
-    branchGroups.sort((a, b) => a.canonical.localeCompare(b.canonical));
+    branchGroups.sort((groupA, groupB) => groupA.canonical.localeCompare(groupB.canonical));
 
     // Per-branch: merge-base + changed files. Both cached by SHA-pair keys —
     // valid as long as the involved SHAs are unchanged.
     const branchChanges: BranchChanges[] = [];
     for (let i = 0; i < branchGroups.length; i++) {
-        const g = branchGroups[i];
-        onProgress?.({ phase: 'branch-changes', current: i + 1, total: branchGroups.length, branch: g.canonical });
-        const bc: BranchChanges = { branch: g.canonical, sha: g.sha, base: '', files: [], error: null };
+        const group = branchGroups[i];
+        onProgress?.({ phase: 'branch-changes', current: i + 1, total: branchGroups.length, branch: group.canonical });
+        const branchChange: BranchChanges = { branch: group.canonical, sha: group.sha, base: '', files: [], error: null };
         try {
-            bc.base = await getOrComputeMergeBase(fs, dir, g.sha, defaultSha, cache);
-            if (!bc.base) {
-                bc.error = 'no merge base with default';
+            branchChange.base = await getOrComputeMergeBase(fs, dir, group.sha, defaultSha, cache);
+            if (!branchChange.base) {
+                branchChange.error = 'no merge base with default';
             } else {
-                bc.files = await getOrComputeBranchFiles(fs, dir, g.sha, bc.base, cache);
+                branchChange.files = await getOrComputeBranchFiles(fs, dir, group.sha, branchChange.base, cache);
             }
-        } catch (e) {
-            bc.error = (e as Error).message;
+        } catch (error) {
+            branchChange.error = (error as Error).message;
         }
-        branchChanges.push(bc);
+        branchChanges.push(branchChange);
     }
     // Errored branches show up but don't participate in analysis.
-    for (const r of resolved) {
-        if (!r.error) continue;
-        branchGroups.push({ sha: '', branches: [r.name], canonical: r.name });
-        branchChanges.push({ branch: r.name, sha: '', base: '', files: [], error: r.error });
+    for (const resolvedBranch of resolved) {
+        if (!resolvedBranch.error) continue;
+        branchGroups.push({ sha: '', branches: [resolvedBranch.name], canonical: resolvedBranch.name });
+        branchChanges.push({ branch: resolvedBranch.name, sha: '', base: '', files: [], error: resolvedBranch.error });
     }
 
     // Default-changed-since-base, cached per (defaultSha, baseSha).
     const branchVsDefault: BranchVsDefault[] = [];
-    const uniqueBases = [...new Set(branchChanges.filter((b) => !b.error && b.base).map((b) => b.base))];
-    let baseProgressIdx = 0;
+    const uniqueBases = [...new Set(branchChanges.filter((branchChange) => !branchChange.error && branchChange.base).map((branchChange) => branchChange.base))];
+    let baseProgressIndex = 0;
     const defaultChangedByBase = new Map<string, string[]>();
-    for (const bc of branchChanges) {
-        if (bc.error || !bc.base) {
+    for (const branchChange of branchChanges) {
+        if (branchChange.error || !branchChange.base) {
             branchVsDefault.push({
-                branch: bc.branch, defaultChangedFiles: [], intersection: [],
-                error: bc.error ?? 'no base',
+                branch: branchChange.branch, defaultChangedFiles: [], intersection: [],
+                error: branchChange.error ?? 'no base',
             });
             continue;
         }
-        let defaultChanged = defaultChangedByBase.get(bc.base);
+        let defaultChanged = defaultChangedByBase.get(branchChange.base);
         if (!defaultChanged) {
-            baseProgressIdx++;
-            onProgress?.({ phase: 'default-diff', current: baseProgressIdx, total: uniqueBases.length, base: bc.base });
+            baseProgressIndex++;
+            onProgress?.({ phase: 'default-diff', current: baseProgressIndex, total: uniqueBases.length, base: branchChange.base });
             try {
-                defaultChanged = await getOrComputeDefaultSinceBase(fs, dir, defaultSha, bc.base, cache);
-                defaultChangedByBase.set(bc.base, defaultChanged);
-            } catch (e) {
+                defaultChanged = await getOrComputeDefaultSinceBase(fs, dir, defaultSha, branchChange.base, cache);
+                defaultChangedByBase.set(branchChange.base, defaultChanged);
+            } catch (error) {
                 branchVsDefault.push({
-                    branch: bc.branch, defaultChangedFiles: [], intersection: [],
-                    error: `default-since-base: ${(e as Error).message}`,
+                    branch: branchChange.branch, defaultChangedFiles: [], intersection: [],
+                    error: `default-since-base: ${(error as Error).message}`,
                 });
                 continue;
             }
         }
         const defaultSet = new Set(defaultChanged);
         branchVsDefault.push({
-            branch: bc.branch,
+            branch: branchChange.branch,
             defaultChangedFiles: defaultChanged,
-            intersection: bc.files.filter((f) => defaultSet.has(f)),
+            intersection: branchChange.files.filter((file) => defaultSet.has(file)),
             error: null,
         });
     }
@@ -185,9 +185,9 @@ export async function checkLocalConflicts(
 
     const detailMap = await computeFileConflicts(handle, branchChanges, cache, onProgress, persist);
     const fileDetail: Record<string, FileConflictDetail> = {};
-    for (const [f, d] of detailMap) fileDetail[f] = d;
+    for (const [filePath, detail] of detailMap) fileDetail[filePath] = detail;
 
-    const elapsedMs = Math.round(performance.now() - t0);
+    const elapsedMs = Math.round(performance.now() - startTime);
     onProgress?.({ phase: 'done', elapsedMs });
 
     return {
@@ -237,22 +237,22 @@ async function getOrComputeDefaultSinceBase(
 
 async function changedFiles(fs: Fs, dir: string, fromOid: string, toOid: string): Promise<string[]> {
     if (fromOid === toOid) return [];
-    const out: string[] = [];
+    const changedPaths: string[] = [];
     await git.walk({
         fs, dir,
         trees: [git.TREE({ ref: fromOid }), git.TREE({ ref: toOid })],
         map: async (filepath: string, entries: (git.WalkerEntry | null)[]) => {
             if (filepath === '.') return;
-            const [a, b] = entries;
-            if (!a && !b) return;
-            const aType = a ? await a.type() : null;
-            const bType = b ? await b.type() : null;
-            if (aType === 'tree' || bType === 'tree') return;
-            const aOid = a ? await a.oid() : null;
-            const bOid = b ? await b.oid() : null;
-            if (aOid === bOid) return;
-            out.push(filepath);
+            const [fromEntry, toEntry] = entries;
+            if (!fromEntry && !toEntry) return;
+            const fromType = fromEntry ? await fromEntry.type() : null;
+            const toType = toEntry ? await toEntry.type() : null;
+            if (fromType === 'tree' || toType === 'tree') return;
+            const fromEntryOid = fromEntry ? await fromEntry.oid() : null;
+            const toEntryOid = toEntry ? await toEntry.oid() : null;
+            if (fromEntryOid === toEntryOid) return;
+            changedPaths.push(filepath);
         },
     });
-    return out;
+    return changedPaths;
 }

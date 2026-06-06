@@ -83,26 +83,26 @@ async function rebuildTree(
     overrides: Map<string, Override>,
 ): Promise<string | null> {
     const { tree } = await git.readTree({ fs, dir, oid: treeOid });
-    const next: TreeEntry[] = [];
+    const newEntries: TreeEntry[] = [];
 
     for (const entry of tree) {
-        const full = prefix ? `${prefix}/${entry.path}` : entry.path;
+        const fullPath = prefix ? `${prefix}/${entry.path}` : entry.path;
         if (entry.type === 'tree') {
-            const touched = anyUnder(overrides, full);
-            if (!touched) { next.push(entry); continue; }
-            const rebuilt = await rebuildTree(fs, dir, entry.oid, full, overrides);
-            if (rebuilt) next.push({ ...entry, oid: rebuilt });
+            const touched = anyUnder(overrides, fullPath);
+            if (!touched) { newEntries.push(entry); continue; }
+            const rebuilt = await rebuildTree(fs, dir, entry.oid, fullPath, overrides);
+            if (rebuilt) newEntries.push({ ...entry, oid: rebuilt });
             // null → subtree emptied out, drop it
         } else {
-            const override = overrides.get(full);
-            if (override === undefined) next.push(entry);          // untouched file
+            const override = overrides.get(fullPath);
+            if (override === undefined) newEntries.push(entry);          // untouched file
             else if (override === null) { /* delete: omit */ }
-            else next.push({ ...entry, oid: override });           // revert content, keep mode
+            else newEntries.push({ ...entry, oid: override });           // revert content, keep mode
         }
     }
 
-    if (next.length === 0) return null;
-    return git.writeTree({ fs, dir, tree: next });
+    if (newEntries.length === 0) return null;
+    return git.writeTree({ fs, dir, tree: newEntries });
 }
 
 function anyUnder(overrides: Map<string, Override>, dirPath: string): boolean {

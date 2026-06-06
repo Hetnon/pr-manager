@@ -1,0 +1,28 @@
+/* Shared card/intro/status/clean/errors/legend classes now live in
+   ../../panels.module.css — MasterCheck imports them from there. Only
+   MasterCheck-specific styles remain in this file. */
+
+.master-chip {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: normal;
+  color: #57606a;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  white-space: nowrap;
+  cursor: help;
+}
+.master-chip code {
+  background: none;
+  padding: 0;
+  font-size: 10px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.chip-stale {
+  color: #9a6700;
+  background: #fff8c5;
+  border-color: #d4a72c;
+}

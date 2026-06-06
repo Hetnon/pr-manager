@@ -1,5 +1,5 @@
 import type { PR } from '@shared/pr.js';
-import type { SharedFileMatrix } from './sharedFiles.js';
+import type { SharedFileMatrix } from '../sharedFiles.js';
 
 interface Props {
     matrix: SharedFileMatrix;
@@ -18,21 +18,21 @@ export default function DevActions({ matrix }: Readonly<Props>) {
     const prByNumber = new Map<number, PR>(sortedPrs.map((pr) => [pr.number, pr]));
 
     const sharedFiles: SharedFile[] = files
-        .filter(([, prNums]) => prNums.length > 1)
-        .map(([path, prNums]) => {
-            const prsForFile = prNums.map((n) => prByNumber.get(n)!).filter(Boolean);
+        .filter(([, prNumbers]) => prNumbers.length > 1)
+        .map(([path, prNumbers]) => {
+            const prsForFile = prNumbers.map((prNumber) => prByNumber.get(prNumber)!).filter(Boolean);
             const authors = new Set(prsForFile.map((pr) => pr.author.login));
             return { path, prsForFile, authors };
         });
 
-    const sameAuthorFiles = sharedFiles.filter((sf) => sf.authors.size === 1);
+    const sameAuthorFiles = sharedFiles.filter((sharedFile) => sharedFile.authors.size === 1);
     const byAuthor = new Map<string, SharedFile[]>();
-    for (const sf of sameAuthorFiles) {
-        const author = [...sf.authors][0];
+    for (const sharedFile of sameAuthorFiles) {
+        const author = [...sharedFile.authors][0];
         if (!byAuthor.has(author)) byAuthor.set(author, []);
-        byAuthor.get(author)!.push(sf);
+        byAuthor.get(author)!.push(sharedFile);
     }
-    const authorGroups = [...byAuthor.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const authorGroups = [...byAuthor.entries()].sort(([authorA], [authorB]) => authorA.localeCompare(authorB));
 
     return (
         <div className="recommendations">
@@ -50,9 +50,9 @@ export default function DevActions({ matrix }: Readonly<Props>) {
                             <li key={author} className="rec-item">
                                 <strong>@{author}: pick your canonical version, remove the file from the other PRs of yours, and push.</strong>
                                 <ul className="shared-files">
-                                    {filesForAuthor.map((sf) => (
-                                        <li key={sf.path}>
-                                            <code>{sf.path}</code> — in {sf.prsForFile.map((pr) => `#${pr.number}`).join(', ')}
+                                    {filesForAuthor.map((sharedFile) => (
+                                        <li key={sharedFile.path}>
+                                            <code>{sharedFile.path}</code> — in {sharedFile.prsForFile.map((pr) => `#${pr.number}`).join(', ')}
                                         </li>
                                     ))}
                                 </ul>

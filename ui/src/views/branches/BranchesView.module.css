@@ -1,0 +1,76 @@
+/* BranchesView-local styles. Mirrors what used to be inline styles 1:1 so the
+   look is unchanged. Shared card/banner/legend surfaces live in
+   ../../panels.module.css; only branch-view-specific styling lives here. */
+
+/* ---- shared colour/text helpers (composed into other classes) ---- */
+.ok { color: #1a7f37; }
+.bad { color: #cf222e; }
+.warn { color: #9a6700; }
+.subtle { color: #57606a; }
+.italic { font-style: italic; }
+.ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- outer card + header ---- */
+.panel { border: 1px solid #d0d7de; padding: 12px; margin: 12px 0; }
+.panelHead { display: flex; align-items: center; gap: 8px; }
+.headBusy { font-size: 12px; color: #57606a; font-style: italic; }
+.headMeta { font-size: 12px; color: #57606a; }
+
+/* ---- result / error message lines ---- */
+.message { margin-top: 8px; }
+.msgDedup { margin: 0 0 8px; font-size: 13px; }
+.analyzeNote { font-size: 12px; color: #57606a; margin-bottom: 6px; }
+.reportBlock { margin-top: 16px; }
+
+/* ---- warning banners (working tree dirty, duplicate branches) ---- */
+.warnBanner { margin: 8px 0; padding: 8px 12px; background: #fff8c5; border: 1px solid #d4a72c; border-radius: 4px; font-size: 13px; }
+.dupBanner { margin-bottom: 8px; padding: 8px 12px; background: #fff8c5; border: 1px solid #d4a72c; border-radius: 4px; font-size: 13px; }
+.wtChecking { margin: 8px 0; font-size: 12px; color: #57606a; font-style: italic; }
+.wtError { margin: 8px 0; font-size: 12px; color: #cf222e; }
+.wtClean { margin: 8px 0; font-size: 12px; color: #57606a; }
+.linkButton { background: none; border: none; color: #0969da; cursor: pointer; font: inherit; padding: 0; }
+.wtFiles { margin-top: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.wtGroup { margin-top: 4px; }
+.fileUl { margin: 2px 0 0; padding-left: 18px; }
+
+/* ---- duplicate-branches banner internals ---- */
+.dupList { margin: 6px 0 0; padding-left: 18px; }
+.dupGroup { margin-bottom: 4px; }
+.dupBranchList { margin: 2px 0 0; padding-left: 18px; list-style: none; }
+.dupBranchRow { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.keepTag { font-size: 11px; color: #1a7f37; font-weight: 600; }
+.smallBtn { font-size: 11px; padding: 1px 6px; }
+.outcomeNote { margin-top: 6px; font-size: 12px; }
+
+/* ---- matrix legend ---- */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #57606a; margin: 0 0 8px; }
+.legendItem { display: inline-flex; align-items: center; gap: 2px; }
+.legendDot { color: #1f883d; font-weight: bold; }
+.swatch { display: inline-block; width: 11px; height: 11px; border-radius: 2px; border: 1px solid #d0d7de; vertical-align: middle; margin-right: 4px; }
+
+/* ---- vs-default assessment panel ---- */
+.assessment { margin-top: 16px; padding: 12px 14px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 13px; }
+.assessmentTitle { font-size: 14px; }
+.assessmentIntro { margin: 4px 0 10px; font-size: 12px; color: #57606a; }
+.assessGroup { margin-bottom: 10px; }
+.assessHeadOk { color: #1a7f37; font-weight: 600; margin-bottom: 4px; }
+.assessHeadWarn { color: #9a6700; font-weight: 600; margin-bottom: 4px; }
+.assessList { margin: 0; padding-left: 18px; }
+.assessItem { margin-bottom: 2px; }
+.assessSubList { margin: 2px 0 0; padding-left: 16px; color: #57606a; }
+
+/* ---- branch list ("table": header row + one row per branch) ---- */
+.list { margin-top: 12px; font-size: 13px; }
+.row { display: flex; gap: 12px; align-items: center; padding: 6px 8px; }
+.rowHeader { composes: row; font-weight: 600; border-bottom: 1px solid #d0d7de; }
+.rowBody { composes: row; border-bottom: 1px solid #eaeef2; }
+.colBranch { composes: ellipsis; flex: 2 1 0; }
+.colPr { flex: 0 0 56px; }
+.colHead { flex: 0 0 84px; }
+.colNum { flex: 0 0 64px; text-align: right; }
+.colCommit { composes: ellipsis; flex: 3 1 0; }
+.colActions { flex: 0 0 150px; }
+.colActionsCell { composes: colActions; display: flex; gap: 6px; align-items: center; }
+.dash { color: #8c959f; }
+.blockedNote { font-size: 12px; color: #9a6700; }
+.listFootnote { text-align: right; font-size: 11px; color: #8c959f; font-style: italic; margin-top: 6px; }

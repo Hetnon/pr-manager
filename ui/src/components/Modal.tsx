@@ -42,7 +42,7 @@ export default function Modal({
                     <IconButton
                         aria-label="close"
                         onClick={onClose}
-                        sx={{ position: 'absolute', right: 8, top: 8, color: (t) => t.palette.grey[500] }}
+                        sx={{ position: 'absolute', right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
                     >
                         <Box component="span" sx={{ fontSize: 20, lineHeight: 1 }}>×</Box>
                     </IconButton>

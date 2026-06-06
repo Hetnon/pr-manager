@@ -9,12 +9,12 @@ type Queryable = FileSystemDirectoryHandle & {
 };
 
 export async function queryFolderPermission(handle: FileSystemDirectoryHandle): Promise<FolderPermLevel> {
-    const h = handle as Queryable;
-    if (!h.queryPermission) return 'unknown';
-    const rw = await h.queryPermission({ mode: 'readwrite' });
-    if (rw === 'granted') return 'readwrite';
-    const r = await h.queryPermission({ mode: 'read' });
-    if (r === 'granted') return 'read';
+    const queryableHandle = handle as Queryable;
+    if (!queryableHandle.queryPermission) return 'unknown';
+    const readWriteState = await queryableHandle.queryPermission({ mode: 'readwrite' });
+    if (readWriteState === 'granted') return 'readwrite';
+    const readState = await queryableHandle.queryPermission({ mode: 'read' });
+    if (readState === 'granted') return 'read';
     return 'none';
 }
 
@@ -22,8 +22,16 @@ export async function queryFolderPermission(handle: FileSystemDirectoryHandle): 
 // (button click) — browsers reject permission prompts in async chains
 // disconnected from user input.
 export async function requestFolderReadWrite(handle: FileSystemDirectoryHandle): Promise<FolderPermLevel> {
-    const h = handle as Queryable;
-    if (!h.requestPermission) return queryFolderPermission(handle);
-    await h.requestPermission({ mode: 'readwrite' });
+    const queryableHandle = handle as Queryable;
+    if (!queryableHandle.requestPermission) return queryFolderPermission(handle);
+    await queryableHandle.requestPermission({ mode: 'readwrite' });
     return queryFolderPermission(handle);
+}
+
+// Ensures readwrite, prompting if needed. Returns true if we now have it. Must
+// be called from a user-gesture handler (button click) — browsers reject
+// permission prompts outside user input.
+export async function ensureFolderWritePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
+    if ((await queryFolderPermission(handle)) === 'readwrite') return true;
+    return (await requestFolderReadWrite(handle)) === 'readwrite';
 }

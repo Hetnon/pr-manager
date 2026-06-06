@@ -35,8 +35,8 @@ export async function deleteBranchEverywhere(
                 const fs = makeFsApiFs(handle);
                 await git.deleteBranch({ fs, dir: '/', ref: branch });
                 result.local.ok = true;
-            } catch (e) {
-                result.local.error = (e as Error).message;
+            } catch (error) {
+                result.local.error = (error as Error).message;
             }
         }
     }
@@ -47,12 +47,12 @@ export async function deleteBranchEverywhere(
             result.origin.error = 'No owner/repo';
         } else {
             try {
-                const resp = await deleteRemoteBranch(owner, repo, branch);
-                result.origin.ok = resp.ok;
-                if (resp.ok) result.origin.alreadyGone = resp.alreadyGone;
-                else result.origin.error = resp.error;
-            } catch (e) {
-                result.origin.error = (e as Error).message;
+                const response = await deleteRemoteBranch(owner, repo, branch);
+                result.origin.ok = response.ok;
+                if (response.ok) result.origin.alreadyGone = response.alreadyGone;
+                else result.origin.error = response.error;
+            } catch (error) {
+                result.origin.error = (error as Error).message;
             }
         }
         // Whether the API call deleted the ref or reported it already-gone,

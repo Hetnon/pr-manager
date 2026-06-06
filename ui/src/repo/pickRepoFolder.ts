@@ -24,10 +24,10 @@ export async function pickRepoFolder(): Promise<PickedRepo> {
         handle = await (window as unknown as {
             showDirectoryPicker: (opts?: { id?: string; mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
         }).showDirectoryPicker({ id: 'pr-matrix-repo', mode: 'readwrite' });
-    } catch (e) {
-        const err = e as { name?: string; message?: string };
-        if (err?.name === 'AbortError') throw new FolderPickError('Cancelled.', true);
-        throw new FolderPickError(err?.message || 'Failed to open folder picker.');
+    } catch (error) {
+        const errorInfo = error as { name?: string; message?: string };
+        if (errorInfo?.name === 'AbortError') throw new FolderPickError('Cancelled.', true);
+        throw new FolderPickError(errorInfo?.message || 'Failed to open folder picker.');
     }
     const { owner, name } = await readRepoFromHandle(handle);
     return { handle, owner, name };
@@ -51,7 +51,7 @@ async function readRepoFromHandle(root: FileSystemDirectoryHandle): Promise<{ ow
     if (!result.match) {
         const found = result.remotes.length === 0
             ? 'no [remote "..."] sections found'
-            : `remotes found: ${result.remotes.map((r) => `${r.name}=${r.url ?? '(no url)'}`).join(', ')}`;
+            : `remotes found: ${result.remotes.map((remote) => `${remote.name}=${remote.url ?? '(no url)'}`).join(', ')}`;
         throw new FolderPickError(`No GitHub remote in .git/config (${found}).`);
     }
     return result.match;
@@ -80,18 +80,18 @@ export function parseGitHubRemote(configText: string): ParseResult {
     }
     if (current) sections.push(current);
 
-    const remotes = sections.map((s) => ({
-        name: s.name,
-        url: /^\s*url\s*=\s*(.+?)\s*$/m.exec(s.body)?.[1] ?? null,
+    const remotes = sections.map((section) => ({
+        name: section.name,
+        url: /^\s*url\s*=\s*(.+?)\s*$/m.exec(section.body)?.[1] ?? null,
     }));
 
     const ordered = [
-        ...remotes.filter((r) => r.name === 'origin'),
-        ...remotes.filter((r) => r.name !== 'origin'),
+        ...remotes.filter((remote) => remote.name === 'origin'),
+        ...remotes.filter((remote) => remote.name !== 'origin'),
     ];
-    for (const r of ordered) {
-        if (!r.url) continue;
-        const parsed = parseGitHubUrl(r.url);
+    for (const remote of ordered) {
+        if (!remote.url) continue;
+        const parsed = parseGitHubUrl(remote.url);
         if (parsed) return { match: parsed, remotes };
     }
     return { match: null, remotes };
@@ -106,9 +106,9 @@ function parseGitHubUrl(url: string): { owner: string; name: string } | null {
         /^ssh:\/\/git@[^/]*github[^/]*\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/,
         /^git:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/,
     ];
-    for (const re of patterns) {
-        const m = re.exec(url.trim());
-        if (m) return { owner: m[1], name: m[2] };
+    for (const pattern of patterns) {
+        const match = pattern.exec(url.trim());
+        if (match) return { owner: match[1], name: match[2] };
     }
     return null;
 }

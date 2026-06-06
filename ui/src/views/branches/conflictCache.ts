@@ -91,11 +91,11 @@ export async function loadCache(handle: FileSystemDirectoryHandle): Promise<Conf
         return cache;
     }
     if (parsed.version !== CACHE_VERSION) return cache; // start fresh on version bump
-    for (const [k, v] of Object.entries(parsed.mergeBases ?? {})) cache.mergeBases.set(k, v);
-    for (const [k, v] of Object.entries(parsed.branchFiles ?? {})) cache.branchFiles.set(k, v);
-    for (const [k, v] of Object.entries(parsed.defaultSinceBase ?? {})) cache.defaultSinceBase.set(k, v);
-    for (const [k, v] of Object.entries(parsed.pairResults ?? {})) cache.pairResults.set(k, v);
-    for (const [k, v] of Object.entries(parsed.branchFileInfo ?? {})) cache.branchFileInfo.set(k, v);
+    for (const [key, value] of Object.entries(parsed.mergeBases ?? {})) cache.mergeBases.set(key, value);
+    for (const [key, value] of Object.entries(parsed.branchFiles ?? {})) cache.branchFiles.set(key, value);
+    for (const [key, value] of Object.entries(parsed.defaultSinceBase ?? {})) cache.defaultSinceBase.set(key, value);
+    for (const [key, value] of Object.entries(parsed.pairResults ?? {})) cache.pairResults.set(key, value);
+    for (const [key, value] of Object.entries(parsed.branchFileInfo ?? {})) cache.branchFileInfo.set(key, value);
     return cache;
 }
 
@@ -186,9 +186,9 @@ async function ensureExcludeEntry(handle: FileSystemDirectoryHandle): Promise<vo
         current = (await fs.promises.readFile(GIT_EXCLUDE, { encoding: 'utf8' })) as string;
     } catch { /* file missing — we'll create it */ }
     const lines = current.split(/\r?\n/);
-    if (lines.some((l) => l.trim() === '.tech_lead/' || l.trim() === '.tech_lead')) return;
-    const sep = current.length === 0 || current.endsWith('\n') ? '' : '\n';
-    const next = current + sep + '\n# pr-matrix local cache (not committed)\n.tech_lead/\n';
+    if (lines.some((line) => line.trim() === '.tech_lead/' || line.trim() === '.tech_lead')) return;
+    const separator = current.length === 0 || current.endsWith('\n') ? '' : '\n';
+    const next = current + separator + '\n# pr-matrix local cache (not committed)\n.tech_lead/\n';
     try {
         await fs.promises.writeFile(GIT_EXCLUDE, next);
     } catch {

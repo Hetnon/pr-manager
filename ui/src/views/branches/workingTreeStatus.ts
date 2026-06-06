@@ -82,7 +82,7 @@ export async function readWorkingTreeStatus(
     }
     await walk(handle, '');
 
-    const deleted = [...index.keys()].filter((p) => !seen.has(p)).sort();
+    const deleted = [...index.keys()].filter((indexedPath) => !seen.has(indexedPath)).sort();
     untracked.sort();
     modified.sort();
     return {
@@ -117,24 +117,44 @@ async function readGitIndex(fs: ReturnType<typeof makeFsApiFs>): Promise<Map<str
     }
     const count = view.getUint32(8, false);
 
-    let off = 12;
-    for (let i = 0; i < count && off + 62 <= bytes.length; i++) {
-        const entryStart = off;
-        const mtimeSeconds = view.getUint32(off + 8, false);
-        const size = view.getUint32(off + 36, false);
+    let offset = 12;
+    for (let i = 0; i < count && offset + 62 <= bytes.length; i++) {
+        const entryStart = offset;
+        const mtimeSeconds = view.getUint32(offset + 8, false);
+        const size = view.getUint32(offset + 36, false);
         let oid = '';
-        for (let b = 0; b < 20; b++) oid += bytes[off + 40 + b].toString(16).padStart(2, '0');
-        const flags = view.getUint16(off + 60, false);
-        let nameOff = off + 62;
-        if (version >= 3 && (flags & 0x4000) !== 0) nameOff += 2; // extended flags present
-        let end = nameOff;
+        for (let byteIndex = 0; byteIndex < 20; byteIndex++) oid += bytes[offset + 40 + byteIndex].toString(16).padStart(2, '0');
+        const flags = view.getUint16(offset + 60, false);
+        let nameOffset = offset + 62;
+        if (version >= 3 && (flags & 0x4000) !== 0) nameOffset += 2; // extended flags present
+        let end = nameOffset;
         while (end < bytes.length && bytes[end] !== 0) end++;
-        const name = decoder.decode(bytes.subarray(nameOff, end));
+        const name = decoder.decode(bytes.subarray(nameOffset, end));
         map.set(name, { mtimeSeconds, size, oid });
         // Entries are NUL-terminated and padded to a multiple of 8 bytes.
-        off = entryStart + (((end - entryStart) + 8) & ~7);
+        offset = entryStart + (((end - entryStart) + 8) & ~7);
     }
     return map;
+}
+
+// Returns a reason to block a ref-moving action when the working tree is dirty,
+// or null to proceed. Branch ops move refs but never touch the working tree, so
+// uncommitted/untracked work could silently desync. If status can't be read we
+// don't block — we can't prove it's dirty.
+export async function workingTreeBlockReason(handle: FileSystemDirectoryHandle, action: string): Promise<string | null> {
+    let status: WorkingTreeStatus;
+    try {
+        status = await readWorkingTreeStatus(handle);
+    } catch {
+        return null;
+    }
+    if (status.clean) return null;
+    const counts = [
+        status.untracked.length ? `${status.untracked.length} untracked` : '',
+        status.modified.length ? `${status.modified.length} modified` : '',
+        status.deleted.length ? `${status.deleted.length} deleted` : '',
+    ].filter(Boolean).join(', ');
+    return `Working tree isn't clean (${counts}). Commit or stash before ${action}.`;
 }
 
 // Git blob object id of some content: SHA-1 of the git blob object (a small
@@ -148,6 +168,6 @@ async function gitBlobOid(content: Uint8Array): Promise<string> {
     full.set(content, header.length + 1);
     const digest = await crypto.subtle.digest('SHA-1', full);
     let hex = '';
-    for (const b of new Uint8Array(digest)) hex += b.toString(16).padStart(2, '0');
+    for (const byte of new Uint8Array(digest)) hex += byte.toString(16).padStart(2, '0');
     return hex;
 }

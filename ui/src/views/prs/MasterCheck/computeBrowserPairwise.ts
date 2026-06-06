@@ -2,7 +2,7 @@ import * as git from 'isomorphic-git';
 import { merge as diff3Merge } from 'node-diff3';
 import type { PR } from '@shared/pr.js';
 import type { FileSeverity, PrGroup, PairwisePrConflicts } from '@shared/conflicts.js';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../../repo/fsApiAdapter.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 
@@ -37,20 +37,20 @@ export async function computeBrowserPairwise(
         bySha.get(pr.headSha)!.push(pr.number);
     }
     const prGroups: PrGroup[] = [];
-    for (const [sha, nums] of bySha) {
-        const sorted = [...nums].sort((a, b) => a - b);
+    for (const [sha, prNumbers] of bySha) {
+        const sorted = [...prNumbers].sort((numberA, numberB) => numberA - numberB);
         prGroups.push({ sha, prNumbers: sorted, canonical: sorted[0] });
     }
-    prGroups.sort((a, b) => a.canonical - b.canonical);
+    prGroups.sort((groupA, groupB) => groupA.canonical - groupB.canonical);
 
-    const canonicalNums = new Set(prGroups.map((g) => g.canonical));
+    const canonicalNums = new Set(prGroups.map((group) => group.canonical));
     const canonicals = prs.filter((pr) => canonicalNums.has(pr.number));
 
     const fileToPrs = new Map<string, PR[]>();
     for (const pr of canonicals) {
-        for (const f of pr.files) {
-            if (!fileToPrs.has(f.path)) fileToPrs.set(f.path, []);
-            fileToPrs.get(f.path)!.push(pr);
+        for (const file of pr.files) {
+            if (!fileToPrs.has(file.path)) fileToPrs.set(file.path, []);
+            fileToPrs.get(file.path)!.push(pr);
         }
     }
 

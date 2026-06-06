@@ -13,16 +13,18 @@ export interface SharedFileMatrix {
 // surface. It works only from the file lists GitHub already gave us (no content
 // is inspected), so a "hot" file means "touched by multiple PRs", not a proven
 // merge conflict. The deeper line-level check lives in the branches view.
+
 export function buildSharedFileMatrix(prs: PR[]): SharedFileMatrix {
     // file path -> the PRs that touch it; a path with >1 PR is a shared/hot file.
     const fileToPRs = mapFilesToChangeSets(
         prs.map((pr) => ({ id: pr.number, files: pr.files.map((file) => file.path) })),
     );
 
-    const sortedPrs = [...prs].sort((a, b) => a.number - b.number); // sort the PRs by their PR numbers
-    const files = [...fileToPRs.entries()].sort((a, b) => { // sort the files in the map by their PR count. If PR count is the same, order by file path alphabetically
-        if (b[1].length !== a[1].length) return b[1].length - a[1].length;
-        return a[0].localeCompare(b[0]);
+    const sortedPrs = [...prs].sort((prA, prB) => prA.number - prB.number); // sort the PRs by their PR numbers
+    // sort files by PR count (hottest first); ties broken alphabetically by path
+    const files = [...fileToPRs.entries()].sort(([pathA, prsA], [pathB, prsB]) => {
+        if (prsB.length !== prsA.length) return prsB.length - prsA.length;
+        return pathA.localeCompare(pathB);
     });
 
     const prSafe = new Map<number, boolean>();

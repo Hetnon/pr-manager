@@ -30,14 +30,14 @@ export function planDedup(branchOrder: string[], fileDetail: Record<string, File
     const pairFiles = new Map<string, Set<string>>();
     for (const [file, detail] of Object.entries(fileDetail)) {
         for (const group of detail.identicalGroups ?? []) {
-            for (let a = 0; a < group.length; a++) {
-                for (let b = a + 1; b < group.length; b++) {
-                    const ia = indexOf.get(group[a]);
-                    const ib = indexOf.get(group[b]);
-                    if (ia === undefined || ib === undefined) continue;
-                    const lo = Math.min(ia, ib);
-                    const hi = Math.max(ia, ib);
-                    const key = `${lo}|${hi}`;
+            for (let firstIndex = 0; firstIndex < group.length; firstIndex++) {
+                for (let secondIndex = firstIndex + 1; secondIndex < group.length; secondIndex++) {
+                    const indexA = indexOf.get(group[firstIndex]);
+                    const indexB = indexOf.get(group[secondIndex]);
+                    if (indexA === undefined || indexB === undefined) continue;
+                    const lowerIndex = Math.min(indexA, indexB);
+                    const higherIndex = Math.max(indexA, indexB);
+                    const key = `${lowerIndex}|${higherIndex}`;
                     let files = pairFiles.get(key);
                     if (!files) { files = new Set(); pairFiles.set(key, files); }
                     files.add(file);
@@ -94,14 +94,14 @@ export function applyDedupToReport(report: LocalConflictReport, filesByDonor: Ma
         return drop;
     };
 
-    const branchChanges = report.branchChanges.map((bc) => {
-        const drop = filesDroppedFrom(bc.branch);
-        return drop.size === 0 ? bc : { ...bc, files: bc.files.filter((f) => !drop.has(f)) };
+    const branchChanges = report.branchChanges.map((branchChange) => {
+        const drop = filesDroppedFrom(branchChange.branch);
+        return drop.size === 0 ? branchChange : { ...branchChange, files: branchChange.files.filter((file) => !drop.has(file)) };
     });
 
-    const branchVsDefault = report.branchVsDefault.map((bvd) => {
-        const drop = filesDroppedFrom(bvd.branch);
-        return drop.size === 0 ? bvd : { ...bvd, intersection: bvd.intersection.filter((f) => !drop.has(f)) };
+    const branchVsDefault = report.branchVsDefault.map((assessment) => {
+        const drop = filesDroppedFrom(assessment.branch);
+        return drop.size === 0 ? assessment : { ...assessment, intersection: assessment.intersection.filter((file) => !drop.has(file)) };
     });
 
     const fileDetail: Record<string, FileConflictDetail> = { ...report.fileDetail };
@@ -116,10 +116,10 @@ export function applyDedupToReport(report: LocalConflictReport, filesByDonor: Ma
 // Re-derives a file's verdict after some branches stop touching it, by filtering
 // the already-computed detail (no merges re-run).
 function recomputeWithout(detail: FileConflictDetail, removed: Set<string>): FileConflictDetail {
-    const edits = detail.edits.filter((e) => !removed.has(e.branch));
-    const conflicts = detail.conflicts.filter((c) => !removed.has(c.a) && !removed.has(c.b));
+    const edits = detail.edits.filter((edit) => !removed.has(edit.branch));
+    const conflicts = detail.conflicts.filter((conflict) => !removed.has(conflict.branchA) && !removed.has(conflict.branchB));
     const identicalGroups = (detail.identicalGroups ?? [])
-        .map((group) => group.filter((b) => !removed.has(b)))
+        .map((group) => group.filter((branchName) => !removed.has(branchName)))
         .filter((group) => group.length >= 2);
 
     const touching = edits.length;

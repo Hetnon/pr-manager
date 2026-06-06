@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import styles from '../../components/Matrix.module.css';
 import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../components/Matrix.js';
+import { formatRelative, formatDateTime } from '../../lib/formatDate.js';
 import type { LocalBranch } from './readLocalRepo.js';
 import type { BranchChanges, BranchGroup } from './checkLocalConflicts.js';
 import type { FileConflictDetail, FileSeverity } from './lineLevelConflicts.js';
@@ -27,18 +28,18 @@ interface MatrixData {
 const META_LABELS = ['HEAD', 'Author', 'Last commit', 'When'];
 
 function buildBranchMatrix(branchChanges: BranchChanges[]): MatrixData {
-    const usable = branchChanges.filter((b) => !b.error && b.files.length > 0);
+    const usable = branchChanges.filter((branchChange) => !branchChange.error && branchChange.files.length > 0);
     const fileToBranches = new Map<string, Set<string>>();
-    for (const b of usable) {
-        for (const f of b.files) {
-            if (!fileToBranches.has(f)) fileToBranches.set(f, new Set());
-            fileToBranches.get(f)!.add(b.branch);
+    for (const branchChange of usable) {
+        for (const file of branchChange.files) {
+            if (!fileToBranches.has(file)) fileToBranches.set(file, new Set());
+            fileToBranches.get(file)!.add(branchChange.branch);
         }
     }
-    const columns = [...usable].sort((a, b) => a.branch.localeCompare(b.branch));
-    const files = [...fileToBranches.entries()].sort((a, b) => {
-        if (b[1].size !== a[1].size) return b[1].size - a[1].size;
-        return a[0].localeCompare(b[0]);
+    const columns = [...usable].sort((changeA, changeB) => changeA.branch.localeCompare(changeB.branch));
+    const files = [...fileToBranches.entries()].sort(([pathA, branchesA], [pathB, branchesB]) => {
+        if (branchesB.size !== branchesA.size) return branchesB.size - branchesA.size;
+        return pathA.localeCompare(pathB);
     });
     return { columns, files };
 }
@@ -55,7 +56,7 @@ function heatFor(severity: FileSeverity): string {
     return styles.heat1;
 }
 
-function fmtRanges(ranges: LineRange[]): string {
+function formatLineRanges(ranges: LineRange[]): string {
     if (ranges.length === 0) return 'whole file';
     return ranges.map(([start, end]) => (start === end ? `${start}` : `${start}–${end}`)).join(', ');
 }
@@ -74,7 +75,7 @@ function describeFile(detail: FileConflictDetail | undefined, branchesTouching: 
     if (detail.severity === 'conflict') {
         lines.push('Real merge conflict on this file:');
         for (const conflict of detail.conflicts) {
-            lines.push(`  ${conflict.a} ✗ ${conflict.b} — base lines ${fmtRanges(conflict.regions)}`);
+            lines.push(`  ${conflict.branchA} ✗ ${conflict.branchB} — base lines ${formatLineRanges(conflict.regions)}`);
         }
     } else {
         lines.push(`Touched by ${branchesTouching.length} branches, but the changes don't overlap (clean 3-way merge).`);
@@ -85,7 +86,7 @@ function describeFile(detail: FileConflictDetail | undefined, branchesTouching: 
         for (const edit of detail.edits) {
             if (edit.headMissing) lines.push(`  ${edit.branch}: deletes the file`);
             else if (edit.binary) lines.push(`  ${edit.branch}: binary change`);
-            else lines.push(`  ${edit.branch}: lines ${fmtRanges(edit.ranges)}`);
+            else lines.push(`  ${edit.branch}: lines ${formatLineRanges(edit.ranges)}`);
         }
     }
 
@@ -93,16 +94,6 @@ function describeFile(detail: FileConflictDetail | undefined, branchesTouching: 
         lines.push('', `Identical content in: ${group.join(', ')} (redundant — drop from all but one)`);
     }
     return lines.join('\n');
-}
-
-function formatRelative(iso: string | undefined): string {
-    if (!iso) return '';
-    const days = Math.round((Date.now() - new Date(iso).getTime()) / 86400000);
-    if (days <= 0) return 'today';
-    if (days === 1) return '1d ago';
-    if (days < 30) return `${days}d ago`;
-    if (days < 365) return `${Math.round(days / 30)}mo ago`;
-    return `${Math.round(days / 365)}y ago`;
 }
 
 const STATUS_GLYPH: Record<FileSeverity, (count: number) => string> = {
@@ -138,39 +129,39 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
         else if (severity === 'warning') warningFiles++;
         else if (severity === 'identical') identicalFiles++;
         for (const conflict of fileDetail?.[file]?.conflicts ?? []) {
-            conflictBranches.add(conflict.a);
-            conflictBranches.add(conflict.b);
+            conflictBranches.add(conflict.branchA);
+            conflictBranches.add(conflict.branchB);
         }
     }
     const branchSafe = (branch: string) => !conflictBranches.has(branch);
-    const safeCount = matrix.columns.filter((c) => branchSafe(c.branch)).length;
+    const safeCount = matrix.columns.filter((column) => branchSafe(column.branch)).length;
 
-    const headByBranch = new Map(branches.map((b) => [b.name, b]));
-    const groupByCanonical = new Map((branchGroups ?? []).map((g) => [g.canonical, g]));
+    const headByBranch = new Map(branches.map((branch) => [branch.name, branch]));
+    const groupByCanonical = new Map((branchGroups ?? []).map((group) => [group.canonical, group]));
 
-    const columns: MatrixColumn[] = matrix.columns.map((col) => {
-        const safe = branchSafe(col.branch);
-        const group = groupByCanonical.get(col.branch);
+    const columns: MatrixColumn[] = matrix.columns.map((column) => {
+        const safe = branchSafe(column.branch);
+        const group = groupByCanonical.get(column.branch);
         const extras = group && group.branches.length > 1 ? group.branches.length - 1 : 0;
         const tooltip = group && group.branches.length > 1
             ? `Identical (same HEAD) branches:\n${group.branches.join('\n')}`
-            : col.branch;
-        const head = headByBranch.get(col.branch)?.head;
+            : column.branch;
+        const head = headByBranch.get(column.branch)?.head;
         return {
-            key: col.branch,
+            key: column.branch,
             header: (
                 <>
-                    <code>{col.branch}</code>
+                    <code>{column.branch}</code>
                     {extras > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: '#57606a' }}>(+{extras})</span>}
                 </>
             ),
             headerClassName: safe ? styles.prSafe : styles.prConflict,
             headerTitle: tooltip,
             meta: [
-                <div className={`${styles.metaContent} ${styles.branch}`} title={col.sha}>{col.sha.slice(0, 8)}</div>,
+                <div className={`${styles.metaContent} ${styles.branch}`} title={column.sha}>{column.sha.slice(0, 8)}</div>,
                 <div className={`${styles.metaContent} ${styles.author}`} title={head ? `${head.authorName} <${head.authorEmail}>` : ''}>{head?.authorName ?? '—'}</div>,
                 <div className={`${styles.metaContent} ${styles.title}`} title={head?.message ?? ''}>{head?.message ?? '—'}</div>,
-                <div className={`${styles.metaContent} ${styles.timestamp}`} title={head ? new Date(head.date).toLocaleString() : ''}>{head ? formatRelative(head.date) : '—'}</div>,
+                <div className={`${styles.metaContent} ${styles.timestamp}`} title={head ? formatDateTime(head.date) : ''}>{head ? formatRelative(head.date) : '—'}</div>,
             ],
             footer: safe ? '✓' : '✗',
             footerClassName: safe ? styles.safe : styles.conflict,
@@ -195,9 +186,9 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
             status: STATUS_GLYPH[severity](branchSet.size),
             statusClassName: STATUS_CLASS[severity],
             statusTitle: describeFile(detail, branchesTouching),
-            cells: matrix.columns.map((col) => {
-                if (!branchSet.has(col.branch)) return { content: null, className: styles.miss };
-                const cellClass = identical.has(col.branch) ? styles.identical : heat;
+            cells: matrix.columns.map((column) => {
+                if (!branchSet.has(column.branch)) return { content: null, className: styles.miss };
+                const cellClass = identical.has(column.branch) ? styles.identical : heat;
                 return { content: '●', className: `${styles.hit} ${cellClass}` };
             }),
         };
@@ -217,7 +208,7 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
                 footerLabel={<strong>Good to merge? ({matrix.files.length} files)</strong>}
                 files={fileRows}
                 expanded={expanded}
-                onToggle={() => setExpanded((v) => !v)}
+                onToggle={() => setExpanded((isExpanded) => !isExpanded)}
             />
         </>
     );

@@ -74,12 +74,12 @@ export default function Matrix({
                 </div>
                 <div className={styles.statusHeader}>{statusLabel}</div>
                 <div className={styles.columns}>
-                    {columns.map((col) => (
-                        <div key={col.key} className={styles.column}>
-                            <div className={`${styles.colHeader} ${col.headerClassName ?? ''}`} title={col.headerTitle}>
-                                {col.header}
+                    {columns.map((column) => (
+                        <div key={column.key} className={styles.column}>
+                            <div className={`${styles.colHeader} ${column.headerClassName ?? ''}`} title={column.headerTitle}>
+                                {column.header}
                             </div>
-                            {col.meta.map((node, i) => (
+                            {column.meta.map((node, i) => (
                                 <div key={metaLabels[i] ?? i} className={styles.metaCell}>{node}</div>
                             ))}
                         </div>
@@ -100,8 +100,8 @@ export default function Matrix({
                     </button>
                 </div>
                 <div className={styles.statusCell} />
-                {columns.map((col) => (
-                    <div key={col.key} className={`${styles.footerCell} ${col.footerClassName ?? ''}`}>{col.footer}</div>
+                {columns.map((column) => (
+                    <div key={column.key} className={`${styles.footerCell} ${column.footerClassName ?? ''}`}>{column.footer}</div>
                 ))}
             </div>
 

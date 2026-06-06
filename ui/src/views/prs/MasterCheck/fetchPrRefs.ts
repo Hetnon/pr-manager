@@ -1,6 +1,6 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
-import { proxiedGitHttp } from '../../repo/gitHttpAdapter.js';
+import { makeFsApiFs } from '../../../repo/fsApiAdapter.js';
+import { proxiedGitHttp } from '../../../repo/gitHttpAdapter.js';
 
 export interface FetchPrRefsResult {
     fetched: number[];
@@ -24,20 +24,20 @@ export async function fetchPrRefs(
     const url = `${apiBase()}/api/git-proxy/${owner}/${repo}`;
     const fetched: number[] = [];
     const failed: { number: number; error: string }[] = [];
-    for (const n of prNumbers) {
+    for (const prNumber of prNumbers) {
         try {
             await git.fetch({
                 fs,
                 http: proxiedGitHttp,
                 dir: '/',
                 url,
-                remoteRef: `refs/pull/${n}/head`,
+                remoteRef: `refs/pull/${prNumber}/head`,
                 singleBranch: true,
                 tags: false,
             });
-            fetched.push(n);
-        } catch (e) {
-            failed.push({ number: n, error: (e as Error).message });
+            fetched.push(prNumber);
+        } catch (error) {
+            failed.push({ number: prNumber, error: (error as Error).message });
         }
     }
     return { fetched, failed };

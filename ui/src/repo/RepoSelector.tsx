@@ -1,30 +1,29 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { FolderPickError, isFolderPickerSupported, pickRepoFolder } from './pickRepoFolder.js';
+import { RepoContext } from './RepoContext.js';
 
-export interface RepoSelectorProps {
-    currentRepo: string | null;
-    onSelect: (ownerRepo: string, handle: FileSystemDirectoryHandle) => void;
-    onCancel?: () => void;
-    firstRun?: boolean;
-}
-
-export default function RepoSelector({ currentRepo, onSelect, onCancel, firstRun }: RepoSelectorProps) {
+export default function RepoSelector() {
+    const { repo: currentRepo, setRepo, closePicker } = useContext(RepoContext);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const supported = isFolderPickerSupported();
+    const firstRun = !currentRepo;
 
+    // Select the picked folder as the current repo and close the picker — the
+    // whole "choose a repo" interaction is owned here, not by App.
     async function pick() {
         setError(null);
         setBusy(true);
         try {
             const { handle, owner, name } = await pickRepoFolder();
-            onSelect(`${owner}/${name}`, handle);
-        } catch (e) {
-            if (e instanceof FolderPickError && e.cancelled) {
+            setRepo(`${owner}/${name}`, handle);
+            closePicker();
+        } catch (caughtError) {
+            if (caughtError instanceof FolderPickError && caughtError.cancelled) {
                 // User dismissed the OS picker — leave the modal open with no error.
                 return;
             }
-            setError(e instanceof Error ? e.message : String(e));
+            setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
         } finally {
             setBusy(false);
         }
@@ -42,7 +41,7 @@ export default function RepoSelector({ currentRepo, onSelect, onCancel, firstRun
                     <p className="picker-msg">Current: <code>{currentRepo}</code></p>
                 )}
                 <div className="picker-actions">
-                    {!firstRun && onCancel && <button type="button" onClick={onCancel}>Cancel</button>}
+                    {!firstRun && <button type="button" onClick={closePicker}>Cancel</button>}
                     <button type="button" className="primary" onClick={pick} disabled={!supported || busy}>
                         {busy ? 'Opening…' : 'Choose folder…'}
                     </button>

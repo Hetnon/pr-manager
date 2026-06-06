@@ -6,7 +6,7 @@ interface Props {
     onChange?: (level: FolderPermLevel) => void;
 }
 
-export default function RepoPermissionBadge({ handle, onChange }: Props) {
+export default function RepoPermissionBadge({ handle, onChange }: Readonly<Props>) {
     const [level, setLevel] = useState<FolderPermLevel | null>(null);
     const [busy, setBusy] = useState(false);
 
@@ -16,8 +16,8 @@ export default function RepoPermissionBadge({ handle, onChange }: Props) {
     useEffect(() => {
         if (!handle) { setLevel(null); return; }
         let cancelled = false;
-        void queryFolderPermission(handle).then((l) => {
-            if (!cancelled) setLevel(l);
+        void queryFolderPermission(handle).then((permissionLevel) => {
+            if (!cancelled) setLevel(permissionLevel);
         });
         return () => { cancelled = true; };
     }, [handle]);
@@ -57,10 +57,10 @@ export default function RepoPermissionBadge({ handle, onChange }: Props) {
 
 function describe(level: FolderPermLevel): { label: string; title: string } {
     if (level === 'readwrite') {
-        return { label: 'rw', title: 'Folder access: read + write. Push/fetch enabled.' };
+        return { label: 'read & write', title: 'Folder access: read + write. Push/fetch enabled.' };
     }
     if (level === 'read') {
-        return { label: 'ro', title: 'Folder access: read only. Click to allow writes (needed for push/fetch).' };
+        return { label: 'read only', title: 'Folder access: read only. Click to allow writes (needed for push/fetch).' };
     }
     if (level === 'none') {
         return { label: 'no access', title: 'No folder access. Click to grant, or pick the folder again.' };
@@ -76,11 +76,11 @@ function chipStyle(level: FolderPermLevel | 'loading', busy?: boolean, clickable
         unknown:   { bg: '#f6f8fa', border: '#d0d7de', color: '#57606a' },
         loading:   { bg: '#f6f8fa', border: '#d0d7de', color: '#57606a' },
     } as const;
-    const p = palette[level];
+    const colors = palette[level];
     return {
-        background: p.bg,
-        border: `1px solid ${p.border}`,
-        color: p.color,
+        background: colors.bg,
+        border: `1px solid ${colors.border}`,
+        color: colors.color,
         borderRadius: 12,
         padding: '2px 8px',
         fontSize: 11,

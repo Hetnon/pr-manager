@@ -1,23 +1,17 @@
+import { useContext } from 'react';
+import { RepoContext } from '../repo/RepoContext.js';
 import RepoPermissionBadge from '../repo/RepoPermissionBadge.js';
 import LogoutButton from '../auth/LogoutButton.js';
 
 interface Props {
-    repo: string | null;
-    folderHandle: FileSystemDirectoryHandle | null;
-    status: string;
-    onOpenPicker: () => void;
     onRefresh: () => void;
 }
 
 // Right-hand repo controls: current repo, permission badge, change-repo,
-// refresh, status text, logout. Pure presentation — App owns the behaviour.
-export default function HeaderControls({
-    repo,
-    folderHandle,
-    status,
-    onOpenPicker,
-    onRefresh,
-}: Readonly<Props>) {
+// refresh, logout. Repo state comes from context; App owns only the refresh
+// behaviour. (PR-load status lives in the PR view, not here.)
+export default function HeaderControls({ onRefresh }: Readonly<Props>) {
+    const { repo, folderHandle, openPicker } = useContext(RepoContext);
     return (
         <div className="controls">
             {repo && <span className="repo-display" title={repo}>{repo}</span>}
@@ -27,9 +21,8 @@ export default function HeaderControls({
                     onChange={(level) => { if (level === 'readwrite') onRefresh(); }}
                 />
             )}
-            {repo && <button onClick={onOpenPicker}>Change repo</button>}
+            {repo && <button onClick={openPicker}>Change repo</button>}
             {repo && <button onClick={onRefresh}>↻ Refresh</button>}
-            <span id="status">{status}</span>
             <LogoutButton />
         </div>
     );

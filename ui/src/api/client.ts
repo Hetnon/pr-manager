@@ -36,32 +36,32 @@ export class ApiError extends Error {
     }
 }
 
-export async function apiFetch<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+export async function apiFetch<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
     const url = new URL(`${API_BASE}${path}`, window.location.origin);
-    if (opts.query) {
-        for (const [k, v] of Object.entries(opts.query)) {
-            if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
+    if (options.query) {
+        for (const [key, value] of Object.entries(options.query)) {
+            if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
         }
     }
 
-    const method = opts.method ?? 'GET';
+    const method = options.method ?? 'GET';
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (method !== 'GET') {
         const token = getCsrfToken();
         if (token) headers['CSRF-Token'] = token;
     }
 
-    const res = await fetch(url.toString(), {
+    const response = await fetch(url.toString(), {
         method,
         headers,
-        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
         credentials: 'include',
     });
 
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        const d = data as { errorMessage?: string; error?: string } | undefined;
-        throw new ApiError(d?.errorMessage ?? d?.error ?? `HTTP ${res.status}`, res.status, data);
+    const data: unknown = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const errorData = data as { errorMessage?: string; error?: string } | undefined;
+        throw new ApiError(errorData?.errorMessage ?? errorData?.error ?? `HTTP ${response.status}`, response.status, data);
     }
     return data as T;
 }

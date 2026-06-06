@@ -11,8 +11,8 @@ interface WriteOpts { encoding?: Encoding; mode?: number }
 // Node's fs accepts the encoding either as an options object (`{ encoding }`) or
 // as a bare string (`'utf8'`). isomorphic-git uses the string form (e.g. when
 // reading .gitignore), so we must accept both or text reads come back as binary.
-function encodingOf(opts: ReadOpts | WriteOpts | Encoding): Encoding {
-    return typeof opts === 'string' ? opts : opts?.encoding;
+function encodingOf(options: ReadOpts | WriteOpts | Encoding): Encoding {
+    return typeof options === 'string' ? options : options?.encoding;
 }
 
 class StatsLike {
@@ -37,17 +37,17 @@ class StatsLike {
     isSymbolicLink() { return false; }
 }
 
-function splitPath(p: string): string[] {
+function splitPath(path: string): string[] {
     // Drop empty and `.` segments so `.`, `./`, `/`, and `''` all resolve to the
     // repo root. isomorphic-git's working-tree walk lstats `.` for the root; only
     // the literal `.` segment is dropped, so names like `.git`/`.gitignore` stay.
-    return p.replace(/^\/+/, '').replace(/\/+$/, '').split('/').filter((seg) => seg !== '' && seg !== '.');
+    return path.replace(/^\/+/, '').replace(/\/+$/, '').split('/').filter((segment) => segment !== '' && segment !== '.');
 }
 
 export interface FsApiFs {
     promises: {
-        readFile(path: string, opts?: ReadOpts | Encoding): Promise<Uint8Array | string>;
-        writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts | Encoding): Promise<void>;
+        readFile(path: string, options?: ReadOpts | Encoding): Promise<Uint8Array | string>;
+        writeFile(path: string, data: Uint8Array | string, options?: WriteOpts | Encoding): Promise<void>;
         unlink(path: string): Promise<void>;
         readdir(path: string): Promise<string[]>;
         mkdir(path: string): Promise<void>;
@@ -62,11 +62,11 @@ export interface FsApiFs {
 
 export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
     async function getDir(parts: string[], create = false): Promise<FileSystemDirectoryHandle> {
-        let h: FileSystemDirectoryHandle = root;
-        for (const seg of parts) {
-            h = await h.getDirectoryHandle(seg, { create });
+        let currentDir: FileSystemDirectoryHandle = root;
+        for (const segment of parts) {
+            currentDir = await currentDir.getDirectoryHandle(segment, { create });
         }
-        return h;
+        return currentDir;
     }
 
     async function getFile(path: string, create = false): Promise<FileSystemFileHandle> {
@@ -95,9 +95,9 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
             return new StatsLike('dir', 0, 0);
         } catch { /* not a dir */ }
         try {
-            const fh = await parent.getFileHandle(name);
-            const f = await fh.getFile();
-            return new StatsLike('file', f.size, f.lastModified);
+            const fileHandle = await parent.getFileHandle(name);
+            const file = await fileHandle.getFile();
+            return new StatsLike('file', file.size, file.lastModified);
         } catch {
             throw new ENoEnt(path);
         }
@@ -105,27 +105,27 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
 
     return {
         promises: {
-            async readFile(path: string, opts?: ReadOpts | Encoding): Promise<Uint8Array | string> {
-                const fh = await getFile(path).catch(() => { throw new ENoEnt(path); });
-                const f = await fh.getFile();
-                const encoding = encodingOf(opts);
+            async readFile(path: string, options?: ReadOpts | Encoding): Promise<Uint8Array | string> {
+                const fileHandle = await getFile(path).catch(() => { throw new ENoEnt(path); });
+                const file = await fileHandle.getFile();
+                const encoding = encodingOf(options);
                 if (encoding === 'utf8' || encoding === 'utf-8') {
-                    return await f.text();
+                    return await file.text();
                 }
-                return new Uint8Array(await f.arrayBuffer());
+                return new Uint8Array(await file.arrayBuffer());
             },
 
-            async writeFile(path: string, data: Uint8Array | string, opts?: WriteOpts | Encoding): Promise<void> {
+            async writeFile(path: string, data: Uint8Array | string, options?: WriteOpts | Encoding): Promise<void> {
                 try {
-                    const fh = await getFile(path, true);
-                    const writable = await (fh as FileSystemFileHandle & {
+                    const fileHandle = await getFile(path, true);
+                    const writable = await (fileHandle as FileSystemFileHandle & {
                         createWritable: (opts?: { keepExistingData?: boolean }) => Promise<{
                             write: (data: unknown) => Promise<void>;
                             close: () => Promise<void>;
                         }>;
                     }).createWritable({ keepExistingData: false });
                     if (typeof data === 'string') {
-                        const encoding = encodingOf(opts);
+                        const encoding = encodingOf(options);
                         if (encoding && encoding !== 'utf8' && encoding !== 'utf-8') {
                             throw new Error(`Unsupported encoding: ${encoding}`);
                         }
@@ -135,8 +135,8 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
                         await writable.write(new Blob([data as unknown as BlobPart]));
                     }
                     await writable.close();
-                } catch (e) {
-                    throw wrapFsError(e, 'writeFile', path);
+                } catch (error) {
+                    throw wrapFsError(error, 'writeFile', path);
                 }
             },
 
@@ -146,8 +146,8 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
                     if (parts.length === 0) throw new ENoEnt(path);
                     const dir = await getDir(parts.slice(0, -1));
                     await dir.removeEntry(parts[parts.length - 1]);
-                } catch (e) {
-                    throw wrapFsError(e, 'unlink', path);
+                } catch (error) {
+                    throw wrapFsError(error, 'unlink', path);
                 }
             },
 
@@ -165,8 +165,8 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
             async mkdir(path: string): Promise<void> {
                 try {
                     await getDir(splitPath(path), true);
-                } catch (e) {
-                    throw wrapFsError(e, 'mkdir', path);
+                } catch (error) {
+                    throw wrapFsError(error, 'mkdir', path);
                 }
             },
 
@@ -176,8 +176,8 @@ export function makeFsApiFs(root: FileSystemDirectoryHandle): FsApiFs {
                     if (parts.length === 0) throw new EPerm('cannot rmdir root');
                     const parent = await getDir(parts.slice(0, -1));
                     await parent.removeEntry(parts[parts.length - 1], { recursive: false });
-                } catch (e) {
-                    throw wrapFsError(e, 'rmdir', path);
+                } catch (error) {
+                    throw wrapFsError(error, 'rmdir', path);
                 }
             },
 
@@ -212,21 +212,21 @@ class FsError extends Error {
         this.name = code;
     }
 }
-class ENoEnt extends FsError { constructor(p: string) { super('ENOENT', `ENOENT: ${p}`); } }
-class EPerm extends FsError { constructor(m: string) { super('EPERM', `EPERM: ${m}`); } }
-class EInval extends FsError { constructor(m: string) { super('EINVAL', `EINVAL: ${m}`); } }
+class ENoEnt extends FsError { constructor(path: string) { super('ENOENT', `ENOENT: ${path}`); } }
+class EPerm extends FsError { constructor(message: string) { super('EPERM', `EPERM: ${message}`); } }
+class EInval extends FsError { constructor(message: string) { super('EINVAL', `EINVAL: ${message}`); } }
 
 // Map raw FSAPI DOMException errors to node-style fs errors so isomorphic-git
 // can reason about them and the user gets an informative message.
-function wrapFsError(e: unknown, op: string, path: string): Error {
-    if (e instanceof FsError) return e;
-    const err = e as { name?: string; message?: string };
-    const name = err.name ?? '';
-    if (name === 'NotFoundError') return new ENoEnt(`${op} ${path}`);
+function wrapFsError(caughtError: unknown, operation: string, path: string): Error {
+    if (caughtError instanceof FsError) return caughtError;
+    const errorInfo = caughtError as { name?: string; message?: string };
+    const name = errorInfo.name ?? '';
+    if (name === 'NotFoundError') return new ENoEnt(`${operation} ${path}`);
     if (name === 'NotAllowedError' || name === 'SecurityError') {
-        return new EPerm(`${op} ${path} — folder permission likely 'read' only; re-pick with readwrite`);
+        return new EPerm(`${operation} ${path} — folder permission likely 'read' only; re-pick with readwrite`);
     }
-    if (name === 'TypeMismatchError') return new EPerm(`${op} ${path} — path collides with existing file/dir of opposite kind`);
-    if (name === 'InvalidModificationError') return new EPerm(`${op} ${path} — invalid modification (often a write under read-only handle)`);
-    return new Error(`fsApi ${op} ${path}: ${name || 'Error'}: ${err.message ?? String(e)}`);
+    if (name === 'TypeMismatchError') return new EPerm(`${operation} ${path} — path collides with existing file/dir of opposite kind`);
+    if (name === 'InvalidModificationError') return new EPerm(`${operation} ${path} — invalid modification (often a write under read-only handle)`);
+    return new Error(`fsApi ${operation} ${path}: ${name || 'Error'}: ${errorInfo.message ?? String(caughtError)}`);
 }

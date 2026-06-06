@@ -35,10 +35,10 @@ export const proxiedGitHttp = {
         if (body) {
             const chunks: Uint8Array[] = [];
             for await (const chunk of body) chunks.push(chunk);
-            const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+            const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
             fetchBody = new Uint8Array(total);
             let offset = 0;
-            for (const c of chunks) { fetchBody.set(c, offset); offset += c.byteLength; }
+            for (const chunk of chunks) { fetchBody.set(chunk, offset); offset += chunk.byteLength; }
         }
 
         const response = await fetch(url, {
@@ -50,7 +50,7 @@ export const proxiedGitHttp = {
 
         const respBuf = new Uint8Array(await response.arrayBuffer());
         const respHeaders: Record<string, string> = {};
-        response.headers.forEach((v, k) => { respHeaders[k] = v; });
+        response.headers.forEach((value, key) => { respHeaders[key] = value; });
 
         return {
             url: response.url,

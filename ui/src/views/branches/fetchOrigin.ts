@@ -33,8 +33,8 @@ export async function fetchOrigin(
             defaultBranch: result.defaultBranch ?? null,
             prunedRefs: (result.pruned ?? []).length,
         };
-    } catch (e) {
-        return { ok: false, error: (e as Error).message };
+    } catch (error) {
+        return { ok: false, error: (error as Error).message };
     }
 }
 

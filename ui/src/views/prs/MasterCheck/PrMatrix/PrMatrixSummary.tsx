@@ -1,4 +1,4 @@
-import styles from '../../components/Matrix.module.css';
+import styles from '../../../../components/Matrix.module.css';
 
 interface Props {
     safeCount: number;
@@ -6,7 +6,7 @@ interface Props {
     hotFileCount: number;
 }
 
-export default function PrMatrixSummary({ safeCount, totalPrs, hotFileCount }: Props) {
+export default function PrMatrixSummary({ safeCount, totalPrs, hotFileCount }: Readonly<Props>) {
     return (
         <div className={styles.summary}>
             <strong>{safeCount}</strong> of <strong>{totalPrs}</strong> PR(s) safe to merge independently. Hot files: {hotFileCount}

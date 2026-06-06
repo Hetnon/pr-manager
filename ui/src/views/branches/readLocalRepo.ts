@@ -32,7 +32,7 @@ const MAX_AHEAD_BEHIND = 500;
 type Fs = ReturnType<typeof makeFsApiFs>;
 
 export async function readLocalRepo(handle: FileSystemDirectoryHandle): Promise<LocalRepoSnapshot> {
-    const t0 = performance.now();
+    const startTime = performance.now();
     const fs = makeFsApiFs(handle);
     const dir = '/';
 
@@ -52,7 +52,7 @@ export async function readLocalRepo(handle: FileSystemDirectoryHandle): Promise<
     for (const name of branchNames) {
         branches.push(await readBranch(fs, dir, name, currentBranch, defaultBranch, defaultSha));
     }
-    return { defaultBranch, currentBranch, branches, readMs: Math.round(performance.now() - t0) };
+    return { defaultBranch, currentBranch, branches, readMs: Math.round(performance.now() - startTime) };
 }
 
 async function readBranch(
@@ -63,7 +63,7 @@ async function readBranch(
     defaultBranch: string | null,
     defaultSha: string | null,
 ): Promise<LocalBranch> {
-    const out: LocalBranch = {
+    const branch: LocalBranch = {
         name,
         sha: '',
         current: name === currentBranch,
@@ -74,36 +74,36 @@ async function readBranch(
         error: null,
     };
     try {
-        out.sha = await git.resolveRef({ fs, dir, ref: `refs/heads/${name}` });
-        const { commit } = await git.readCommit({ fs, dir, oid: out.sha });
-        out.head = {
+        branch.sha = await git.resolveRef({ fs, dir, ref: `refs/heads/${name}` });
+        const { commit } = await git.readCommit({ fs, dir, oid: branch.sha });
+        branch.head = {
             message: commit.message.split('\n')[0],
             authorName: commit.author.name,
             authorEmail: commit.author.email,
             date: new Date(commit.author.timestamp * 1000).toISOString(),
         };
-    } catch (e) {
-        out.error = `HEAD: ${(e as Error).message}`;
-        return out;
+    } catch (error) {
+        branch.error = `HEAD: ${(error as Error).message}`;
+        return branch;
     }
 
-    if (!defaultBranch || !defaultSha || name === defaultBranch) return out;
+    if (!defaultBranch || !defaultSha || name === defaultBranch) return branch;
 
     try {
-        const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, out.sha] });
+        const [base] = await git.findMergeBase({ fs, dir, oids: [defaultSha, branch.sha] });
         if (!base) {
-            out.error = 'no merge base with default';
-            return out;
+            branch.error = 'no merge base with default';
+            return branch;
         }
-        const ahead = await countCommits(fs, dir, base, out.sha);
+        const ahead = await countCommits(fs, dir, base, branch.sha);
         const behind = await countCommits(fs, dir, base, defaultSha);
-        out.aheadOfDefault = ahead.count;
-        out.behindDefault = behind.count;
-        out.truncated = ahead.truncated || behind.truncated;
-    } catch (e) {
-        out.error = `ahead/behind: ${(e as Error).message}`;
+        branch.aheadOfDefault = ahead.count;
+        branch.behindDefault = behind.count;
+        branch.truncated = ahead.truncated || behind.truncated;
+    } catch (error) {
+        branch.error = `ahead/behind: ${(error as Error).message}`;
     }
-    return out;
+    return branch;
 }
 
 // Counts commits reachable from headOid but not equal to baseOid, capped at MAX.
@@ -128,7 +128,7 @@ async function countCommits(
         if (count >= MAX_AHEAD_BEHIND) return { count, truncated: true };
         try {
             const { commit } = await git.readCommit({ fs, dir, oid });
-            for (const p of commit.parent) queue.push(p);
+            for (const parentOid of commit.parent) queue.push(parentOid);
         } catch { /* unreadable parent — stop this branch of the walk */ }
     }
     return { count, truncated: false };

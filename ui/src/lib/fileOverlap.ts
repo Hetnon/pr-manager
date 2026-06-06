@@ -47,6 +47,6 @@ export function pairwiseFileOverlap<Id>(changeSets: ChangeSet<Id>[]): OverlapPai
             if (intersection.length > 0) pairs.push({ a: first.id, b: second.id, intersection });
         }
     }
-    pairs.sort((x, y) => y.intersection.length - x.intersection.length);
+    pairs.sort((pairA, pairB) => pairB.intersection.length - pairA.intersection.length);
     return pairs;
 }

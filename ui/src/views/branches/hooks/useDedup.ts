@@ -8,7 +8,7 @@ import { workingTreeBlockReason } from '../workingTreeStatus.js';
 // DedupPanel (the only place it's used). Patches the conflict report in place on
 // success so the matrix updates without re-analysis.
 export function useDedup(
-    folderHandle: FileSystemDirectoryHandle | null,
+    currentRepoFolderHandle: FileSystemDirectoryHandle | null,
     conflictReport: LocalConflictReport | null,
     setConflictReport: React.Dispatch<React.SetStateAction<LocalConflictReport | null>>,
 ) {
@@ -16,13 +16,13 @@ export function useDedup(
     const [lastDedup, setLastDedup] = useState<{ ok: boolean; message: string } | null>(null);
 
     async function applyDedup(approved: DedupOption[]) {
-        if (!folderHandle || !conflictReport) return;
+        if (!currentRepoFolderHandle || !conflictReport) return;
         const filesByDonor = filesToStripByDonor(approved);
         if (filesByDonor.size === 0) return;
         setDedupBusy(true);
         setLastDedup(null);
         try {
-            const blockReason = await workingTreeBlockReason(folderHandle, 'creating dedup branches');
+            const blockReason = await workingTreeBlockReason(currentRepoFolderHandle, 'creating dedup branches');
             if (blockReason) {
                 setLastDedup({ ok: false, message: blockReason });
                 return;
@@ -38,7 +38,7 @@ export function useDedup(
                     continue;
                 }
                 try {
-                    const result = await createDedupBranch(folderHandle, donor, branchChange.sha, branchChange.base, [...files]);
+                    const result = await createDedupBranch(currentRepoFolderHandle, donor, branchChange.sha, branchChange.base, [...files]);
                     created.push(`${result.dedupBranch} (−${result.reverted + result.deleted} files)`);
                     appliedByDonor.set(donor, files);
                 } catch (error) {

@@ -9,9 +9,9 @@ import type { LastMerge } from '../types.js';
 // so the caller can refresh the PR list. (Closing a PR lives in the shared
 // useClosePr hook.)
 export function usePrActions(onMerged?: () => void) {
-    const { repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [merging, setMerging] = useState<number | null>(null);
     const [lastMerge, setLastMerge] = useState<LastMerge>(null);
     // Per-PR "skip branch delete" set. Default is delete; users opt out per PR.

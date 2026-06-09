@@ -7,9 +7,9 @@ import * as prApi from '../api/prs.js';
 // success so the caller can refetch the PR list. `confirmDetail` is an optional
 // extra hint shown in the confirm dialog (e.g. the PR title).
 export function useClosePr(onClosed?: () => void) {
-    const { repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [closingPr, setClosingPr] = useState<number | null>(null);
     const [lastClose, setLastClose] = useState<{ ok: boolean; prNumber: number; message: string } | null>(null);
 

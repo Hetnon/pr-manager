@@ -10,9 +10,9 @@ import { loadCachedMasterCheck, saveCachedMasterCheck, prSetKey } from '../../..
 //   - lookups: per-PR sets of conflicting / master-touched files
 //   - masterTouchByFile: who last touched each file on master
 export function useMasterConflicts(prs: PR[], readyToCheck: PR[], promoted: Set<number>) {
-    const { repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [response, setResponse] = useState<CheckConflictsResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

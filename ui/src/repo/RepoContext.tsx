@@ -1,64 +1,51 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { clearFolderHandle, loadFolderHandle, loadKnownRepoSlugs, saveFolderHandle } from './repoFolderStorage.js';
+import { 
+    clearFolderHandle, loadFolderHandle, loadKnownRepoSlugs, saveFolderHandle, 
+    saveLastOpenedRepoPointerOnStorage, loadLastOpenedRepoPointerFromStorage 
+} from './repoFolderStorage.js';
 import { ensureFolderWritePermission } from './folderPermission.js';
 
-const STORAGE_KEY = 'pr-matrix.repo';
+
 
 export interface RepoContextValue {
-    repoSlug: string | null;                                    // canonical "owner/name" string
-    repoOwnerAndName: { owner: string; name: string } | null;   // that string split into parts
-    folderHandle: FileSystemDirectoryHandle | null;             // the local repo folder
-    knownRepoSlugs: string[];                                   // every remembered project
-    // Whether we hold read+write access to the folder this session. Granted by the
-    // picker, by switching to a remembered repo, or by the entry gate's grant — and
-    // false after a page reload (the browser drops FS access). The app's entry gate
-    // (MainPage) blocks rendering until this is true, so everything downstream can
-    // assume access and never re-checks.
-    hasFolderAccess: boolean;
-    setHasFolderAccess: (granted: boolean) => void;   // set by FolderAccessModal after a re-grant
-    pickerOpen: boolean;
-    setPickerOpen: (open: boolean) => void;
-    // Repo mutators — each is consumed in exactly one place (setRepo → PickerActions,
-    // selectKnownRepo + forgetRepo → AllProjects), but they live here because they
-    // mutate the shared selection state this provider owns.
-    setRepo: (value: string | null, handle?: FileSystemDirectoryHandle | null) => void;
-    selectKnownRepo: (slug: string) => Promise<void>;
-    forgetRepo: (slug: string) => Promise<void>;
+    currentRepoSlug: string | null;                                    // canonical "owner/name" string
+    currentRepoOwnerAndName: { owner: string; name: string } | null;   // currentRepoSlug string split into parts
+    currentRepoFolderHandle: FileSystemDirectoryHandle | null;             // the local repo folder
+    knownReposSlugs: string[];                                   // every remembered project
+    browserHasAcessToCurrentFolder: boolean;                                   // whether we have read+write access to the folder -- the browser drops this on page reload so the user has to manually give access again, or by picking a new folder so it starts as false when the app loads and it's initiated at the context
+    setBrowserHasAcessToCurrentFolder: (granted: boolean) => void;   // set by FolderAccessModal after a re-grant
+    repoPickerOpen: boolean;
+    setRepoPickerOpen: (open: boolean) => void;
+    setRepo: (value: string | null, handle?: FileSystemDirectoryHandle | null) => void; // sets the repo and folder handle
+    selectKnownRepo: (slug: string) => Promise<void>; // selects a repo from the known repos list
+    forgetRepo: (slug: string) => Promise<void>; // removes the repo from the known repos list
 }
 
-// Default is the "no repo selected" state with no-op actions. In practice the
-// RepoProvider (mounted in Root) always supplies the real value, so the default
-// only satisfies the type — but it lets useContext(RepoContext) return a
-// non-null value, so callers read it directly without a guard.
 export const RepoContext = createContext<RepoContextValue>({
-    repoSlug: null,
-    repoOwnerAndName: null,
-    folderHandle: null,
-    knownRepoSlugs: [],
-    hasFolderAccess: false,
-    setHasFolderAccess: () => {},
-    pickerOpen: false,
-    setPickerOpen: () => {},
+    currentRepoSlug: null,
+    currentRepoOwnerAndName: null,
+    currentRepoFolderHandle: null,
+    knownReposSlugs: [],
+    browserHasAcessToCurrentFolder: false,
+    setBrowserHasAcessToCurrentFolder: () => {},
+    repoPickerOpen: false,
+    setRepoPickerOpen: () => {},
     setRepo: () => {},
     selectKnownRepo: async () => {},
     forgetRepo: async () => {},
 });
 
-// The default/last project pointer lives in localStorage; the per-project folder
-// handles live in IndexedDB (see repoFolderStorage).
-function rememberDefaultRepo(slug: string | null) {
-    try {
-        if (slug) localStorage.setItem(STORAGE_KEY, slug);
-        else localStorage.removeItem(STORAGE_KEY);
-    } catch { /* localStorage disabled — fine */ }
-}
 
-function parseRepo(value: string | null): { owner: string; name: string } | null {
+
+
+function parseRepoNameAndOwner(value: string | null): { owner: string; name: string } | null {
     if (!value) return null;
     const parts = value.split('/');
     if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) return null;
     return { owner: parts[0].trim(), name: parts[1].trim() };
 }
+
+
 
 // Owns the current-repo selection (owner/name slug + local folder handle), whether
 // we currently have folder access, and the set of remembered projects — persisted
@@ -67,55 +54,44 @@ function parseRepo(value: string | null): { owner: string; name: string } | null
 // useContext(RepoContext) instead of drilling props. The picker opens itself until
 // a valid repo is chosen.
 export function RepoProvider({ children }: Readonly<{ children: ReactNode }>) {
-    const [repoSlug, setRepoSlug] = useState<string | null>(() => {
-        try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
-    });
-    const [folderHandle, setFolderHandle] = useState<FileSystemDirectoryHandle | null>(null);
-    const [knownRepoSlugs, setKnownRepoSlugs] = useState<string[]>([]);
-    // Starts false: a handle restored from IndexedDB on load has lost its browser
-    // permission, so we must re-grant before the app can touch the folder.
-    const [hasFolderAccess, setHasFolderAccess] = useState(false);
-    const [pickerOpen, setPickerOpen] = useState(false);
-
-    // Memoized so its identity is stable across renders (only changes when the
-    // slug does) — consumers can safely use it as an effect dependency.
-    const repoOwnerAndName = useMemo(() => parseRepo(repoSlug), [repoSlug]);
-
-    // On load, restore the last project's folder handle (migrating the legacy
-    // single-handle store if present) and list the other remembered projects.
-    // hasFolderAccess stays false until the entry gate re-grants.
+    const [currentRepoSlug, setCurrentRepoSlug] = useState<string | null>(() => loadLastOpenedRepoPointerFromStorage());
+    const [currentRepoFolderHandle, setCurrentRepoFolderHandle] = useState<FileSystemDirectoryHandle | null>(null);
+    const [knownReposSlugs, setKnownReposSlugs] = useState<string[]>([]);
+    const [browserHasAcessToCurrentFolder, setBrowserHasAcessToCurrentFolder] = useState(false);
+    const [repoPickerOpen, setRepoPickerOpen] = useState(false);
+    const currentRepoOwnerAndName = useMemo(() => parseRepoNameAndOwner(currentRepoSlug), [currentRepoSlug]); // Memoized so its identity is stable across renders (only changes when the slug does) — consumers can safely use it as an effect dependency.
     
-    async function loadReposHandle(): Promise<void> {
-        if (repoSlug) {
-            const handle = await loadFolderHandle(repoSlug);
-            if (handle) setFolderHandle(handle);
-        }
-        setKnownRepoSlugs(await loadKnownRepoSlugs());
+    async function loadRepos(): Promise<void> {
+        const [folderHandleAux, knownRepoSlugsAux] = await Promise.all([
+            currentRepoSlug ? loadFolderHandle(currentRepoSlug) : null,
+            loadKnownRepoSlugs()
+        ]);
+        setCurrentRepoFolderHandle(folderHandleAux);
+        setKnownReposSlugs(knownRepoSlugsAux);
     }
     
     useEffect(() => {
-        void loadReposHandle();
+        void loadRepos();
     }, []);
 
-    // Open the picker whenever there's no valid repo selected.
     useEffect(() => {
-        if (!repoOwnerAndName) setPickerOpen(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [repoSlug]);
+        // Open the picker whenever there's no valid repo selected.
+        if (!currentRepoOwnerAndName) setRepoPickerOpen(true);
+    }, [currentRepoSlug]);
 
     // User picked a folder via the OS picker — it becomes the current project and
     // is remembered (handle keyed by slug). A freshly-picked handle arrives with
     // read+write already granted.
     const setRepo = useCallback((value: string | null, handle?: FileSystemDirectoryHandle | null) => {
-        setRepoSlug(value);
-        rememberDefaultRepo(value);
+        setCurrentRepoSlug(value);
+        saveLastOpenedRepoPointerOnStorage(value);
         if (handle === undefined) return;
-        setFolderHandle(handle);
-        setHasFolderAccess(!!handle);
+        setCurrentRepoFolderHandle(handle);
+        setBrowserHasAcessToCurrentFolder(!!handle);
         if (!value) return;
         if (handle) {
             void saveFolderHandle(value, handle);
-            setKnownRepoSlugs((known) => (known.includes(value) ? known : [...known, value]));
+            setKnownReposSlugs((known) => (known.includes(value) ? known : [...known, value]));
         } else {
             void clearFolderHandle(value);
         }
@@ -127,37 +103,37 @@ export function RepoProvider({ children }: Readonly<{ children: ReactNode }>) {
     const selectKnownRepo = useCallback(async (slug: string) => {
         const handle = await loadFolderHandle(slug);
         const granted = handle ? await ensureFolderWritePermission(handle) : false;
-        setRepoSlug(slug);
-        rememberDefaultRepo(slug);
-        setFolderHandle(handle);
-        setHasFolderAccess(granted);
+        setCurrentRepoSlug(slug);
+        saveLastOpenedRepoPointerOnStorage(slug);
+        setCurrentRepoFolderHandle(handle);
+        setBrowserHasAcessToCurrentFolder(granted);
     }, []);
 
     // Drop a remembered project's stored handle; clear the selection if it was active.
     const forgetRepo = useCallback(async (slug: string) => {
         await clearFolderHandle(slug);
-        setKnownRepoSlugs((known) => known.filter((remembered) => remembered !== slug));
-        if (slug === repoSlug) {
-            setRepoSlug(null);
-            rememberDefaultRepo(null);
-            setFolderHandle(null);
-            setHasFolderAccess(false);
+        setKnownReposSlugs((known) => known.filter((remembered) => remembered !== slug));
+        if (slug === currentRepoSlug) {
+            setCurrentRepoSlug(null);
+            saveLastOpenedRepoPointerOnStorage(null);
+            setCurrentRepoFolderHandle(null);
+            setBrowserHasAcessToCurrentFolder(false);
         }
-    }, [repoSlug]);
+    }, [currentRepoSlug]);
 
     const value = useMemo<RepoContextValue>(() => ({
-        repoSlug,
-        repoOwnerAndName,
-        folderHandle,
-        knownRepoSlugs,
-        hasFolderAccess,
-        setHasFolderAccess,
-        pickerOpen,
-        setPickerOpen,
+        currentRepoSlug,
+        currentRepoOwnerAndName,
+        currentRepoFolderHandle,
+        knownReposSlugs,
+        browserHasAcessToCurrentFolder,
+        setBrowserHasAcessToCurrentFolder,
+        repoPickerOpen,
+        setRepoPickerOpen,
         setRepo,
         selectKnownRepo,
         forgetRepo,
-    }), [repoSlug, repoOwnerAndName, folderHandle, knownRepoSlugs, hasFolderAccess, pickerOpen, setRepo, selectKnownRepo, forgetRepo]);
+    }), [currentRepoSlug, currentRepoOwnerAndName, currentRepoFolderHandle, knownReposSlugs, browserHasAcessToCurrentFolder, repoPickerOpen, setRepo, selectKnownRepo, forgetRepo]);
 
     return <RepoContext.Provider value={value}>{children}</RepoContext.Provider>;
 }

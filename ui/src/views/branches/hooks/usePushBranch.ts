@@ -12,17 +12,17 @@ import type { PushOutcome } from '../types.js';
 // per-push opt-out — so we confirm first.
 export function usePushBranch(
     snapshot: LocalRepoSnapshot | null,
-    refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>,
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>,
     onPushed?: () => void,
 ) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoFolderHandle, currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [pushingBranch, setPushingBranch] = useState<string | null>(null);
     const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
 
     async function pushBranch(branch: LocalBranch, existingPr?: PR | null) {
-        if (!folderHandle || !owner || !repo || !snapshot) return;
+        if (!currentRepoFolderHandle || !owner || !repo || !snapshot) return;
         if (existingPr && !globalThis.confirm(
             `Push new commits to ${branch.name}? This updates open PR #${existingPr.number} — the PR always reflects this branch's latest pushed commits.`
         )) return;
@@ -30,7 +30,7 @@ export function usePushBranch(
         setLastPush(null);
         try {
             const localNames = new Set(snapshot.branches.map((localBranch) => localBranch.name));
-            const result = await pushBranchToOrigin(folderHandle, branch, localNames, owner, repo);
+            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, localNames, owner, repo);
             if (!result.ok) {
                 setLastPush({ ok: false, branch: result.pushName, message: result.message });
                 return;
@@ -38,7 +38,7 @@ export function usePushBranch(
             setLastPush(existingPr
                 ? { ok: true, branch: result.pushName, updatedPr: { number: existingPr.number, url: existingPr.url } }
                 : { ok: true, branch: result.pushName });
-            if (result.folded) await refresh(folderHandle); // reflect the fold (X-dedup gone, X moved)
+            if (result.folded) await refresh(currentRepoFolderHandle); // reflect the fold (X-dedup gone, X moved)
             onPushed?.();
         } finally {
             setPushingBranch(null);

@@ -28,7 +28,7 @@ export const AnalysisContext = createContext<AnalysisContextValue>(null as unkno
 // (and in parallel), and tab switches don't re-run anything. Reports each check's
 // progress into the shared top-level modal. The views consume the results here.
 export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>) {
-    const { repoSlug, repoOwnerAndName } = useContext(RepoContext);
+    const { currentRepoSlug, currentRepoOwnerAndName } = useContext(RepoContext);
     const { recheckSession } = useContext(AuthContext);
 
     // Bumped by triggerRefresh (the header's ↻ Refresh) — both the PR reload below
@@ -39,7 +39,7 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
     // Hydrate from the persisted PR list so a page reload shows the last-known PRs
     // (and, downstream, the cached analysis) instantly instead of a blank spinner.
     const [prs, setPrs] = useState<PR[] | null>(() =>
-        repoOwnerAndName ? loadCachedPrs(`${repoOwnerAndName.owner}/${repoOwnerAndName.name}`) : null,
+        currentRepoOwnerAndName ? loadCachedPrs(`${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`) : null,
     );
     const [prLoadStatus, setPrLoadStatus] = useState('');
     const [contentError, setContentError] = useState<string | null>(null);
@@ -47,18 +47,18 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
     // On repo change, swap in the new repo's cached PRs immediately (instant), so
     // the fetch below merely revalidates rather than blanking the view.
     useEffect(() => {
-        setPrs(repoOwnerAndName ? loadCachedPrs(`${repoOwnerAndName.owner}/${repoOwnerAndName.name}`) : null);
+        setPrs(currentRepoOwnerAndName ? loadCachedPrs(`${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`) : null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [repoSlug]);
+    }, [currentRepoSlug]);
 
     const loadPrs = useCallback(async () => {
-        if (!repoOwnerAndName) return;
-        const slug = `${repoOwnerAndName.owner}/${repoOwnerAndName.name}`;
+        if (!currentRepoOwnerAndName) return;
+        const slug = `${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`;
         // Keep whatever is on screen (cached or current) visible while revalidating.
         setPrLoadStatus('Loading…');
         setContentError(null);
         try {
-            const loaded = await listPrs(repoOwnerAndName.owner, repoOwnerAndName.name);
+            const loaded = await listPrs(currentRepoOwnerAndName.owner, currentRepoOwnerAndName.name);
             saveCachedPrs(slug, loaded);
             // Nothing new from the server → keep the same reference so the analysis
             // (which keys on the prs identity) doesn't needlessly re-run.
@@ -73,13 +73,13 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
             setContentError(`Error: ${(error as Error).message}`);
             setPrLoadStatus('');
         }
-    }, [repoOwnerAndName, recheckSession]);
+    }, [currentRepoOwnerAndName, recheckSession]);
 
     // Reload on repo change and on the App-level refresh signal.
     useEffect(() => {
         void loadPrs();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [repoSlug, refreshNonce]);
+    }, [currentRepoSlug, refreshNonce]);
 
     const branch = useBranchAnalysis(refreshNonce);
     const pr = usePrAnalysis(prs ?? []);

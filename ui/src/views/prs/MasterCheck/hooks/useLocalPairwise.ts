@@ -15,9 +15,9 @@ export function useLocalPairwise(
     readyToCheck: PR[],
     promoted: Set<number>,
 ) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoFolderHandle, currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [localPairwise, setLocalPairwise] = useState<LocalPairwiseState>({ phase: 'idle' });
 
     useEffect(() => {
@@ -30,16 +30,16 @@ export function useLocalPairwise(
         const key = prSetKey(readyToCheck);
         const cached = loadCachedPairwise(slug, key);
         if (cached) { setLocalPairwise({ phase: 'ready', pairwise: cached, failedFetches: [] }); return; }
-        if (!folderHandle) { setLocalPairwise({ phase: 'no-folder' }); return; }
+        if (!currentRepoFolderHandle) { setLocalPairwise({ phase: 'no-folder' }); return; }
         let cancelled = false;
         (async () => {
             const prNumbers = readyToCheck.map((pr) => pr.number);
             setLocalPairwise({ phase: 'fetching', total: prNumbers.length });
             try {
-                const fetchResult = await fetchPrRefs(folderHandle, owner, repo, prNumbers);
+                const fetchResult = await fetchPrRefs(currentRepoFolderHandle, owner, repo, prNumbers);
                 if (cancelled) return;
                 setLocalPairwise({ phase: 'computing' });
-                const pairwise = await computeBrowserPairwise(folderHandle, readyToCheck);
+                const pairwise = await computeBrowserPairwise(currentRepoFolderHandle, readyToCheck);
                 if (cancelled) return;
                 saveCachedPairwise(slug, key, pairwise);
                 setLocalPairwise({ phase: 'ready', pairwise, failedFetches: fetchResult.failed.map((failure) => failure.number) });
@@ -49,7 +49,7 @@ export function useLocalPairwise(
         })();
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [prs, owner, repo, promoted, folderHandle]);
+    }, [prs, owner, repo, promoted, currentRepoFolderHandle]);
 
     const pairwise: PairwisePrConflicts | null = localPairwise.phase === 'ready' ? localPairwise.pairwise : null;
 

@@ -7,13 +7,13 @@ import LogoutButton from '../auth/LogoutButton.js';
 // and the refresh trigger both come from context. (PR-load status lives in the PR
 // view, not here.) Logout from The app
 export default function HeaderControls() {
-    const { repoSlug, setPickerOpen } = useContext(RepoContext);
+    const { currentRepoSlug, setRepoPickerOpen } = useContext(RepoContext);
     const { triggerRefresh } = useContext(AnalysisContext);
     return (
         <div className="controls">
-            {repoSlug && <span className="repo-display" title={repoSlug}>{repoSlug}</span>}
-            {repoSlug && <button onClick={() => setPickerOpen(true)}>Change repo</button>}
-            {repoSlug && <button onClick={triggerRefresh}>↻ Refresh</button>}
+            {currentRepoSlug && <span className="repo-display" title={currentRepoSlug}>{currentRepoSlug}</span>}
+            {currentRepoSlug && <button onClick={() => setRepoPickerOpen(true)}>Change repo</button>}
+            {currentRepoSlug && <button onClick={triggerRefresh}>↻ Refresh</button>}
             <LogoutButton />
         </div>
     );

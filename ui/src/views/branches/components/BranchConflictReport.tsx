@@ -11,7 +11,7 @@ interface Props {
     conflictReport: LocalConflictReport;
     snapshot: LocalRepoSnapshot;
     setConflictReport: React.Dispatch<React.SetStateAction<LocalConflictReport | null>>;
-    refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>;
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
 // The 3-way-merge conflict report: the duplicate/dedup actions, the legend, the

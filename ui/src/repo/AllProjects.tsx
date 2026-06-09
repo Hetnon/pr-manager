@@ -5,9 +5,9 @@ import { RepoContext } from './RepoContext.js';
 // (reusing its stored handle; the header badge re-grants folder permission, same
 // as on reload), × to forget it. Renders nothing when there's no other project.
 export default function AllProjects() {
-    const { repoSlug, knownRepoSlugs, selectKnownRepo, forgetRepo, setPickerOpen } = useContext(RepoContext);
+    const { currentRepoSlug, knownReposSlugs, selectKnownRepo, forgetRepo, setRepoPickerOpen } = useContext(RepoContext);
     const [busy, setBusy] = useState(false);
-    const otherProjects = knownRepoSlugs.filter((slug) => slug !== repoSlug);
+    const otherProjects = knownReposSlugs.filter((slug) => slug !== currentRepoSlug);
 
     if (otherProjects.length === 0) return null;
 
@@ -15,7 +15,7 @@ export default function AllProjects() {
         setBusy(true);
         try {
             await selectKnownRepo(slug);
-            setPickerOpen(false);
+            setRepoPickerOpen(false);
         } finally {
             setBusy(false);
         }

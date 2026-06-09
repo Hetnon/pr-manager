@@ -5,7 +5,7 @@ import styles from '../BranchesView.module.css';
 
 interface Props {
     groups: BranchGroup[];
-    refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>;
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>;
 }
 
 // Warns when multiple local branches point at the same HEAD sha, with a button

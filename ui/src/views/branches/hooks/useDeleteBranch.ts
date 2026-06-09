@@ -6,24 +6,24 @@ import type { DeleteBranchResult } from '@shared/branches.js';
 // Owns the "delete duplicate branch (local + origin)" action and its state.
 // Lives with DuplicatesBanner. Re-reads the repo on success via `refresh`.
 export function useDeleteBranch(
-    refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>,
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>,
 ) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoFolderHandle, currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
     const [lastDelete, setLastDelete] = useState<DeleteBranchResult | null>(null);
 
     async function deleteBranch(branchName: string) {
-        if (!folderHandle) return;
+        if (!currentRepoFolderHandle) return;
         if (!window.confirm(`Delete branch ${branchName} locally and on origin? This is destructive.`)) return;
         setDeletingBranch(branchName);
         setLastDelete(null);
         try {
-            const result = await deleteBranchEverywhere(folderHandle, owner, repo, branchName, 'both');
+            const result = await deleteBranchEverywhere(currentRepoFolderHandle, owner, repo, branchName, 'both');
             setLastDelete(result);
             if (result.local.ok || result.origin.ok) {
-                await refresh(folderHandle);
+                await refresh(currentRepoFolderHandle);
             }
         } finally {
             setDeletingBranch(null);

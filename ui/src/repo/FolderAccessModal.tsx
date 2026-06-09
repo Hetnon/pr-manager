@@ -7,18 +7,18 @@ import { requestFolderReadWrite } from './folderPermission.js';
 // app body stays unmounted behind it, so nothing runs without access. The user
 // must click Grant to restore read+write before continuing.
 export default function FolderAccessModal() {
-    const { repoSlug, folderHandle, setHasFolderAccess, setPickerOpen } = useContext(RepoContext);
+    const { currentRepoSlug, currentRepoFolderHandle, setBrowserHasAcessToCurrentFolder, setRepoPickerOpen } = useContext(RepoContext);
     const [busy, setBusy] = useState(false);
 
     // Re-grant read+write to the current folder — must run from this click (a user
     // gesture); requestPermission throws otherwise. Owned here since this is the
     // only place that grants.
     async function grant() {
-        if (!folderHandle) return;
+        if (!currentRepoFolderHandle) return;
         setBusy(true);
         try {
-            const level = await requestFolderReadWrite(folderHandle);
-            setHasFolderAccess(level === 'readwrite');
+            const level = await requestFolderReadWrite(currentRepoFolderHandle);
+            setBrowserHasAcessToCurrentFolder(level === 'readwrite');
         } finally {
             setBusy(false);
         }
@@ -29,12 +29,12 @@ export default function FolderAccessModal() {
             <div className="picker">
                 <h2>Re-grant folder access</h2>
                 <p className="picker-msg">
-                    Your browser dropped access to <code>{repoSlug}</code>'s local folder when the page
+                    Your browser dropped access to <code>{currentRepoSlug}</code>'s local folder when the page
                     reloaded — pages can't keep filesystem access across reloads. Click <strong>Grant access</strong>{' '}
                     to restore read &amp; write so pr-matrix can read the repo and push. Nothing loads until you do.
                 </p>
                 <div className="picker-actions">
-                    <button type="button" onClick={() => setPickerOpen(true)}>Choose a different folder</button>
+                    <button type="button" onClick={() => setRepoPickerOpen(true)}>Choose a different folder</button>
                     <button type="button" className="primary" onClick={() => void grant()} disabled={busy}>
                         {busy ? 'Granting…' : 'Grant access'}
                     </button>

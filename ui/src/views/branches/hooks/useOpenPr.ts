@@ -11,17 +11,17 @@ import type { PrOutcome } from '../types.js';
 // name against the default branch.
 export function useOpenPr(
     snapshot: LocalRepoSnapshot | null,
-    refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>,
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>,
     onOpened?: () => void,
 ) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoFolderHandle, currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [openingPr, setOpeningPr] = useState<string | null>(null);
     const [lastPr, setLastPr] = useState<PrOutcome | null>(null);
 
     async function openPr(branch: LocalBranch) {
-        if (!folderHandle || !owner || !repo || !snapshot?.defaultBranch) return;
+        if (!currentRepoFolderHandle || !owner || !repo || !snapshot?.defaultBranch) return;
         const localNames = new Set(snapshot.branches.map((localBranch) => localBranch.name));
         const { pushName } = resolveFold(branch, localNames);
 
@@ -32,7 +32,7 @@ export function useOpenPr(
         setOpeningPr(branch.name);
         setLastPr(null);
         try {
-            const result = await pushBranchToOrigin(folderHandle, branch, localNames, owner, repo);
+            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, localNames, owner, repo);
             if (!result.ok) {
                 setLastPr({ ok: false, branch: result.pushName, message: result.message });
                 return;
@@ -45,7 +45,7 @@ export function useOpenPr(
                     title,
                 });
                 setLastPr({ ok: true, branch: result.pushName, prNumber: createdPr.number, prUrl: createdPr.url });
-                if (result.folded) await refresh(folderHandle); // reflect the fold (X-dedup gone, X moved)
+                if (result.folded) await refresh(currentRepoFolderHandle); // reflect the fold (X-dedup gone, X moved)
                 onOpened?.();
             } catch (error) {
                 // Push succeeded but PR creation failed — surface both facts.

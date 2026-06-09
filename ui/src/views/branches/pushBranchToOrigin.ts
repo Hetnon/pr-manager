@@ -29,7 +29,7 @@ export type PushToOriginResult =
 // ensures write permission, then pushes. The shared primitive behind both the
 // backup-push and open-PR actions — neither opens a PR; that's the caller's job.
 export async function pushBranchToOrigin(
-    folderHandle: FileSystemDirectoryHandle,
+    currentRepoFolderHandle: FileSystemDirectoryHandle,
     branch: LocalBranch,
     localBranchNames: Set<string>,
     owner: string,
@@ -40,19 +40,19 @@ export async function pushBranchToOrigin(
     // Folding moves the original branch's ref — refuse if the working tree is
     // dirty (a dirty current branch would desync from the moved ref).
     if (willFold) {
-        const blockReason = await workingTreeBlockReason(folderHandle, `folding ${branch.name} into ${foldOriginal}`);
+        const blockReason = await workingTreeBlockReason(currentRepoFolderHandle, `folding ${branch.name} into ${foldOriginal}`);
         if (blockReason) return { ok: false, pushName, folded: false, message: blockReason };
     }
 
     if (willFold) {
         try {
-            await foldDedupIntoOriginal(folderHandle, branch.name, foldOriginal);
+            await foldDedupIntoOriginal(currentRepoFolderHandle, branch.name, foldOriginal);
         } catch (error) {
             return { ok: false, pushName, folded: false, message: `Couldn't fold ${branch.name} into ${foldOriginal}: ${(error as Error).message}` };
         }
     }
 
-    const pushResult = await gitPushBranch(folderHandle, pushName, owner, repo);
+    const pushResult = await gitPushBranch(currentRepoFolderHandle, pushName, owner, repo);
     if (!pushResult.ok) return { ok: false, pushName, folded: willFold, message: `Push failed: ${pushResult.error}` };
     return { ok: true, pushName, folded: willFold };
 }

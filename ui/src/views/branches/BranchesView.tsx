@@ -15,7 +15,7 @@ import styles from './BranchesView.module.css';
 // to the top-level modal). Each child owns its own action — DedupPanel the dedup,
 // DuplicatesBanner the delete, BranchList the push/close.
 export default function BranchesView() {
-    const { folderHandle } = useContext(RepoContext);
+    const { currentRepoFolderHandle } = useContext(RepoContext);
     const { prs, branch: branchAnalysis, loadPrs } = useContext(AnalysisContext);
     const {
         snapshot, error, busy, fetching, lastFetch,
@@ -23,7 +23,7 @@ export default function BranchesView() {
         worktree, worktreeBusy, worktreeError, refresh,
     } = branchAnalysis;
 
-    if (!folderHandle) return null;
+    if (!currentRepoFolderHandle) return null;
 
     const prByRef = new Map<string, PR>();
     for (const pr of prs ?? []) prByRef.set(pr.headRefName, pr);

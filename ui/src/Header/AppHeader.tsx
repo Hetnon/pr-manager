@@ -14,10 +14,10 @@ interface Props {
 // Pure composition — the view switch is gated on having a repo (read from
 // context); the controls read what they need (repo, refresh) from context too.
 export default function AppHeader({ view, onSelectView }: Readonly<Props>) {
-    const { repoSlug } = useContext(RepoContext);
+    const { currentRepoSlug } = useContext(RepoContext);
     return (
         <header>
-            {repoSlug && <ViewToggle view={view} onSelectView={onSelectView} />}
+            {currentRepoSlug && <ViewToggle view={view} onSelectView={onSelectView} />}
             <HeaderControls />
         </header>
     );

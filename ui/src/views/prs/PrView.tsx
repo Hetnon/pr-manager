@@ -8,14 +8,14 @@ import MasterCheck from './MasterCheck/MasterCheck.js';
 // fetch + analysis come from the app-level data layer (AnalysisProvider); this
 // shows the load status and composes the dev-actions and master-check panels.
 export default function PrView() {
-    const { repoOwnerAndName } = useContext(RepoContext);
+    const { currentRepoOwnerAndName } = useContext(RepoContext);
     const { prs, prLoadStatus, contentError, loadPrs, pr } = useContext(AnalysisContext);
     return (
         <>
             {prLoadStatus && <p className="pr-load-status">{prLoadStatus}</p>}
             {contentError && <p className="error">{contentError}</p>}
-            {!contentError && repoOwnerAndName && prs === null && <p className="loading">Loading PRs…</p>}
-            {!contentError && repoOwnerAndName && prs !== null && (
+            {!contentError && currentRepoOwnerAndName && prs === null && <p className="loading">Loading PRs…</p>}
+            {!contentError && currentRepoOwnerAndName && prs !== null && (
                 <>
                     <DevActions matrix={pr.matrix} />
                     <MasterCheck onMerged={loadPrs} />

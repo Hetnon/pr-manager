@@ -9,13 +9,13 @@ import { readWorkingTreeStatus, type WorkingTreeStatus } from '../workingTreeSta
 // Reads the local repo and analyzes it. Owns everything derived from the folder:
 // the branch snapshot, the opportunistic origin fetch, the working-tree scan, and
 // the 3-way-merge conflict report — plus the progress modal state. Two effects:
-// reread on folderHandle/refresh changes, then scan+analyze whenever a fresh snapshot
+// reread on currentRepoFolderHandle/refresh changes, then scan+analyze whenever a fresh snapshot
 // lands. Exposes `refresh` and `setConflictReport` (the dedup flow patches the
 // report in place) for the actions hook.
 export function useBranchAnalysis(refreshNonce: number) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoFolderHandle, currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const [snapshot, setSnapshot] = useState<LocalRepoSnapshot | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -32,7 +32,7 @@ export function useBranchAnalysis(refreshNonce: number) {
     const [worktreeError, setWorktreeError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!folderHandle) {
+        if (!currentRepoFolderHandle) {
             setSnapshot(null);
             setError(null);
             setConflictReport(null);
@@ -41,9 +41,9 @@ export function useBranchAnalysis(refreshNonce: number) {
             setWorktreeError(null);
             return;
         }
-        void runRefresh(folderHandle);
+        void runRefresh(currentRepoFolderHandle);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [folderHandle, refreshNonce]);
+    }, [currentRepoFolderHandle, refreshNonce]);
 
     async function load(targetFolder: FileSystemDirectoryHandle) {
         setBusy(true);
@@ -91,7 +91,7 @@ export function useBranchAnalysis(refreshNonce: number) {
     // report into the same progress modal — "Scanning working tree → Analyzing
     // conflicts", file by file. Same no-button pattern as MasterCheck.
     useEffect(() => {
-        if (!folderHandle || !snapshot?.defaultBranch) {
+        if (!currentRepoFolderHandle || !snapshot?.defaultBranch) {
             setConflictReport(null);
             setConflictError(null);
             setConflictProgress(null);
@@ -110,7 +110,7 @@ export function useBranchAnalysis(refreshNonce: number) {
             // the deduplicated copy is the one you'd merge, and this is what makes
             // the redundant (blue) overlaps collapse after applying dedup.
             .filter((branchName) => !branchNames.has(`${branchName}-dedup`));
-        const targetFolder = folderHandle;
+        const targetFolder = currentRepoFolderHandle;
         let cancelled = false;
         // Only open the modal if the work is actually slow — cache hits / small
         // trees often complete in <300ms and the modal flash would be jarring.
@@ -183,7 +183,7 @@ export function useBranchAnalysis(refreshNonce: number) {
             }
         })();
         return () => { cancelled = true; clearTimeout(modalDelayTimer); };
-    }, [snapshot, folderHandle]);
+    }, [snapshot, currentRepoFolderHandle]);
 
     return {
         snapshot, error, busy, fetching, lastFetch,

@@ -13,7 +13,7 @@ interface Props {
     rows: Row[];
     snapshot: LocalRepoSnapshot;
     worktree: WorkingTreeStatus | null;
-    refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>;
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>;
     onPushed?: () => void;
 }
 
@@ -27,9 +27,9 @@ function formatCount(count: number, truncated: boolean): string {
 // header and rows aligned. Owns those actions (and their result banners) itself,
 // since they're only triggered from here.
 export default function BranchList({ rows, snapshot, worktree, refresh, onPushed }: Props) {
-    const { repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repo = repoOwnerAndName?.name ?? null;
+    const { currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
     const defaultBranch = snapshot.defaultBranch;
     const { pushingBranch, lastPush, pushBranch } = usePushBranch(snapshot, refresh, onPushed);
     const { openingPr, lastPr, openPr } = useOpenPr(snapshot, refresh, onPushed);

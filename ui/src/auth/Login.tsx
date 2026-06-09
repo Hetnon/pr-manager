@@ -1,8 +1,7 @@
-import { useContext, useState } from 'react';
-import { AuthContext } from './AuthContext.js';
+import { useState } from 'react';
+import { initiateGithubLogin } from '../api/auth.js';
 
 export default function Login() {
-    const { login } = useContext(AuthContext);
     const [error, setError] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
 
@@ -10,7 +9,8 @@ export default function Login() {
         setError(null);
         setPending(true);
         try {
-            await login();
+            const url = await initiateGithubLogin();
+            globalThis.location.assign(url);
         } catch (error) {
             setError((error as Error).message);
             setPending(false);

@@ -1,7 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
     checkSession as apiCheckSession,
-    initiateGithubLogin,
     logout as apiLogout,
 } from '../api/auth.js';
 import { setCsrfToken } from '../api/csrf.js';
@@ -17,7 +16,6 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
     refreshSession: () => Promise<void>;
-    login: () => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -29,7 +27,6 @@ export const AuthContext = createContext<AuthContextValue>({
     loading: true,
     checkFailed: false,
     refreshSession: async () => {},
-    login: async () => {},
     logout: async () => {},
 });
 
@@ -56,11 +53,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         void refreshSession();
     }, [refreshSession]);
 
-    const login = useCallback(async () => {
-        const url = await initiateGithubLogin();
-        globalThis.location.assign(url);
-    }, []);
-
     const logout = useCallback(async () => {
         await apiLogout().catch(() => { /* ignore — clearing client state anyway */ });
         setCsrfToken(null);
@@ -68,11 +60,10 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     }, []);
 
     const value = useMemo(() => ({
-        ...session,
+        ...session, // loggedIn, loading, checkFailed
         refreshSession,
-        login,
         logout,
-    }), [session, refreshSession, login, logout]);
+    }), [session, refreshSession, logout]);
 
     return (
         <AuthContext.Provider value={value}>

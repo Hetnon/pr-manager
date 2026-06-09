@@ -16,7 +16,7 @@ import styles from './BranchesView.module.css';
 // DuplicatesBanner the delete, BranchList the push/close.
 export default function BranchesView() {
     const { folderHandle } = useContext(RepoContext);
-    const { prs, branch: branchAnalysis, reloadPrs } = useContext(AnalysisContext);
+    const { prs, branch: branchAnalysis, loadPrs } = useContext(AnalysisContext);
     const {
         snapshot, error, busy, fetching, lastFetch,
         conflictReport, setConflictReport, conflictError, conflictBusy,
@@ -45,7 +45,7 @@ export default function BranchesView() {
                 <BranchConflictReport conflictReport={conflictReport} snapshot={snapshot} setConflictReport={setConflictReport} refresh={refresh} />
             )}
             {snapshot && rows.length > 0 && (
-                <BranchList rows={rows} snapshot={snapshot} worktree={worktree} refresh={refresh} onPushed={reloadPrs} />
+                <BranchList rows={rows} snapshot={snapshot} worktree={worktree} refresh={refresh} onPushed={loadPrs} />
             )}
         </section>
     );

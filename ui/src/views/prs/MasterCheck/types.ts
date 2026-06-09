@@ -7,7 +7,6 @@ export type LocalPairwiseState =
     | { phase: 'computing' }
     | { phase: 'ready'; pairwise: PairwisePrConflicts; failedFetches: number[] }
     | { phase: 'no-folder' }
-    | { phase: 'needs-readwrite' }
     | { phase: 'error'; message: string };
 
 // Outcome of the most recent squash-merge attempt.

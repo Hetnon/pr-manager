@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { LocalConflictReport } from '../checkLocalConflicts.js';
-import { createDedupBranch } from '../createDedupBranch.js';
-import { filesToStripByDonor, applyDedupToReport, type DedupOption } from '../planDedup.js';
-import { ensureFolderWritePermission } from '../../../repo/folderPermission.js';
+import { createDedupBranch } from './createDedupBranch.js';
+import { filesToStripByDonor, applyDedupToReport, type DedupOption } from './planDedup.js';
 import { workingTreeBlockReason } from '../workingTreeStatus.js';
 
 // Owns the "create dedup branches" action and its busy/result state. Lives with
@@ -26,11 +25,6 @@ export function useDedup(
             const blockReason = await workingTreeBlockReason(folderHandle, 'creating dedup branches');
             if (blockReason) {
                 setLastDedup({ ok: false, message: blockReason });
-                return;
-            }
-            const hasWritePermission = await ensureFolderWritePermission(folderHandle);
-            if (!hasWritePermission) {
-                setLastDedup({ ok: false, message: 'Write permission denied — creating branches needs to write refs.' });
                 return;
             }
             const branchChangeByName = new Map(conflictReport.branchChanges.map((branchChange) => [branchChange.branch, branchChange]));

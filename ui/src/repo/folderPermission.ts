@@ -1,5 +1,6 @@
-// Permission helpers for FileSystemDirectoryHandle. Centralised so the badge
-// and the action panels query/request through the same surface.
+// Permission helpers for FileSystemDirectoryHandle. The app gates folder access
+// once at entry (RepoContext.grantFolderAccess via the FolderAccessModal, and
+// selectKnownRepo on switch); everything downstream then assumes access.
 
 export type FolderPermLevel = 'readwrite' | 'read' | 'none' | 'unknown';
 

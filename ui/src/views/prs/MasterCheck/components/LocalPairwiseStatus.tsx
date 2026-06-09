@@ -22,13 +22,6 @@ export default function LocalPairwiseStatus({ state }: { state: LocalPairwiseSta
             </p>
         );
     }
-    if (state.phase === 'needs-readwrite') {
-        return (
-            <p style={{ margin: '6px 0', fontSize: 12, color: '#9a6700' }}>
-                Pairwise check needs read+write folder access — click the RW badge in the header to grant.
-            </p>
-        );
-    }
     if (state.phase === 'fetching') {
         return <p style={{ margin: '6px 0', fontSize: 12, color: '#57606a' }}>Fetching {state.total} PR ref(s) via proxy…</p>;
     }

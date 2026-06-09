@@ -10,5 +10,5 @@ export default function AuthGate({ children }: Readonly<{ children: ReactNode }>
     if (loading) return <SessionLoading />;
     if (checkFailed) return <SessionError onRetry={() => void refreshSession()} />;
     if (!loggedIn) return <Login />;
-    return <>{children}</>;
+    return <>{children}</>; // the main app page
 }

@@ -1,5 +1,5 @@
-import type { LocalConflictReport } from './checkLocalConflicts.js';
-import type { FileConflictDetail, FileSeverity } from './lineLevelConflicts.js';
+import type { LocalConflictReport } from '../checkLocalConflicts.js';
+import type { FileConflictDetail, FileSeverity } from '../lineLevelConflicts.js';
 
 // One offered redundancy-removal: drop, from `donor`, the files that are
 // byte-identical to `keeper`. `donor` is always the lower-ordered branch of the

@@ -104,6 +104,34 @@ button.primary:disabled { background: #94d3a2; border-color: #94d3a2; cursor: de
   border-color: #0969da;
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
 }
+.picker-known { margin-bottom: 16px; }
+.picker-known .picker-msg { margin-bottom: 8px; }
+.picker-known-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.picker-known-item { display: flex; gap: 6px; align-items: stretch; }
+.picker-known-switch {
+  flex: 1;
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+.picker-known-switch:hover:not(:disabled) { background: #eef1f4; border-color: #0969da; }
+.picker-known-forget {
+  flex: 0 0 auto;
+  width: 32px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: white;
+  color: #57606a;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.picker-known-forget:hover:not(:disabled) { background: #ffebe9; border-color: #cf222e; color: #cf222e; }
 .picker-actions {
   display: flex;
   justify-content: flex-end;

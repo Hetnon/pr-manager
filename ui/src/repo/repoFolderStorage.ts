@@ -1,6 +1,8 @@
 const DB_NAME = 'pr-matrix';
 const STORE = 'kv';
-const KEY = 'repo-folder-handle';
+// Pre-multi-project builds stored a single handle under this fixed key. We now
+// key handles by repo slug; this is migrated to its slug on first access.
+const LEGACY_KEY = 'repo-folder-handle';
 
 function openDb(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -29,15 +31,31 @@ async function withStore<T>(mode: IDBTransactionMode, storeOperation: (store: ID
     }
 }
 
-export async function saveFolderHandle(handle: FileSystemDirectoryHandle): Promise<void> {
-    await withStore('readwrite', (store) => store.put(handle, KEY));
+// Folder handles are keyed by repo slug ("owner/name") so several projects can be
+// remembered at once and switched between without re-picking the folder.
+export async function saveFolderHandle(repoSlug: string, handle: FileSystemDirectoryHandle): Promise<void> {
+    await withStore('readwrite', (store) => store.put(handle, repoSlug));
 }
 
-export async function loadFolderHandle(): Promise<FileSystemDirectoryHandle | null> {
-    const result = await withStore<FileSystemDirectoryHandle | undefined>('readonly', (store) => store.get(KEY));
-    return result ?? null;
+export async function loadFolderHandle(repoSlug: string): Promise<FileSystemDirectoryHandle | null> {
+    const stored = await withStore<FileSystemDirectoryHandle | undefined>('readonly', (store) => store.get(repoSlug));
+    if (stored) return stored;
+    // One-time migration: adopt the legacy single handle under the requested slug.
+    const legacy = await withStore<FileSystemDirectoryHandle | undefined>('readonly', (store) => store.get(LEGACY_KEY));
+    if (legacy) {
+        await saveFolderHandle(repoSlug, legacy);
+        await withStore('readwrite', (store) => store.delete(LEGACY_KEY));
+        return legacy;
+    }
+    return null;
 }
 
-export async function clearFolderHandle(): Promise<void> {
-    await withStore('readwrite', (store) => store.delete(KEY));
+export async function clearFolderHandle(repoSlug: string): Promise<void> {
+    await withStore('readwrite', (store) => store.delete(repoSlug));
+}
+
+// The slugs of all remembered projects — drives the quick-switch list.
+export async function loadKnownRepoSlugs(): Promise<string[]> {
+    const keys = await withStore<IDBValidKey[]>('readonly', (store) => store.getAllKeys());
+    return keys.filter((key): key is string => typeof key === 'string' && key !== LEGACY_KEY);
 }

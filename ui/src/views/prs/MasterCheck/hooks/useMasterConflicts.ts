@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { CheckConflictsResponse, MasterTouch } from '@shared/conflicts.js';
-import { checkMasterConflicts as apiCheckConflicts } from '../../../../api/prs.js';
+import * as prApi from '../../../../api/prs.js';
+import { loadCachedMasterCheck, saveCachedMasterCheck, prSetKey } from '../../../../analysis/prCache.js';
 
 // Runs the server-side "does each candidate PR conflict with master?" check
 // whenever the candidate set changes, and shapes the response into fast lookups:
@@ -17,16 +18,29 @@ export function useMasterConflicts(owner: string, repo: string, prs: PR[], ready
             setResponse(null);
             return;
         }
+        // Stale-while-revalidate: master can move under us, so we can't trust a
+        // cached verdict outright — but we can show it instantly and re-check in
+        // the background. A page reload thus renders the last result with no
+        // spinner, then quietly refreshes it.
+        const slug = owner && repo ? `${owner}/${repo}` : '';
+        const key = prSetKey(readyToCheck);
+        const cached = slug ? loadCachedMasterCheck(slug, key) : null;
+        if (cached) setResponse(cached);
+
         let cancelled = false;
         (async () => {
-            setLoading(true);
+            setLoading(!cached);
             setError(null);
-            setResponse(null);
+            if (!cached) setResponse(null);
             try {
-                const conflictResponse = await apiCheckConflicts(owner, repo, readyToCheck.map((pr) => pr.number));
-                if (!cancelled) setResponse(conflictResponse);
+                const conflictResponse = await prApi.checkMasterConflicts(owner, repo, readyToCheck.map((pr) => pr.number));
+                if (cancelled) return;
+                setResponse(conflictResponse);
+                if (slug) saveCachedMasterCheck(slug, key, conflictResponse);
             } catch (error) {
-                if (!cancelled) setError((error as Error).message);
+                // On a background revalidation failure keep the cached result visible
+                // rather than replacing it with an error.
+                if (!cancelled && !cached) setError((error as Error).message);
             } finally {
                 if (!cancelled) setLoading(false);
             }

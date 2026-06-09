@@ -5,6 +5,7 @@ import type { Row } from '../types.js';
 import { RepoContext } from '../../../repo/RepoContext.js';
 import { useClosePr } from '../../../hooks/useClosePr.js';
 import { usePushBranch } from '../hooks/usePushBranch.js';
+import { useOpenPr } from '../hooks/useOpenPr.js';
 import { formatDateTime } from '../../../lib/formatDate.js';
 import styles from '../BranchesView.module.css';
 
@@ -21,26 +22,27 @@ function formatCount(count: number, truncated: boolean): string {
     return String(count);
 }
 
-// The branch "table": a header row + one row per branch, with push / close
-// actions per row. A flex layout, not a <table> — fixed column widths keep
-// header and rows aligned. Owns the push and close actions (and their result
-// banners) itself, since they're only triggered from here.
+// The branch "table": a header row + one row per branch, with push / open-PR /
+// close actions per row. A flex layout, not a <table> — fixed column widths keep
+// header and rows aligned. Owns those actions (and their result banners) itself,
+// since they're only triggered from here.
 export default function BranchList({ rows, snapshot, worktree, refresh, onPushed }: Props) {
     const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
     const owner = repoOwnerAndName?.owner ?? null;
     const repo = repoOwnerAndName?.name ?? null;
     const defaultBranch = snapshot.defaultBranch;
     const { pushingBranch, lastPush, pushBranch } = usePushBranch(folderHandle, owner, repo, snapshot, refresh, onPushed);
+    const { openingPr, lastPr, openPr } = useOpenPr(folderHandle, owner, repo, snapshot, refresh, onPushed);
     const { closingPr, lastClose, close } = useClosePr(owner, repo, onPushed);
+    const busy = pushingBranch !== null || openingPr !== null;
 
     const worktreeDirty = !!worktree && !worktree.clean;
     // Show the explainer note only when the asymmetry is actually on screen: the
-    // current branch is dirty (its Push is blocked) AND some other branch still
-    // offers Push.
-    const hasOtherPushable = rows.some(({ branch, pr }) =>
+    // current branch is dirty (its actions are greyed) AND some other branch is
+    // still pushable.
+    const hasOtherPushable = rows.some(({ branch }) =>
         !branch.current
         && branch.name !== defaultBranch
-        && !pr
         && branch.aheadOfDefault > 0
         && !!owner && !!repo,
     );
@@ -50,8 +52,15 @@ export default function BranchList({ rows, snapshot, worktree, refresh, onPushed
             {lastPush && (
                 <p className={`${styles.message} ${lastPush.ok ? styles.ok : styles.bad}`}>
                     {lastPush.ok
-                        ? <>✓ Pushed <code>{lastPush.branch}</code> and opened <a href={lastPush.prUrl} target="_blank" rel="noreferrer">PR #{lastPush.prNumber}</a></>
+                        ? <>✓ Pushed <code>{lastPush.branch}</code> to origin{lastPush.updatedPr && <> (updated <a href={lastPush.updatedPr.url} target="_blank" rel="noreferrer">PR #{lastPush.updatedPr.number}</a>)</>}</>
                         : <>✗ <code>{lastPush.branch}</code>: {lastPush.message}</>}
+                </p>
+            )}
+            {lastPr && (
+                <p className={`${styles.message} ${lastPr.ok ? styles.ok : styles.bad}`}>
+                    {lastPr.ok
+                        ? <>✓ Pushed <code>{lastPr.branch}</code> and opened <a href={lastPr.prUrl} target="_blank" rel="noreferrer">PR #{lastPr.prNumber}</a></>
+                        : <>✗ <code>{lastPr.branch}</code>: {lastPr.message}</>}
                 </p>
             )}
             {lastClose && (
@@ -71,12 +80,19 @@ export default function BranchList({ rows, snapshot, worktree, refresh, onPushed
                 </div>
                 {rows.map(({ branch, pr }) => {
                     const isDefault = branch.name === defaultBranch;
-                    const canPush = !isDefault && !pr && branch.aheadOfDefault > 0 && !!owner && !!repo;
-                    // The working tree belongs to the current branch, so a dirty
-                    // tree only blocks pushing *that* branch — its PR would omit
-                    // the uncommitted work. Other branches push their committed
-                    // refs regardless.
-                    const blockedByDirty = canPush && branch.current && !!worktree && !worktree.clean;
+                    // Backup-push is offered for any non-default branch that's ahead,
+                    // even one with an open PR (pushing updates that PR). Opening a PR
+                    // is gated on there being none yet.
+                    const canPush = !isDefault && branch.aheadOfDefault > 0 && !!owner && !!repo;
+                    const canOpenPr = canPush && !pr;
+                    // The working tree belongs only to the current branch, so a dirty
+                    // tree greys *its* actions (a push/PR would silently omit the
+                    // uncommitted work, and there's no in-app commit). Other branches
+                    // push their committed refs regardless.
+                    const blockedByDirty = branch.current && worktreeDirty;
+                    const dirtyTitle = blockedByDirty
+                        ? 'Working tree has uncommitted changes — commit or stash them first (the app has no commit action).'
+                        : undefined;
                     return (
                         <div key={branch.name} className={styles.rowBody}>
                             <div className={styles.colBranch} title={branch.name}>
@@ -103,22 +119,25 @@ export default function BranchList({ rows, snapshot, worktree, refresh, onPushed
                                         : '—'}
                             </div>
                             <div className={styles.colActionsCell}>
-                                {canPush && !blockedByDirty && (
+                                {canPush && (
                                     <button
                                         type="button"
-                                        onClick={() => pushBranch(branch)}
-                                        disabled={pushingBranch !== null}
+                                        onClick={() => pushBranch(branch, pr)}
+                                        disabled={busy || blockedByDirty}
+                                        title={dirtyTitle}
                                     >
-                                        {pushingBranch === branch.name ? 'Pushing…' : 'Push & open PR'}
+                                        {pushingBranch === branch.name ? 'Pushing…' : 'Push'}
                                     </button>
                                 )}
-                                {blockedByDirty && (
-                                    <span
-                                        className={styles.blockedNote}
-                                        title="Working tree has uncommitted changes — commit or stash before pushing"
+                                {canOpenPr && (
+                                    <button
+                                        type="button"
+                                        onClick={() => openPr(branch)}
+                                        disabled={busy || blockedByDirty}
+                                        title={dirtyTitle}
                                     >
-                                        Can't push — working tree dirty
-                                    </span>
+                                        {openingPr === branch.name ? 'Opening…' : 'Push & Open PR'}
+                                    </button>
                                 )}
                                 {pr && (
                                     <button

@@ -1,6 +1,6 @@
 import * as git from 'isomorphic-git';
 import type { TreeEntry } from 'isomorphic-git';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../../repo/fsApiAdapter.js';
 
 type Fs = ReturnType<typeof makeFsApiFs>;
 

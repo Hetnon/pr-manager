@@ -8,7 +8,7 @@ export type PushResult =
 
 // Pushes the given branch through the server proxy, which attaches the user's
 // OAuth token before forwarding to github.com. The browser never sees the token.
-export async function pushBranch(
+export async function gitPushBranch(
     handle: FileSystemDirectoryHandle,
     branch: string,
     owner: string,

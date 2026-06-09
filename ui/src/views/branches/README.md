@@ -28,9 +28,9 @@ And in `../../repo/`:
 | File | Responsibility |
 |---|---|
 | `pickRepoFolder.ts` | `showDirectoryPicker()`, parse `.git/config` for the GitHub remote |
-| `repoFolderStorage.ts` | Persist the `FileSystemDirectoryHandle` in IndexedDB so reload reattaches |
-| `useRepoSelection.ts` | React hook bridging localStorage (owner/name) + IDB (handle) |
-| `RepoSelector.tsx` | The folder-picker UI |
+| `repoFolderStorage.ts` | Persist `FileSystemDirectoryHandle`s in IndexedDB, keyed by repo slug (multiple projects) |
+| `RepoContext.tsx` | Owns the repo selection (slug in localStorage + handles in IDB) and mutators; exposes them via context |
+| `RepoSelector.tsx` | The folder-picker UI (shell over `PickerMessages` / `AllProjects` / `PickerActions`) |
 | `fsApiAdapter.ts` | node-style `fs.promises` over FSAPI — what `isomorphic-git` calls into |
 
 ## What the spike proved (now deleted)

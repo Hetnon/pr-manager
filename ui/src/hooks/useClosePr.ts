@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { closePr as apiClosePr } from '../api/prs.js';
+import * as prApi from '../api/prs.js';
 
 // Close a PR without merging (GitHub has no delete-PR; closing is the reopenable
 // equivalent). Shared by the PR view and the branches view. `onClosed` fires on
@@ -16,7 +16,7 @@ export function useClosePr(owner: string | null, repo: string | null, onClosed?:
         setClosingPr(prNumber);
         setLastClose(null);
         try {
-            const result = await apiClosePr(owner, repo, prNumber);
+            const result = await prApi.closePr(owner, repo, prNumber);
             if (result.ok) {
                 setLastClose({ ok: true, prNumber, message: `Closed #${prNumber} (not merged).` });
                 onClosed?.();

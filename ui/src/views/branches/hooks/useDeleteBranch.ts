@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { deleteBranchEverywhere } from '../../../repo/branchDeletion.js';
-import { ensureFolderWritePermission } from '../../../repo/folderPermission.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
 
 // Owns the "delete duplicate branch (local + origin)" action and its state.
@@ -20,15 +19,6 @@ export function useDeleteBranch(
         setDeletingBranch(branchName);
         setLastDelete(null);
         try {
-            const hasWritePermission = await ensureFolderWritePermission(folderHandle);
-            if (!hasWritePermission) {
-                setLastDelete({
-                    branch: branchName,
-                    local: { attempted: true, ok: false, error: 'Write permission denied' },
-                    origin: { attempted: false, ok: false },
-                });
-                return;
-            }
             const result = await deleteBranchEverywhere(folderHandle, owner, repo, branchName, 'both');
             setLastDelete(result);
             if (result.local.ok || result.origin.ok) {

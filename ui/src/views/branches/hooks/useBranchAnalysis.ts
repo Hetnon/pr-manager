@@ -3,7 +3,6 @@ import { readLocalRepo, type LocalRepoSnapshot } from '../readLocalRepo.js';
 import { checkLocalConflicts, type ConflictProgress, type LocalConflictReport } from '../checkLocalConflicts.js';
 import { loadCache, createCacheWriter, ensureCacheIgnored } from '../conflictCache.js';
 import { fetchOrigin, type FetchResult } from '../fetchOrigin.js';
-import { queryFolderPermission } from '../../../repo/folderPermission.js';
 import { readWorkingTreeStatus, type WorkingTreeStatus } from '../workingTreeStatus.js';
 
 // Reads the local repo and analyzes it. Owns everything derived from the folder:
@@ -54,13 +53,8 @@ export function useBranchAnalysis(
         setConflictError(null);
         setWorktree(null);
         try {
-            // Query-only: requestPermission throws SecurityError when called
-            // outside a user gesture (this runs from useEffect). The header
-            // badge is the gesture-enabled path to upgrade.
-            const level = await queryFolderPermission(targetFolder);
-            if (level === 'none') {
-                throw new Error('Folder access not granted — click the badge in the header to grant.');
-            }
+            // Folder read+write is guaranteed by the app's entry gate, so we read
+            // straight away — no permission check here.
             const snap = await readLocalRepo(targetFolder);
             setSnapshot(snap);
             // The working-tree scan + conflict analysis run together in the effect
@@ -72,9 +66,8 @@ export function useBranchAnalysis(
         }
     }
 
-    // Unified refresh — reread local state, and if readwrite is granted, do an
-    // opportunistic fetch + prune. No permission prompts here; the badge is
-    // the gesture-enabled path for upgrades.
+    // Unified refresh — reread local state, then do an opportunistic fetch + prune
+    // (folder read+write is guaranteed by the entry gate).
     //
     // Note: we DON'T reread after a successful fetch. fetch only updates
     // refs/remotes/origin/*; readLocalRepo only reads refs/heads/* — local
@@ -84,11 +77,6 @@ export function useBranchAnalysis(
     async function runRefresh(targetFolder: FileSystemDirectoryHandle) {
         await load(targetFolder);
         if (!owner || !repo) return;
-        const level = await queryFolderPermission(targetFolder);
-        if (level !== 'readwrite') {
-            setLastFetch(null);
-            return;
-        }
         let result: FetchResult;
         setFetching(true);
         try {

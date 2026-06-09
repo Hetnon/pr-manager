@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { MergePrResult } from '@shared/merge.js';
-import { mergePr as apiMergePr } from '../../../../api/prs.js';
+import * as prApi from '../../../../api/prs.js';
 import type { LastMerge } from '../types.js';
 
 // Squash-merge action for a PR, plus its in-flight / last-result state and the
@@ -28,7 +28,7 @@ export function usePrActions(owner: string, repo: string, onMerged?: () => void)
         setMerging(prNumber);
         setLastMerge(null);
         try {
-            const mergeResult: MergePrResult = await apiMergePr(owner, repo, prNumber, 'squash', deleteBranch);
+            const mergeResult: MergePrResult = await prApi.mergePr(owner, repo, prNumber, 'squash', deleteBranch);
             if (!mergeResult.ok) {
                 if ('preflight' in mergeResult) {
                     setLastMerge({

@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { PairwisePrConflicts } from '@shared/conflicts.js';
-import { queryFolderPermission } from '../../../../repo/folderPermission.js';
 import { fetchPrRefs } from '../fetchPrRefs.js';
 import { computeBrowserPairwise } from '../computeBrowserPairwise.js';
+import { loadCachedPairwise, saveCachedPairwise, prSetKey } from '../../../../analysis/prCache.js';
 import type { LocalPairwiseState } from '../types.js';
 
 // Browser-side pairwise conflict detection between the candidate PRs. Fetches
-// refs/pull/<N>/head for each, then runs a 3-way merge per shared file. Needs
-// read+write folder access (fetch writes pack files); can only *query* the
-// permission from an effect — the user grants it via the header badge.
+// refs/pull/<N>/head for each, then runs a 3-way merge per shared file. Folder
+// read+write access is guaranteed by the app's entry gate, so we just compute.
 export function useLocalPairwise(
     owner: string,
     repo: string,
@@ -22,12 +21,17 @@ export function useLocalPairwise(
 
     useEffect(() => {
         if (readyToCheck.length === 0) { setLocalPairwise({ phase: 'idle' }); return; }
+        // The pairwise verdict is a pure function of the candidate PRs' head shas
+        // (3-way merges over immutable git objects), so a cache hit is trusted
+        // outright — no fetch, no recompute, no revalidation. This is what makes a
+        // page reload with unchanged PRs instant.
+        const slug = owner && repo ? `${owner}/${repo}` : '';
+        const key = prSetKey(readyToCheck);
+        const cached = slug ? loadCachedPairwise(slug, key) : null;
+        if (cached) { setLocalPairwise({ phase: 'ready', pairwise: cached, failedFetches: [] }); return; }
         if (!folderHandle) { setLocalPairwise({ phase: 'no-folder' }); return; }
         let cancelled = false;
         (async () => {
-            const level = await queryFolderPermission(folderHandle);
-            if (cancelled) return;
-            if (level !== 'readwrite') { setLocalPairwise({ phase: 'needs-readwrite' }); return; }
             const prNumbers = readyToCheck.map((pr) => pr.number);
             setLocalPairwise({ phase: 'fetching', total: prNumbers.length });
             try {
@@ -36,6 +40,7 @@ export function useLocalPairwise(
                 setLocalPairwise({ phase: 'computing' });
                 const pairwise = await computeBrowserPairwise(folderHandle, readyToCheck);
                 if (cancelled) return;
+                if (slug) saveCachedPairwise(slug, key, pairwise);
                 setLocalPairwise({ phase: 'ready', pairwise, failedFetches: fetchResult.failed.map((failure) => failure.number) });
             } catch (error) {
                 if (!cancelled) setLocalPairwise({ phase: 'error', message: (error as Error).message });

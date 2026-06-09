@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
+import { RepoContext } from '../../../repo/RepoContext.js';
 import { deleteBranchEverywhere } from '../../../repo/branchDeletion.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
 
 // Owns the "delete duplicate branch (local + origin)" action and its state.
 // Lives with DuplicatesBanner. Re-reads the repo on success via `refresh`.
 export function useDeleteBranch(
-    folderHandle: FileSystemDirectoryHandle | null,
-    owner: string | null,
-    repo: string | null,
     refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>,
 ) {
+    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
     const [lastDelete, setLastDelete] = useState<DeleteBranchResult | null>(null);
 

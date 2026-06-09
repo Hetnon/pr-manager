@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import type { LocalBranch, LocalRepoSnapshot } from '../readLocalRepo.js';
+import { RepoContext } from '../../../repo/RepoContext.js';
 import { pushBranchToOrigin, resolveFold } from '../pushBranchToOrigin.js';
-import { createPr } from '../../../api/git.js';
+import { createPr } from '../../../api/prs.js';
 import type { PrOutcome } from '../types.js';
 
 // Owns the "push branch and open its PR" action. Lives with BranchList. Pushes
@@ -9,13 +10,13 @@ import type { PrOutcome } from '../types.js';
 // remote before a PR can reference it), then opens the PR from the pushed/folded
 // name against the default branch.
 export function useOpenPr(
-    folderHandle: FileSystemDirectoryHandle | null,
-    owner: string | null,
-    repo: string | null,
     snapshot: LocalRepoSnapshot | null,
     refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>,
     onOpened?: () => void,
 ) {
+    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [openingPr, setOpeningPr] = useState<string | null>(null);
     const [lastPr, setLastPr] = useState<PrOutcome | null>(null);
 

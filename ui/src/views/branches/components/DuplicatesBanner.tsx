@@ -1,7 +1,5 @@
-import { useContext } from 'react';
 import type { BranchGroup } from '../checkLocalConflicts.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
-import { RepoContext } from '../../../repo/RepoContext.js';
 import { useDeleteBranch } from '../hooks/useDeleteBranch.js';
 import styles from '../BranchesView.module.css';
 
@@ -14,10 +12,7 @@ interface Props {
 // to delete each redundant copy (local + origin) while keeping the canonical one.
 // Owns the delete action itself (useDeleteBranch).
 export default function DuplicatesBanner({ groups, refresh }: Props) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
-    const { deletingBranch, lastDelete, deleteBranch } = useDeleteBranch(
-        folderHandle, repoOwnerAndName?.owner ?? null, repoOwnerAndName?.name ?? null, refresh,
-    );
+    const { deletingBranch, lastDelete, deleteBranch } = useDeleteBranch(refresh);
     const dupes = groups.filter((group) => group.branches.length > 1);
     if (dupes.length === 0) return null;
     const totalRedundant = dupes.reduce((total, group) => total + group.branches.length - 1, 0);

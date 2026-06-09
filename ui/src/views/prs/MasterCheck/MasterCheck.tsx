@@ -1,6 +1,5 @@
 import { useContext, useMemo, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
-import { RepoContext } from '../../../repo/RepoContext.js';
 import { AnalysisContext } from '../../../analysis/AnalysisContext.js';
 import { formatDateTime, formatRelativeShort } from '../../../lib/formatDate.js';
 import { useClosePr } from '../../../hooks/useClosePr.js';
@@ -22,10 +21,6 @@ interface Props {
 // AnalysisProvider). MasterCheck owns only the merge/close actions and the
 // presentation glue (cell severity + the "master touched" chip).
 export default function MasterCheck({ onMerged }: Props) {
-    const { repoOwnerAndName } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? '';
-    const repo = repoOwnerAndName?.name ?? '';
-
     const {
         greens, nonGreens, conflictsByPr, promoted, togglePromoted,
         readyToCheck, readyMatrix, results, loading, error, lookups, masterTouchByFile,
@@ -35,8 +30,8 @@ export default function MasterCheck({ onMerged }: Props) {
     const {
         merging, lastMerge,
         skipBranchDelete, toggleSkipBranchDelete, handleMerge,
-    } = usePrActions(owner, repo, onMerged);
-    const { closingPr, lastClose, close: handleClosePr } = useClosePr(owner, repo, onMerged);
+    } = usePrActions(onMerged);
+    const { closingPr, lastClose, close: handleClosePr } = useClosePr(onMerged);
 
     const earliestPrUpdateByFile = useMemo(() => {
         const earliestByFile = new Map<string, number>();

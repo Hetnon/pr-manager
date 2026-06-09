@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-    checkSession as apiCheckSession,
-    logout as apiLogout,
+    apiCheckSession,
+    apiLogout,
 } from '../api/auth.js';
 import { setCsrfToken } from '../api/csrf.js';
 import { ApiError } from '../api/client.js';
@@ -15,7 +15,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-    refreshSession: () => Promise<void>;
+    recheckSession: () => void;
     logout: () => Promise<void>;
 }
 
@@ -26,12 +26,16 @@ export const AuthContext = createContext<AuthContextValue>({
     loggedIn: false,
     loading: true,
     checkFailed: false,
-    refreshSession: async () => {},
+    recheckSession: () => {},
     logout: async () => {},
 });
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     const [session, setSession] = useState<AuthState>({ loggedIn: false, loading: true, checkFailed: false });
+    // Consumers can't (and don't need to) call the session check directly — they bump
+    // this nonce via recheckSession, and the effect below re-runs the check.
+    const [recheckNonce, setRecheckNonce] = useState(0);
+    const recheckSession = useCallback(() => setRecheckNonce((nonce) => nonce + 1), []);
 
     const refreshSession = useCallback(async () => {
         setSession((prev) => ({ ...prev, loading: true, checkFailed: false }));
@@ -51,7 +55,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     useEffect(() => {
         void refreshSession();
-    }, [refreshSession]);
+    }, [refreshSession, recheckNonce]);
 
     const logout = useCallback(async () => {
         await apiLogout().catch(() => { /* ignore — clearing client state anyway */ });
@@ -61,9 +65,9 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     const value = useMemo(() => ({
         ...session, // loggedIn, loading, checkFailed
-        refreshSession,
+        recheckSession,
         logout,
-    }), [session, refreshSession, logout]);
+    }), [session, recheckSession, logout]);
 
     return (
         <AuthContext.Provider value={value}>

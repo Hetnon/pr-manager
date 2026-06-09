@@ -2,10 +2,14 @@ import { apiFetch } from './client.js';
 import type { PR } from '@shared/pr.js';
 import type { MergeStrategy, MergePrResult } from '@shared/merge.js';
 import type { CheckConflictsResponse } from '@shared/conflicts.js';
-import type { ClosePrResult } from '@shared/git.js';
+import type { ClosePrResult, CreatePrPayload, CreatePrResult } from '@shared/git.js';
 
 export function listPrs(owner: string, repo: string): Promise<PR[]> {
     return apiFetch<PR[]>('/api/prs', { query: { owner, repo } });
+}
+
+export function createPr(payload: CreatePrPayload): Promise<CreatePrResult> {
+    return apiFetch<CreatePrResult>('/api/create-pr', { method: 'POST', body: payload });
 }
 
 export function mergePr(

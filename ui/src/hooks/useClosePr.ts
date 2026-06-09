@@ -1,11 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useContext, useState } from 'react';
+import { RepoContext } from '../repo/RepoContext.js';
 import * as prApi from '../api/prs.js';
 
 // Close a PR without merging (GitHub has no delete-PR; closing is the reopenable
 // equivalent). Shared by the PR view and the branches view. `onClosed` fires on
 // success so the caller can refetch the PR list. `confirmDetail` is an optional
 // extra hint shown in the confirm dialog (e.g. the PR title).
-export function useClosePr(owner: string | null, repo: string | null, onClosed?: () => void) {
+export function useClosePr(onClosed?: () => void) {
+    const { repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [closingPr, setClosingPr] = useState<number | null>(null);
     const [lastClose, setLastClose] = useState<{ ok: boolean; prNumber: number; message: string } | null>(null);
 

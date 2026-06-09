@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { RepoContext } from '../../../repo/RepoContext.js';
 import { readLocalRepo, type LocalRepoSnapshot } from '../readLocalRepo.js';
 import { checkLocalConflicts, type ConflictProgress, type LocalConflictReport } from '../checkLocalConflicts.js';
 import { loadCache, createCacheWriter, ensureCacheIgnored } from '../conflictCache.js';
@@ -11,12 +12,10 @@ import { readWorkingTreeStatus, type WorkingTreeStatus } from '../workingTreeSta
 // reread on folderHandle/refresh changes, then scan+analyze whenever a fresh snapshot
 // lands. Exposes `refresh` and `setConflictReport` (the dedup flow patches the
 // report in place) for the actions hook.
-export function useBranchAnalysis(
-    folderHandle: FileSystemDirectoryHandle | null,
-    owner: string | null,
-    repo: string | null,
-    refreshNonce: number,
-) {
+export function useBranchAnalysis(refreshNonce: number) {
+    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [snapshot, setSnapshot] = useState<LocalRepoSnapshot | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);

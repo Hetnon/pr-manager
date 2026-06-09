@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { LocalBranch, LocalRepoSnapshot } from '../readLocalRepo.js';
+import { RepoContext } from '../../../repo/RepoContext.js';
 import { pushBranchToOrigin } from '../pushBranchToOrigin.js';
 import type { PushOutcome } from '../types.js';
 
@@ -10,13 +11,13 @@ import type { PushOutcome } from '../types.js';
 // open PR updates that PR — a PR is a live view of its head branch, with no
 // per-push opt-out — so we confirm first.
 export function usePushBranch(
-    folderHandle: FileSystemDirectoryHandle | null,
-    owner: string | null,
-    repo: string | null,
     snapshot: LocalRepoSnapshot | null,
     refresh: (folderHandle: FileSystemDirectoryHandle) => Promise<void>,
     onPushed?: () => void,
 ) {
+    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [pushingBranch, setPushingBranch] = useState<string | null>(null);
     const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
 

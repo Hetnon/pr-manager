@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useContext, useState } from 'react';
 import type { MergePrResult } from '@shared/merge.js';
+import { RepoContext } from '../../../../repo/RepoContext.js';
 import * as prApi from '../../../../api/prs.js';
 import type { LastMerge } from '../types.js';
 
@@ -7,7 +8,10 @@ import type { LastMerge } from '../types.js';
 // per-PR "skip branch delete" opt-out. `onMerged` fires after a successful merge
 // so the caller can refresh the PR list. (Closing a PR lives in the shared
 // useClosePr hook.)
-export function usePrActions(owner: string, repo: string, onMerged?: () => void) {
+export function usePrActions(onMerged?: () => void) {
+    const { repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [merging, setMerging] = useState<number | null>(null);
     const [lastMerge, setLastMerge] = useState<LastMerge>(null);
     // Per-PR "skip branch delete" set. Default is delete; users opt out per PR.
@@ -22,6 +26,7 @@ export function usePrActions(owner: string, repo: string, onMerged?: () => void)
     }, []);
 
     const handleMerge = useCallback(async (prNumber: number) => {
+        if (!owner || !repo) return;
         const deleteBranch = !skipBranchDelete.has(prNumber);
         const confirmMsg = `Squash-merge PR #${prNumber} on ${owner}/${repo}${deleteBranch ? ' (and delete the branch)' : ''}?`;
         if (!window.confirm(confirmMsg)) return;

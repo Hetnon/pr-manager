@@ -10,7 +10,7 @@ function deriveApiBase(): string {
     if (typeof __API_BASE_URL__ === 'string' && __API_BASE_URL__) {
         return __API_BASE_URL__;
     }
-    const { protocol, hostname } = window.location;
+    const { protocol, hostname } = globalThis.location;
     if (hostname === 'localhost' || hostname === '127.0.0.1') return '';
     const parts = hostname.split('.');
     if (parts.length === 0) return '';
@@ -37,7 +37,7 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-    const url = new URL(`${API_BASE}${path}`, window.location.origin);
+    const url = new URL(`${API_BASE}${path}`, globalThis.location.origin);
     if (options.query) {
         for (const [key, value] of Object.entries(options.query)) {
             if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
@@ -54,7 +54,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestOption
     const response = await fetch(url.toString(), {
         method,
         headers,
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
         credentials: 'include',
     });
 

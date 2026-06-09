@@ -1,7 +1,8 @@
-import { useCallback, useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import RepoSelector from './repo/RepoSelector.js';
 import FolderAccessModal from './repo/FolderAccessModal.js';
 import { RepoContext } from './repo/RepoContext.js';
+import { AnalysisProvider } from './analysis/AnalysisContext.js';
 import AppHeader, { type View } from './Header/AppHeader.js';
 import AppMain from './views/AppMain.js';
 
@@ -10,13 +11,6 @@ import AppMain from './views/AppMain.js';
 export default function MainPage() {
     const { repoSlug, folderHandle, hasFolderAccess, pickerOpen } = useContext(RepoContext);
     const [view, setView] = useState<View>('branches');
-    
-    // Bumped on Refresh — both views watch this to reread local state and reload PRs.
-    const [refreshNonce, setRefreshNonce] = useState(0);
-
-    const triggerRefresh = useCallback(() => {
-        setRefreshNonce((nonce) => nonce + 1);
-    }, []);
 
     // A saved repo whose folder access the browser dropped on reload (or whose
     // handle is still being restored) — block the whole app until access is
@@ -27,18 +21,13 @@ export default function MainPage() {
         return pickerOpen ? <RepoSelector /> : <FolderAccessModal />;
     }
 
+    // AnalysisProvider wraps both the header and the content so the header's ↻ Refresh
+    // can trigger a reload from context (no prop-drilling) and the views read the results.
     return (
-        <>
-            <AppHeader
-                view={view}
-                onSelectView={setView}
-                onRefresh={triggerRefresh}
-            />
-            <AppMain
-                view={view}
-                refreshNonce={refreshNonce}
-            />
+        <AnalysisProvider>
+            <AppHeader view={view} onSelectView={setView} />
+            <AppMain view={view} />
             {pickerOpen && <RepoSelector />}
-        </>
+        </AnalysisProvider>
     );
 }

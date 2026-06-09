@@ -9,7 +9,7 @@ import { useLocalPairwise } from './MasterCheck/hooks/useLocalPairwise.js';
 // split, the promotion state + candidate set, and the two async conflict checks
 // (server-side vs master + browser-side pairwise). Mirrors useBranchAnalysis on
 // the PR side so it can run at the app level regardless of the active view.
-export function usePrAnalysis(prs: PR[], owner: string, repo: string, folderHandle: FileSystemDirectoryHandle | null) {
+export function usePrAnalysis(prs: PR[]) {
     const matrix = useMemo(() => buildSharedFileMatrix(prs), [prs]);
     const { sortedPrs, prSafe } = matrix;
     const greens = useMemo(() => sortedPrs.filter((pr) => prSafe.get(pr.number)), [sortedPrs, prSafe]);
@@ -47,8 +47,8 @@ export function usePrAnalysis(prs: PR[], owner: string, repo: string, folderHand
     // matrix above — built here so PrMatrix stays purely presentational.
     const readyMatrix = useMemo(() => buildSharedFileMatrix(readyToCheck), [readyToCheck]);
 
-    const masterConflicts = useMasterConflicts(owner, repo, prs, readyToCheck, promoted);
-    const { localPairwise, pairwise } = useLocalPairwise(owner, repo, prs, readyToCheck, promoted, folderHandle);
+    const masterConflicts = useMasterConflicts(prs, readyToCheck, promoted);
+    const { localPairwise, pairwise } = useLocalPairwise(prs, readyToCheck, promoted);
 
     return {
         matrix, greens, nonGreens, conflictsByPr,

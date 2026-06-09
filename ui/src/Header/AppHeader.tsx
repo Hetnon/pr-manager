@@ -8,18 +8,17 @@ export type { View };
 interface Props {
     view: View;
     onSelectView: (view: View) => void;
-    onRefresh: () => void;
 }
 
 // Top bar: the Branches | Pull Requests view switch plus the repo controls.
 // Pure composition — the view switch is gated on having a repo (read from
-// context); all behaviour is delegated to the callbacks App passes in.
-export default function AppHeader({ view, onSelectView, onRefresh }: Readonly<Props>) {
+// context); the controls read what they need (repo, refresh) from context too.
+export default function AppHeader({ view, onSelectView }: Readonly<Props>) {
     const { repoSlug } = useContext(RepoContext);
     return (
         <header>
             {repoSlug && <ViewToggle view={view} onSelectView={onSelectView} />}
-            <HeaderControls onRefresh={onRefresh} />
+            <HeaderControls />
         </header>
     );
 }

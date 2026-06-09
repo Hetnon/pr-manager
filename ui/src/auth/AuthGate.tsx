@@ -6,9 +6,9 @@ import SessionError from './SessionError.js';
 
 // Routes between the session states: checking → error (retryable) → login → app.
 export default function AuthGate({ children }: Readonly<{ children: ReactNode }>) {
-    const { loggedIn, loading, checkFailed, refreshSession } = useContext(AuthContext);
+    const { loggedIn, loading, checkFailed } = useContext(AuthContext);
     if (loading) return <SessionLoading />;
-    if (checkFailed) return <SessionError onRetry={() => void refreshSession()} />;
+    if (checkFailed) return <SessionError />;
     if (!loggedIn) return <Login />;
     return <>{children}</>; // the main app page
 }

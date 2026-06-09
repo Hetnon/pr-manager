@@ -27,13 +27,13 @@ function formatCount(count: number, truncated: boolean): string {
 // header and rows aligned. Owns those actions (and their result banners) itself,
 // since they're only triggered from here.
 export default function BranchList({ rows, snapshot, worktree, refresh, onPushed }: Props) {
-    const { folderHandle, repoOwnerAndName } = useContext(RepoContext);
+    const { repoOwnerAndName } = useContext(RepoContext);
     const owner = repoOwnerAndName?.owner ?? null;
     const repo = repoOwnerAndName?.name ?? null;
     const defaultBranch = snapshot.defaultBranch;
-    const { pushingBranch, lastPush, pushBranch } = usePushBranch(folderHandle, owner, repo, snapshot, refresh, onPushed);
-    const { openingPr, lastPr, openPr } = useOpenPr(folderHandle, owner, repo, snapshot, refresh, onPushed);
-    const { closingPr, lastClose, close } = useClosePr(owner, repo, onPushed);
+    const { pushingBranch, lastPush, pushBranch } = usePushBranch(snapshot, refresh, onPushed);
+    const { openingPr, lastPr, openPr } = useOpenPr(snapshot, refresh, onPushed);
+    const { closingPr, lastClose, close } = useClosePr(onPushed);
     const busy = pushingBranch !== null || openingPr !== null;
 
     const worktreeDirty = !!worktree && !worktree.clean;

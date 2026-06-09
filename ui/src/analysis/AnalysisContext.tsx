@@ -13,6 +13,7 @@ interface AnalysisContextValue {
     prLoadStatus: string;      // transient "Loading…" / "Loaded N at HH:MM"
     contentError: string | null;
     loadPrs: () => Promise<void>;   // refetch just the PRs (after a merge/close/push)
+    triggerRefresh: () => void;     // full reread: reload PRs + rerun the branch analysis
     branch: ReturnType<typeof useBranchAnalysis>;
     pr: ReturnType<typeof usePrAnalysis>;
 }
@@ -26,11 +27,14 @@ export const AnalysisContext = createContext<AnalysisContextValue>(null as unkno
 // all above the view toggle — so checks happen regardless of which tab is open
 // (and in parallel), and tab switches don't re-run anything. Reports each check's
 // progress into the shared top-level modal. The views consume the results here.
-export function AnalysisProvider({ refreshNonce, children }: Readonly<{ refreshNonce: number; children: ReactNode }>) {
-    const { repoSlug, repoOwnerAndName, folderHandle } = useContext(RepoContext);
-    const owner = repoOwnerAndName?.owner ?? null;
-    const repoName = repoOwnerAndName?.name ?? null;
-    const { refreshSession } = useContext(AuthContext);
+export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>) {
+    const { repoSlug, repoOwnerAndName } = useContext(RepoContext);
+    const { recheckSession } = useContext(AuthContext);
+
+    // Bumped by triggerRefresh (the header's ↻ Refresh) — both the PR reload below
+    // and the branch analysis watch this to reread local state and refetch.
+    const [refreshNonce, setRefreshNonce] = useState(0);
+    const triggerRefresh = useCallback(() => setRefreshNonce((nonce) => nonce + 1), []);
 
     // Hydrate from the persisted PR list so a page reload shows the last-known PRs
     // (and, downstream, the cached analysis) instantly instead of a blank spinner.
@@ -63,13 +67,13 @@ export function AnalysisProvider({ refreshNonce, children }: Readonly<{ refreshN
         } catch (error) {
             // If the server says we lost the session, refresh auth state to redirect to login.
             if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-                await refreshSession();
+                recheckSession();
                 return;
             }
             setContentError(`Error: ${(error as Error).message}`);
             setPrLoadStatus('');
         }
-    }, [repoOwnerAndName, refreshSession]);
+    }, [repoOwnerAndName, recheckSession]);
 
     // Reload on repo change and on the App-level refresh signal.
     useEffect(() => {
@@ -77,11 +81,11 @@ export function AnalysisProvider({ refreshNonce, children }: Readonly<{ refreshN
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [repoSlug, refreshNonce]);
 
-    const branch = useBranchAnalysis(folderHandle, owner, repoName, refreshNonce);
-    const pr = usePrAnalysis(prs ?? [], owner ?? '', repoName ?? '', folderHandle);
+    const branch = useBranchAnalysis(refreshNonce);
+    const pr = usePrAnalysis(prs ?? []);
 
     const value = useMemo<AnalysisContextValue>(() => ({
-        prs, prLoadStatus, contentError, loadPrs, branch, pr
-    }), [prs, prLoadStatus, contentError, loadPrs, branch, pr]);
+        prs, prLoadStatus, contentError, loadPrs, triggerRefresh, branch, pr
+    }), [prs, prLoadStatus, contentError, loadPrs, triggerRefresh, branch, pr]);
     return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
 }

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { CheckConflictsResponse, MasterTouch } from '@shared/conflicts.js';
+import { RepoContext } from '../../../../repo/RepoContext.js';
 import * as prApi from '../../../../api/prs.js';
 import { loadCachedMasterCheck, saveCachedMasterCheck, prSetKey } from '../../../../analysis/prCache.js';
 
@@ -8,13 +9,16 @@ import { loadCachedMasterCheck, saveCachedMasterCheck, prSetKey } from '../../..
 // whenever the candidate set changes, and shapes the response into fast lookups:
 //   - lookups: per-PR sets of conflicting / master-touched files
 //   - masterTouchByFile: who last touched each file on master
-export function useMasterConflicts(owner: string, repo: string, prs: PR[], readyToCheck: PR[], promoted: Set<number>) {
+export function useMasterConflicts(prs: PR[], readyToCheck: PR[], promoted: Set<number>) {
+    const { repoOwnerAndName } = useContext(RepoContext);
+    const owner = repoOwnerAndName?.owner ?? null;
+    const repo = repoOwnerAndName?.name ?? null;
     const [response, setResponse] = useState<CheckConflictsResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (readyToCheck.length === 0) {
+        if (readyToCheck.length === 0 || !owner || !repo) {
             setResponse(null);
             return;
         }
@@ -22,9 +26,9 @@ export function useMasterConflicts(owner: string, repo: string, prs: PR[], ready
         // cached verdict outright — but we can show it instantly and re-check in
         // the background. A page reload thus renders the last result with no
         // spinner, then quietly refreshes it.
-        const slug = owner && repo ? `${owner}/${repo}` : '';
+        const slug = `${owner}/${repo}`;
         const key = prSetKey(readyToCheck);
-        const cached = slug ? loadCachedMasterCheck(slug, key) : null;
+        const cached = loadCachedMasterCheck(slug, key);
         if (cached) setResponse(cached);
 
         let cancelled = false;
@@ -36,7 +40,7 @@ export function useMasterConflicts(owner: string, repo: string, prs: PR[], ready
                 const conflictResponse = await prApi.checkMasterConflicts(owner, repo, readyToCheck.map((pr) => pr.number));
                 if (cancelled) return;
                 setResponse(conflictResponse);
-                if (slug) saveCachedMasterCheck(slug, key, conflictResponse);
+                saveCachedMasterCheck(slug, key, conflictResponse);
             } catch (error) {
                 // On a background revalidation failure keep the cached result visible
                 // rather than replacing it with an error.

@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
-import { heatClass, type SharedFileMatrix } from '../../sharedFiles.js';
-import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../../components/Matrix.js';
+import { heatClass, type SharedFileMatrix } from '../sharedFiles.js';
+import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../components/Matrix.js';
 import PrMatrixSummary from './PrMatrixSummary.js';
-import { formatAbsolute, formatTimeAgo } from '../../../../lib/formatDate.js';
-import styles from '../../../../components/Matrix.module.css';
+import { formatAbsolute, formatTimeAgo } from '../../../lib/formatDate.js';
+import styles from '../../../components/Matrix.module.css';
 
 export type CellState = 'conflict' | 'warning' | undefined;
 
@@ -16,8 +16,8 @@ const STATE_CLASS: Record<NonNullable<CellState>, string> = {
 };
 const STATE_GLYPH: Record<NonNullable<CellState>, string> = { conflict: '✗', warning: '⚠' };
 const STATE_TITLE: Record<NonNullable<CellState>, string> = {
-    conflict: 'Would conflict with master on this file',
-    warning: 'Master also touched this file (clean merge, but worth a manual review)',
+    conflict: 'Would conflict with the base branch on this file',
+    warning: 'The base branch also touched this file (clean merge, but worth a manual review)',
 };
 
 const META_LABELS = ['Branch Name', "Dev's Name", 'PR Name', 'Created', 'Last Modified'];
@@ -29,7 +29,7 @@ interface Props {
 }
 
 // Purely presentational: it renders the matrix it's given. The caller owns the
-// input PR set and builds the matrix (MasterCheck builds it from readyToCheck).
+// input PR set and builds the matrix (PrConflicts builds it from readyToCheck).
 export default function PrMatrix({ matrix, cellState, renderFileExtra }: Props) {
     const [expanded, setExpanded] = useState(true);
     const { sortedPrs, files, prSafe, safeCount, hotFileCount } = matrix;

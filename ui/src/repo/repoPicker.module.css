@@ -1,5 +1,5 @@
 /* Repo picker / folder-access modal styles, shared by FolderAccessModal + RepoSelector/*.
-   (.picker-error stays global — MasterCheck also uses it.) */
+   (.picker-error stays global — PrConflicts also uses it.) */
 
 .pickerOverlay {
   position: fixed;

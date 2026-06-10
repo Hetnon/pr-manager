@@ -10,7 +10,7 @@ interface Props {
 }
 
 // Lists PRs that share files with other open PRs, with a checkbox to promote one
-// into the master check and a button to close it. Shown before the matrix so a
+// into the base check and a button to close it. Shown before the matrix so a
 // tech lead can see exactly what they're choosing between before promoting.
 export default function ConflictingPrsPanel({ nonGreens, promoted, onToggle, conflictsByPr, onClose, closingPr }: Props) {
     return (
@@ -20,7 +20,7 @@ export default function ConflictingPrsPanel({ nonGreens, promoted, onToggle, con
         }}>
             <strong style={{ fontSize: 14 }}>Conflicting PRs ({nonGreens.length})</strong>
             <p style={{ margin: '4px 0 10px', fontSize: 12, color: '#57606a' }}>
-                These share files with other open PRs. Promote one (or more) to evaluate against master.
+                These share files with other open PRs. Promote one (or more) to evaluate against the base branch.
                 If clean, you can squash-merge it below; then refresh to re-check the rest.
             </p>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>

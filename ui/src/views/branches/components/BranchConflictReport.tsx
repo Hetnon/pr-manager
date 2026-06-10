@@ -4,7 +4,7 @@ import DedupPanel from '../DedupPanel.js';
 import LocalBranchesMatrix from '../LocalBranchesMatrix.js';
 import DuplicatesBanner from './DuplicatesBanner.js';
 import MatrixLegend from './MatrixLegend.js';
-import MasterAssessmentPanel from './MasterAssessmentPanel.js';
+import DefaultAssessmentPanel from './DefaultAssessmentPanel.js';
 import styles from '../BranchesView.module.css';
 
 interface Props {
@@ -33,7 +33,7 @@ export default function BranchConflictReport({ conflictReport, snapshot, setConf
                 branchGroups={conflictReport.branchGroups}
                 fileDetail={conflictReport.fileDetail}
             />
-            <MasterAssessmentPanel
+            <DefaultAssessmentPanel
                 defaultBranch={conflictReport.defaultBranch}
                 branchVsDefault={conflictReport.branchVsDefault}
             />

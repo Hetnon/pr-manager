@@ -13,7 +13,7 @@ interface Props {
     onClose: (prNumber: number) => void;
 }
 
-// The merge panel: PRs that are clean against master, each with a one-click
+// The merge panel: PRs that are clean against the base branch, each with a one-click
 // squash-merge (via the GitHub API), a "delete branch" opt-out, and a close
 // button. Also surfaces the outcome of the last merge attempt.
 export default function TechLeadActions({

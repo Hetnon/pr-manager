@@ -1,7 +1,7 @@
 import { useCallback, useContext, useState } from 'react';
 import type { MergePrResult } from '@shared/merge.js';
-import { RepoContext } from '../../../../repo/RepoContext.js';
-import * as prApi from '../../../../api/prs.js';
+import { RepoContext } from '../../../repo/RepoContext.js';
+import * as prApi from '../../../api/prs.js';
 import type { LastMerge } from '../types.js';
 
 // Squash-merge action for a PR, plus its in-flight / last-result state and the

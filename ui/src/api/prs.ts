@@ -33,13 +33,13 @@ export function closePr(owner: string, repo: string, prNumber: number): Promise<
     });
 }
 
-export function checkMasterConflicts(
+export function checkBaseConflicts(
     owner: string,
     repo: string,
     prNumbers: number[],
 ): Promise<CheckConflictsResponse> {
     return apiFetch<CheckConflictsResponse>(
-        '/api/master-conflicts',
+        '/api/base-conflicts',
         { method: 'POST', body: { owner, repo, prNumbers } },
     );
 }

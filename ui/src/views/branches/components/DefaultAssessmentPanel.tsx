@@ -7,9 +7,9 @@ interface Props {
 }
 
 // Per-branch assessment against the default branch. A branch whose changed
-// files don't intersect what master changed since the merge-base can be merged
-// and deleted cleanly — doing so shrinks the matrix and the conflict surface.
-export default function MasterAssessmentPanel({ defaultBranch, branchVsDefault }: Props) {
+// files don't intersect what the default branch changed since the merge-base can be
+// merged and deleted cleanly — doing so shrinks the matrix and the conflict surface.
+export default function DefaultAssessmentPanel({ defaultBranch, branchVsDefault }: Props) {
     const analyzable = branchVsDefault.filter((assessment) => !assessment.error);
     if (analyzable.length === 0) return null;
     const clean = analyzable.filter((assessment) => assessment.intersection.length === 0);

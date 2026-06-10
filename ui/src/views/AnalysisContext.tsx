@@ -4,9 +4,9 @@ import { AuthContext } from '../SessionAuthLayer/AuthContext.js';
 import { listPrs } from '../api/prs.js';
 import { ApiError } from '../api/client.js';
 import { RepoContext } from '../repo/RepoContext.js';
-import { useBranchAnalysis } from '../views/branches/hooks/useBranchAnalysis.js';
-import { usePrAnalysis } from '../views/prs/usePrAnalysis.js';
-import { loadCachedPrs, saveCachedPrs, prSetKey } from './prCache.js';
+import { useBranchAnalysis } from './branches/hooks/useBranchAnalysis/useBranchAnalysis.js';
+import { usePrAnalysis } from './prs/usePrAnalysis/usePrAnalysis.js';
+import { loadCachedPrs, saveCachedPrs, prSetKey } from '../analysis/prCache.js';
 
 interface AnalysisContextValue {
     prs: PR[] | null;          // all the PRs in the chosen repo - null while loading
@@ -14,19 +14,11 @@ interface AnalysisContextValue {
     contentError: string | null;
     loadPrs: () => Promise<void>;   // refetch just the PRs (after a merge/close/push or refresh request)
     refreshRepo: () => void;     // full reread: reload PRs + rerun the branch/PR analysis
-    branch: ReturnType<typeof useBranchAnalysis>;
-    pr: ReturnType<typeof usePrAnalysis>;
+    branchesAnalysis: ReturnType<typeof useBranchAnalysis>;
+    prsAnalysis: ReturnType<typeof usePrAnalysis>;
 }
 
-
-//#region AnalysisContext note
-/**
- * Typed non-null because the shape is too large for a meaningful default.
- * Callers read useContext(AnalysisContext) directly.
- * AnalysisProvider always supplies the value, so a missing provider
- * surfaces as a natural dev-time error.
- */
-//#endregion
+// Non-null: shape too large for a meaningful default; AnalysisProvider always supplies it.
 export const AnalysisContext = createContext<AnalysisContextValue>(null as unknown as AnalysisContextValue);
 
 
@@ -56,7 +48,8 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
         setContentError(null);
         try {
             const loaded = await listPrs(currentRepoOwnerAndName.owner, currentRepoOwnerAndName.name);
-            saveCachedPrs(slug, loaded);// Nothing new from the server → keep the same reference so the analysis  (which keys on the prs identity) doesn't needlessly re-run.
+            saveCachedPrs(slug, loaded);
+            // Same PRs → keep the old reference so the identity-keyed analysis doesn't re-run.
             setPrs((current) => (current && prSetKey(current) === prSetKey(loaded) ? current : loaded));
             setPrLoadStatus(`Loaded ${loaded.length} open PR(s) at ${new Date().toLocaleTimeString()}`);
         } catch (error) {
@@ -76,11 +69,11 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
         void loadPrs();
     }, [currentRepoSlug, refreshRepoNonce]);
 
-    const branch = useBranchAnalysis(refreshRepoNonce);
-    const pr = usePrAnalysis(prs ?? []);
+    const branchesAnalysis = useBranchAnalysis(refreshRepoNonce);
+    const prsAnalysis = usePrAnalysis(prs ?? []);
 
     const value = useMemo<AnalysisContextValue>(() => ({
-        prs, prLoadStatus, contentError, loadPrs, refreshRepo, branch, pr
-    }), [prs, prLoadStatus, contentError, loadPrs, refreshRepo, branch, pr]);
+        prs, prLoadStatus, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis
+    }), [prs, prLoadStatus, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis]);
     return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
 }

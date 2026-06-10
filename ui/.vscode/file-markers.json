@@ -76,7 +76,8 @@
     "src/types/global.d.ts": "done",
     "src/Header/AppHeader.tsx": "done",
     "src/Header/ViewToggle.tsx": "done",
-    "src/Header/HeaderControls.tsx": "done"
+    "src/Header/HeaderControls.tsx": "done",
+    "src/views/AnalysisContext.tsx": "done"
   },
   "lineHighlightTypes": [
     {

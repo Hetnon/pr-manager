@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
 import type { PR } from '@shared/pr.js';
-import { buildSharedFileMatrix } from './sharedFiles.js';
-import { usePromotedPrs } from './MasterCheck/hooks/usePromotedPrs.js';
-import { useMasterConflicts } from './MasterCheck/hooks/useMasterConflicts.js';
-import { useLocalPairwise } from './MasterCheck/hooks/useLocalPairwise.js';
+import { buildSharedFileMatrix } from '../sharedFiles.js';
+import { usePromotedPrs } from './usePromotedPrs.js';
+import { useBaseConflicts } from './useBaseConflicts.js';
+import { useLocalPairwise } from './useLocalPairwise.js';
 
-// The view-independent PR analysis: the shared-file matrix, the green/non-green
-// split, the promotion state + candidate set, and the two async conflict checks
-// (server-side vs master + browser-side pairwise). Mirrors useBranchAnalysis on
-// the PR side so it can run at the app level regardless of the active view.
+// The view-independent PR analysis: shared-file matrix, the green/non-green split, the
+// promotion state + candidate set, and the two async conflict checks (vs base +
+// browser-side pairwise). Mirrors useBranchAnalysis so it can run at the app level.
 export function usePrAnalysis(prs: PR[]) {
     const matrix = useMemo(() => buildSharedFileMatrix(prs), [prs]);
     const { sortedPrs, prSafe } = matrix;
@@ -47,13 +46,13 @@ export function usePrAnalysis(prs: PR[]) {
     // matrix above — built here so PrMatrix stays purely presentational.
     const readyMatrix = useMemo(() => buildSharedFileMatrix(readyToCheck), [readyToCheck]);
 
-    const masterConflicts = useMasterConflicts(prs, readyToCheck, promoted);
+    const baseConflicts = useBaseConflicts(prs, readyToCheck, promoted);
     const { localPairwise, pairwise } = useLocalPairwise(prs, readyToCheck, promoted);
 
     return {
         matrix, greens, nonGreens, conflictsByPr,
         promoted, togglePromoted, readyToCheck, readyMatrix,
-        ...masterConflicts,   // results, loading, error, lookups, masterTouchByFile
+        ...baseConflicts,   // results, loading, error, lookups, baseTouchByFile
         localPairwise, pairwise,
     };
 }

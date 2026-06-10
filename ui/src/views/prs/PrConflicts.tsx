@@ -1,31 +1,29 @@
 import { useContext, useMemo, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
-import { AnalysisContext } from '../../../analysis/AnalysisContext.js';
-import { formatDateTime, formatRelativeShort } from '../../../lib/formatDate.js';
-import { useClosePr } from '../useClosePr.js';
+import { AnalysisContext } from '../AnalysisContext.js';
+import { formatDateTime, formatRelativeShort } from '../../lib/formatDate.js';
+import { useClosePr } from './useClosePr.js';
 import PrMatrix, { type CellState } from './PrMatrix/PrMatrix.js';
 import { usePrActions } from './hooks/usePrActions.js';
 import ConflictingPrsPanel from './components/ConflictingPrsPanel.js';
 import LocalPairwiseStatus from './components/LocalPairwiseStatus.js';
 import PrDuplicatesBanner from './components/PrDuplicatesBanner.js';
 import TechLeadActions from './components/TechLeadActions.js';
-import panels from '../../../panels.module.css';
-import styles from './MasterCheck.module.css';
+import panels from '../../panels.module.css';
+import styles from './PrConflicts.module.css';
 
 interface Props {
     onMerged?: () => void;
 }
 
-// Composes the master conflict check from the shared PR analysis (the green/non-
-// green split, candidate set, and server + browser checks all run app-level in
-// AnalysisProvider). MasterCheck owns only the merge/close actions and the
-// presentation glue (cell severity + the "master touched" chip).
-export default function MasterCheck({ onMerged }: Props) {
+// The PR conflict + merge panel: matrix, conflict panels, and the tech-lead merge/close
+// actions. The analysis itself runs app-level in AnalysisProvider; this is presentation glue.
+export default function PrConflicts({ onMerged }: Props) {
     const {
         greens, nonGreens, conflictsByPr, promoted, togglePromoted,
-        readyToCheck, readyMatrix, results, loading, error, lookups, masterTouchByFile,
+        readyToCheck, readyMatrix, results, loading, error, lookups, baseTouchByFile,
         localPairwise, pairwise,
-    } = useContext(AnalysisContext).pr;
+    } = useContext(AnalysisContext).prsAnalysis;
 
     const {
         merging, lastMerge,
@@ -48,32 +46,32 @@ export default function MasterCheck({ onMerged }: Props) {
     if (greens.length === 0 && nonGreens.length === 0) return null;
 
     // Combine two severity sources into one cellState:
-    //   master-vs-PR: GitHub mergeable bit + master-touched files
+    //   base-vs-PR: GitHub mergeable bit + base-touched files
     //   PR-vs-PR: pairwise line-level overlap between green PRs
     // Conflict wins over warning; either side can trigger either tier.
     const cellState: ((pr: PR, filePath: string) => CellState) | undefined = lookups
         ? (pr, filePath) => {
             const lookup = lookups.get(pr.number);
-            const masterConflict = lookup?.conflicts.has(filePath);
-            const masterWarn = lookup?.touched.has(filePath);
+            const baseConflict = lookup?.conflicts.has(filePath);
+            const baseWarn = lookup?.touched.has(filePath);
             const pairwiseSev = pairwise?.fileSeverity[filePath];
-            if (masterConflict || pairwiseSev === 'conflict') return 'conflict';
-            if (masterWarn || pairwiseSev === 'warning') return 'warning';
+            if (baseConflict || pairwiseSev === 'conflict') return 'conflict';
+            if (baseWarn || pairwiseSev === 'warning') return 'warning';
             return undefined;
         }
         : undefined;
 
-    const renderFileExtra: ((filePath: string) => ReactNode) | undefined = masterTouchByFile
+    const renderFileExtra: ((filePath: string) => ReactNode) | undefined = baseTouchByFile
         ? (filePath: string) => {
-            const info = masterTouchByFile.get(filePath);
+            const info = baseTouchByFile.get(filePath);
             if (!info) return null;
-            const masterMs = new Date(info.date).getTime();
+            const baseMs = new Date(info.date).getTime();
             const earliestPr = earliestPrUpdateByFile.get(filePath);
-            const stale = earliestPr !== undefined && masterMs > earliestPr;
-            const tooltip = `Master last touched ${formatDateTime(info.date)}\n${info.sha}\n${info.subject}${stale ? '\n\n⚠ More recent than the earliest PR touching this file — review.' : ''}`;
+            const stale = earliestPr !== undefined && baseMs > earliestPr;
+            const tooltip = `Base branch last touched ${formatDateTime(info.date)}\n${info.sha}\n${info.subject}${stale ? '\n\n⚠ More recent than the earliest PR touching this file — review.' : ''}`;
             return (
-                <div className={`${styles.masterChip} ${stale ? styles.chipStale : ''}`} title={tooltip}>
-                    master · {formatRelativeShort(info.date)} · <code>{info.sha.slice(0, 7)}</code>
+                <div className={`${styles.baseChip} ${stale ? styles.chipStale : ''}`} title={tooltip}>
+                    base · {formatRelativeShort(info.date)} · <code>{info.sha.slice(0, 7)}</code>
                 </div>
             );
         }
@@ -94,12 +92,12 @@ export default function MasterCheck({ onMerged }: Props) {
 
     return (
         <div className={panels.section}>
-            <h2>Master Conflict Check</h2>
+            <h2>Base Conflict Check</h2>
             <p className={panels.intro}>
-                Files each candidate PR touches. <span className={panels.legendBad}>Red ✗</span> = real merge conflict with master. <span className={panels.legendWarn}>Yellow ⚠</span> = master also touched this file but it merges cleanly (review for semantic conflicts).
+                Files each candidate PR touches. <span className={panels.legendBad}>Red ✗</span> = real merge conflict with the base branch. <span className={panels.legendWarn}>Yellow ⚠</span> = the base branch also touched this file but it merges cleanly (review for semantic conflicts).
             </p>
 
-            {loading && <p className={panels.status}>Checking {readyToCheck.length} candidate PR(s) against master…</p>}
+            {loading && <p className={panels.status}>Checking {readyToCheck.length} candidate PR(s) against the base branch…</p>}
             {error && <p className="picker-error">{error}</p>}
             {lastClose && (
                 <p style={{ margin: '6px 0', color: lastClose.ok ? '#1a7f37' : '#cf222e', fontSize: 13 }}>
@@ -116,7 +114,7 @@ export default function MasterCheck({ onMerged }: Props) {
                 </ul>
             )}
             {results && allClean && (
-                <p className={panels.clean}>✓ All candidate PRs are clean against master.</p>
+                <p className={panels.clean}>✓ All candidate PRs are clean against the base branch.</p>
             )}
 
             {nonGreens.length > 0 && (

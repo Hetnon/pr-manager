@@ -1,14 +1,14 @@
 import type { Request, Response } from 'express';
-import { checkMasterConflict } from '../../../utils/checkMasterConflict.js';
+import { checkBaseConflict } from '../../../utils/checkBaseConflict.js';
 import { validateRepo } from '../../../utils/validateRepo.js';
 import { getUserToken } from '../../../databases/databases.js';
 import { requireParam } from '../../../utils/requireParam/requireParam.js';
-import type { CheckConflictsResponse, CheckMasterConflictResult } from '@shared/conflicts.js';
+import type { CheckConflictsResponse, CheckBaseConflictResult } from '@shared/conflicts.js';
 
 // PR-vs-PR pairwise detection moved out — see server/_archived/pairwisePrConflicts.ts.
 // The browser now computes pairwise locally via isomorphic-git mergeFile so we
 // get real 3-way merge semantics instead of the line-range heuristic.
-export async function checkMasterConflicts(req: Request, res: Response): Promise<void> {
+export async function checkBaseConflicts(req: Request, res: Response): Promise<void> {
     const body = req.body as { owner?: string; repo?: string; prNumbers?: number[] };
     requireParam(body.owner, 'owner is required');
     requireParam(body.repo, 'repo is required');
@@ -26,9 +26,9 @@ export async function checkMasterConflicts(req: Request, res: Response): Promise
         return;
     }
 
-    const results: Record<string, CheckMasterConflictResult> = {};
+    const results: Record<string, CheckBaseConflictResult> = {};
     for (const n of body.prNumbers ?? []) {
-        results[String(n)] = await checkMasterConflict(v.owner, v.repo, n, token);
+        results[String(n)] = await checkBaseConflict(v.owner, v.repo, n, token);
     }
     const response: CheckConflictsResponse = { results };
     res.status(200).json(response);

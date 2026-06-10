@@ -1,6 +1,6 @@
 /* Shared, view-agnostic surface styles: the white card panel, its intro/status
    lines, success/warning banners, and the inline legend chips. Imported by any
-   view that needs them (MasterCheck, BranchesView, …) so the look stays
+   view that needs them (PrConflicts, BranchesView, …) so the look stays
    consistent and lives in one place. Component-specific styles stay in each
    component's own *.module.css. */
 

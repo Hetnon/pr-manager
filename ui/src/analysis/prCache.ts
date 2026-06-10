@@ -46,10 +46,10 @@ export function loadCachedPairwise(slug: string, key: string): PairwisePrConflic
 export const saveCachedPairwise = (slug: string, key: string, value: PairwisePrConflicts): void =>
     write(pairwiseStorageKey(slug), { key, value });
 
-const masterStorageKey = (slug: string) => `pr-matrix.master.${slug}`;
-export function loadCachedMasterCheck(slug: string, key: string): CheckConflictsResponse | null {
-    const entry = read<Keyed<CheckConflictsResponse>>(masterStorageKey(slug));
+const baseStorageKey = (slug: string) => `pr-matrix.base.${slug}`;
+export function loadCachedBaseCheck(slug: string, key: string): CheckConflictsResponse | null {
+    const entry = read<Keyed<CheckConflictsResponse>>(baseStorageKey(slug));
     return entry && entry.key === key ? entry.value : null;
 }
-export const saveCachedMasterCheck = (slug: string, key: string, value: CheckConflictsResponse): void =>
-    write(masterStorageKey(slug), { key, value });
+export const saveCachedBaseCheck = (slug: string, key: string, value: CheckConflictsResponse): void =>
+    write(baseStorageKey(slug), { key, value });

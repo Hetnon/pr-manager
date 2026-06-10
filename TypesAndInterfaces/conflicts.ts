@@ -1,18 +1,18 @@
-export interface MasterTouch {
+export interface BaseTouch {
   sha: string;
   date: string;
   subject: string;
 }
 
-export type CheckMasterConflictResult =
+export type CheckBaseConflictResult =
   | { ok: false; error: string }
   | {
       ok: true;
       defaultBranch: string;
       clean: boolean;
       conflicts: string[];
-      touchedByMaster: string[];
-      masterLastTouched: Record<string, MasterTouch>;
+      touchedByBase: string[];
+      baseLastTouched: Record<string, BaseTouch>;
     };
 
 // Per-file conflict severity. Shared by both the local-branch matrix and the
@@ -37,9 +37,9 @@ export interface PairwisePrConflicts {
   fileSeverity: Record<string, FileSeverity>;
 }
 
-// Top-level response of POST /api/master-conflicts. Pairwise PR-to-PR data is
+// Top-level response of POST /api/base-conflicts. Pairwise PR-to-PR data is
 // no longer returned here — the browser computes it locally via isomorphic-git
 // using fetched PR refs.
 export interface CheckConflictsResponse {
-  results: Record<string, CheckMasterConflictResult>;
+  results: Record<string, CheckBaseConflictResult>;
 }

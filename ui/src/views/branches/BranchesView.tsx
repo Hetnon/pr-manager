@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import type { PR } from '@shared/pr.js';
 import { RepoContext } from '../../repo/RepoContext.js';
-import { AnalysisContext } from '../../analysis/AnalysisContext.js';
+import { AnalysisContext } from '../AnalysisContext.js';
 import BranchesPanelHeader from './components/BranchesPanelHeader.js';
 import BranchesMessages from './components/BranchesMessages.js';
 import WorkingTreeBanner from './components/WorkingTreeBanner.js';
@@ -16,12 +16,12 @@ import styles from './BranchesView.module.css';
 // DuplicatesBanner the delete, BranchList the push/close.
 export default function BranchesView() {
     const { currentRepoFolderHandle } = useContext(RepoContext);
-    const { prs, branch: branchAnalysis, loadPrs } = useContext(AnalysisContext);
+    const { prs, branchesAnalysis, loadPrs } = useContext(AnalysisContext);
     const {
         snapshot, error, busy, fetching, lastFetch,
         conflictReport, setConflictReport, conflictError, conflictBusy,
         worktree, worktreeBusy, worktreeError, refresh,
-    } = branchAnalysis;
+    } = branchesAnalysis;
 
     if (!currentRepoFolderHandle) return null;
 

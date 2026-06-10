@@ -1,0 +1,34 @@
+/* Styling for the progress modal and its two progress views. */
+
+.heading { margin: 0 0 8px; font-size: 15px; }
+.sectionGap { margin-top: 16px; }
+
+.progress { font-size: 13px; font-family: inherit; }
+.step { margin: 0 0 8px; font-weight: 600; }
+
+.barTrack { height: 6px; background: #eaeef2; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+.barFill { height: 100%; background: #0969da; transition: width 0.15s linear; }
+
+.detail { margin: 0; color: #57606a; font-size: 12px; }
+.mono { font-family: monospace; }
+.done { margin: 0; color: #1a7f37; }
+
+.fileList {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #f6f8fa;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    margin-top: 6px;
+}
+.fileListEmpty { color: #8c959f; font-style: italic; }
+.fileRow { color: #24292f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fileCheck { color: #1a7f37; margin-right: 4px; }
+
+.prProgress { font-size: 13px; color: #57606a; }
+.prLine { margin: 0; }
+.prLineLead { margin: 0 0 6px; }

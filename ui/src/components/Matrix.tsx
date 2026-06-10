@@ -28,7 +28,7 @@ export interface MatrixFileRow {
     labelTitle?: string;
     /** Class applied to the file label cell (heat tint). */
     labelClassName?: string;
-    /** Extra content rendered under the file label (e.g. a "master touched" chip). */
+    /** Extra content rendered under the file label (e.g. a "base touched" chip). */
     extra?: ReactNode;
     /** Status cell between the file label and the entity cells. */
     status: ReactNode;

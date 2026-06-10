@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { RepoContext } from '../repo/RepoContext.js';
-import { AnalysisContext } from '../analysis/AnalysisContext.js';
+import { AnalysisContext } from '../views/AnalysisContext.js';
 import LogoutButton from './LogoutButton.js';
 
 // Right-hand controls: current repo, change-repo, refresh,  Repo state

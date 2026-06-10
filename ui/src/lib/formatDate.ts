@@ -1,5 +1,5 @@
 // Shared date/time formatting. Kept out of components so the PR matrix, the
-// branches matrix, and the master-check chip all render dates the same way.
+// branches matrix, and the base-check chip all render dates the same way.
 
 // Calendar-aware relative time: today / yesterday / "N days ago". Uses calendar
 // day boundaries, so "yesterday" means the previous calendar day. Beyond that we
@@ -38,7 +38,7 @@ export function formatTimeAgo(iso: string | undefined): string {
     return `${formatDateTime(iso)} (${formatRelative(iso)})`;
 }
 
-// Compact relative time for tight spaces (the master-check chip): no "ago",
+// Compact relative time for tight spaces (the base-check chip): no "ago",
 // rolls up into d/mo/y. Distinct from formatRelative on purpose.
 export function formatRelativeShort(iso: string | undefined): string {
     if (!iso) return '';

@@ -1,15 +1,13 @@
 import { useContext } from 'react';
 import { RepoContext } from '../../repo/RepoContext.js';
-import { AnalysisContext } from '../../analysis/AnalysisContext.js';
-import DevActions from './DevActions/DevActions.js';
-import MasterCheck from './MasterCheck/MasterCheck.js';
+import { AnalysisContext } from '../AnalysisContext.js';
+import DevActions from './components/DevActions.js';
+import PrConflicts from './PrConflicts.js';
 
-// The "PR management" view: remote work a tech lead reviews and merges. The PR
-// fetch + analysis come from the app-level data layer (AnalysisProvider); this
-// shows the load status and composes the dev-actions and master-check panels.
+// The "PR management" view: remote work a tech lead reviews and merges.
 export default function PrView() {
     const { currentRepoOwnerAndName } = useContext(RepoContext);
-    const { prs, prLoadStatus, contentError, loadPrs, pr } = useContext(AnalysisContext);
+    const { prs, prLoadStatus, contentError, loadPrs, prsAnalysis } = useContext(AnalysisContext);
     return (
         <>
             {prLoadStatus && <p className="pr-load-status">{prLoadStatus}</p>}
@@ -17,8 +15,8 @@ export default function PrView() {
             {!contentError && currentRepoOwnerAndName && prs === null && <p className="loading">Loading PRs…</p>}
             {!contentError && currentRepoOwnerAndName && prs !== null && (
                 <>
-                    <DevActions matrix={pr.matrix} />
-                    <MasterCheck onMerged={loadPrs} />
+                    <DevActions matrix={prsAnalysis.matrix} />
+                    <PrConflicts onMerged={loadPrs} />
                 </>
             )}
         </>

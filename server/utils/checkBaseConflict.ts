@@ -1,23 +1,23 @@
 import { Octokit } from '@octokit/rest';
-import type { CheckMasterConflictResult, MasterTouch } from '@shared/conflicts.js';
+import type { CheckBaseConflictResult, BaseTouch } from '@shared/conflicts.js';
 import { requireParam } from './requireParam/requireParam.js';
 
 /**
- * Check whether a PR conflicts with the default branch and surface
- * "master also touched these files" warnings.
+ * Check whether a PR conflicts with the base (default) branch and surface
+ * "the base branch also touched these files" warnings.
  *
  * GitHub computes the mergeable bit asynchronously, so the first GET on a
  * just-opened PR can return mergeable=null. We retry once with a short wait.
  * GitHub does not expose conflicting file paths directly — we approximate
  * "conflict candidates" as the intersection of files the PR changed and
- * files master changed since the PR's base.
+ * files the base branch changed since the PR branched off.
  */
-export async function checkMasterConflict(
+export async function checkBaseConflict(
     owner: string,
     repo: string,
     prNumber: number,
     token: string,
-): Promise<CheckMasterConflictResult> {
+): Promise<CheckBaseConflictResult> {
     requireParam(owner, 'owner is required');
     requireParam(repo, 'repo is required');
     requireParam(prNumber, 'prNumber is required', 'number');
@@ -43,7 +43,7 @@ export async function checkMasterConflict(
             base: baseSha,
             head: defaultBranch,
         });
-        const touchedByMaster = (comp.files ?? []).map((f) => f.filename);
+        const touchedByBase = (comp.files ?? []).map((f) => f.filename);
 
         const { data: prFiles } = await octokit.pulls.listFiles({
             owner,
@@ -53,12 +53,12 @@ export async function checkMasterConflict(
         });
         const prFilenames = prFiles.map((f) => f.filename);
 
-        const masterSet = new Set(touchedByMaster);
-        const conflictCandidates = prFilenames.filter((f) => masterSet.has(f));
+        const baseSet = new Set(touchedByBase);
+        const conflictCandidates = prFilenames.filter((f) => baseSet.has(f));
         const clean = pr.mergeable === true;
         const conflicts = clean ? [] : conflictCandidates;
 
-        const masterLastTouched: Record<string, MasterTouch> = {};
+        const baseLastTouched: Record<string, BaseTouch> = {};
         await Promise.all(
             prFilenames.map(async (file) => {
                 try {
@@ -70,7 +70,7 @@ export async function checkMasterConflict(
                         per_page: 1,
                     });
                     if (commits[0]) {
-                        masterLastTouched[file] = {
+                        baseLastTouched[file] = {
                             sha: commits[0].sha,
                             date: commits[0].commit.author?.date ?? '',
                             subject: commits[0].commit.message.split('\n')[0],
@@ -87,8 +87,8 @@ export async function checkMasterConflict(
             defaultBranch,
             clean,
             conflicts,
-            touchedByMaster,
-            masterLastTouched,
+            touchedByBase,
+            baseLastTouched,
         };
     } catch (e) {
         return { ok: false, error: (e as Error).message };

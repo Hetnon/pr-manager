@@ -71,7 +71,7 @@ button.primary:disabled { background: #94d3a2; border-color: #94d3a2; cursor: de
 
 /* The repo picker / folder-access modal styling moved to src/repo/repoPicker.module.css
    (used only by FolderAccessModal + RepoSelector/*). .picker-error stays here because
-   it's shared beyond that folder — views/prs/MasterCheck also uses it. */
+   it's shared beyond that folder — views/prs/PrConflicts also uses it. */
 .picker-error {
   margin: 12px 0 0;
   color: #cf222e;

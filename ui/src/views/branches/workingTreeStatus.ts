@@ -1,5 +1,5 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
 
 export interface WorkingTreeStatus {
     clean: boolean;

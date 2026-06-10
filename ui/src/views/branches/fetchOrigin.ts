@@ -1,6 +1,6 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
-import { proxiedGitHttp } from '../../repo/gitHttpAdapter.js';
+import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
+import { proxiedGitHttp } from '../../gitAdapterForUI/gitHttpAdapter.js';
 
 export type FetchResult =
     | { ok: true; fetchedAt: string; defaultBranch: string | null; prunedRefs: number }

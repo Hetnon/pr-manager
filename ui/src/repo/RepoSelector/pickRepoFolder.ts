@@ -11,18 +11,14 @@ export class FolderPickError extends Error {
     }
 }
 
-export function isFolderPickerSupported(): boolean {
-    return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
-}
+
 
 export async function pickRepoFolder(): Promise<PickedRepo> {
-    if (!isFolderPickerSupported()) {
-        throw new FolderPickError("Your browser doesn't support the folder picker. Use Chrome or Edge.");
-    }
+
     let handle: FileSystemDirectoryHandle;
     try {
-        handle = await (window as unknown as {
-            showDirectoryPicker: (opts?: { id?: string; mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
+        handle = await (globalThis as unknown as {
+            showDirectoryPicker: (opts?: { id?: string; mode?: 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
         }).showDirectoryPicker({ id: 'pr-matrix-repo', mode: 'readwrite' });
     } catch (error) {
         const errorInfo = error as { name?: string; message?: string };
@@ -57,28 +53,36 @@ async function readRepoFromHandle(root: FileSystemDirectoryHandle): Promise<{ ow
     return result.match;
 }
 
-export interface ParseResult {
+interface ParseResult {
     match: { owner: string; name: string } | null;
     remotes: { name: string; url: string | null }[];
 }
 
-export function parseGitHubRemote(configText: string): ParseResult {
+function parseGitHubRemote(configText: string): ParseResult {
     const sections: { name: string; body: string }[] = [];
-    let current: { name: string; body: string } | null = null;
+    let currentSection: { name: string; body: string } | null = null;
+    
     for (const rawLine of configText.split(/\r?\n/)) {
+        //loop all the config lines and parse them into sections
         const remoteHeader = /^\s*\[remote\s+"([^"]+)"\]\s*$/.exec(rawLine);
         if (remoteHeader) {
-            if (current) sections.push(current);
-            current = { name: remoteHeader[1], body: '' };
+            if (currentSection) sections.push(currentSection);
+            currentSection = { name: remoteHeader[1], body: '' };
             continue;
         }
-        if (/^\s*\[/.test(rawLine)) {
-            if (current) { sections.push(current); current = null; }
+        const sessionHeader = /^\s*\[/.test(rawLine);
+        if (sessionHeader) {
+            if (currentSection) { 
+                sections.push(currentSection); 
+                currentSection = null; 
+            }
             continue;
         }
-        if (current) current.body += rawLine + '\n';
+
+        if (currentSection) currentSection.body += rawLine + '\n';
     }
-    if (current) sections.push(current);
+
+    if (currentSection) sections.push(currentSection);
 
     const remotes = sections.map((section) => ({
         name: section.name,

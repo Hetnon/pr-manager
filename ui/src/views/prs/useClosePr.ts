@@ -1,6 +1,6 @@
 import { useCallback, useContext, useState } from 'react';
-import { RepoContext } from '../repo/RepoContext.js';
-import * as prApi from '../api/prs.js';
+import { RepoContext } from '../../repo/RepoContext.js';
+import * as prApi from '../../api/prs.js';
 
 // Close a PR without merging (GitHub has no delete-PR; closing is the reopenable
 // equivalent). Shared by the PR view and the branches view. `onClosed` fires on

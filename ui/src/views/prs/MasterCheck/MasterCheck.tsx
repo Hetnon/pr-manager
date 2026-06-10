@@ -2,7 +2,7 @@ import { useContext, useMemo, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import { AnalysisContext } from '../../../analysis/AnalysisContext.js';
 import { formatDateTime, formatRelativeShort } from '../../../lib/formatDate.js';
-import { useClosePr } from '../../../hooks/useClosePr.js';
+import { useClosePr } from '../useClosePr.js';
 import PrMatrix, { type CellState } from './PrMatrix/PrMatrix.js';
 import { usePrActions } from './hooks/usePrActions.js';
 import ConflictingPrsPanel from './components/ConflictingPrsPanel.js';

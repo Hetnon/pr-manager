@@ -3,7 +3,7 @@ import type { LocalRepoSnapshot } from '../readLocalRepo.js';
 import type { WorkingTreeStatus } from '../workingTreeStatus.js';
 import type { Row } from '../types.js';
 import { RepoContext } from '../../../repo/RepoContext.js';
-import { useClosePr } from '../../../hooks/useClosePr.js';
+import { useClosePr } from '../../prs/useClosePr.js';
 import { usePushBranch } from '../hooks/usePushBranch.js';
 import { useOpenPr } from '../hooks/useOpenPr.js';
 import { formatDateTime } from '../../../lib/formatDate.js';

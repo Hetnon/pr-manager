@@ -1,7 +1,7 @@
 import * as git from 'isomorphic-git';
 import { structuredPatch } from 'diff';
 import { diff3Merge } from 'node-diff3';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
 import type { BranchChanges, ConflictProgressCallback } from './checkLocalConflicts.js';
 import type { ConflictCache, PairResult, BranchFileInfo, LineRange } from './conflictCache.js';
 

@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AuthContext } from './AuthContext.js';
+import { AuthContext } from '../SessionAuthLayer/AuthContext.js';
 
 export default function LogoutButton() {
     const { logout } = useContext(AuthContext);

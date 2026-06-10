@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { initiateGithubLogin } from '../api/auth.js';
 
-export default function Login() {
+export default function GitHubLogin() {
     const [error, setError] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
 

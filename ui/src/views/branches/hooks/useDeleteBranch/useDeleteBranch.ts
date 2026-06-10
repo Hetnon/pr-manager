@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react';
-import { RepoContext } from '../../../repo/RepoContext.js';
-import { deleteBranchEverywhere } from '../../../repo/branchDeletion.js';
+import { RepoContext } from '../../../../repo/RepoContext.js';
+import { deleteBranchEverywhere } from './branchDeletion.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
 
 // Owns the "delete duplicate branch (local + origin)" action and its state.
@@ -16,7 +16,7 @@ export function useDeleteBranch(
 
     async function deleteBranch(branchName: string) {
         if (!currentRepoFolderHandle) return;
-        if (!window.confirm(`Delete branch ${branchName} locally and on origin? This is destructive.`)) return;
+        if (!globalThis.confirm(`Delete branch ${branchName} locally and on origin? This is destructive.`)) return;
         setDeletingBranch(branchName);
         setLastDelete(null);
         try {

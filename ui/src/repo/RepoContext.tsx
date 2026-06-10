@@ -8,6 +8,7 @@ export interface RepoContextValue {
     knownReposSlugs: string[];                                         // every remembered project
     browserHasAcessToCurrentFolder: boolean;                           // browser drops folder access on reload, so this starts false and is re-granted via FolderAccessModal
     repoPickerOpen: boolean;
+    restoringRepos: boolean;                                           // true while the persisted repo + handle are being rehydrated on mount
     setCurrentRepoSlug: Dispatch<SetStateAction<string | null>>;
     setCurrentRepoFolderHandle: Dispatch<SetStateAction<FileSystemDirectoryHandle | null>>;
     setKnownReposSlugs: Dispatch<SetStateAction<string[]>>;
@@ -22,6 +23,7 @@ export const RepoContext = createContext<RepoContextValue>({
     knownReposSlugs: [],
     browserHasAcessToCurrentFolder: false,
     repoPickerOpen: false,
+    restoringRepos: true,
     setCurrentRepoSlug: () => {},
     setCurrentRepoFolderHandle: () => {},
     setKnownReposSlugs: () => {},
@@ -42,15 +44,20 @@ export function RepoProvider({ children }: Readonly<{ children: ReactNode }>) {
     const [knownReposSlugs, setKnownReposSlugs] = useState<string[]>([]);
     const [browserHasAcessToCurrentFolder, setBrowserHasAcessToCurrentFolder] = useState(false);
     const [repoPickerOpen, setRepoPickerOpen] = useState(false);
+    const [restoringRepos, setRestoringRepos] = useState(true);
     const currentRepoOwnerAndName = useMemo(() => parseRepoNameAndOwner(currentRepoSlug), [currentRepoSlug]); // stable identity across renders so consumers can use it as an effect dependency
 
     async function loadRepos(): Promise<void> {
-        const [folderHandleAux, knownRepoSlugsAux] = await Promise.all([
-            currentRepoSlug ? loadFolderHandle(currentRepoSlug) : null,
-            loadKnownRepoSlugs()
-        ]);
-        setCurrentRepoFolderHandle(folderHandleAux);
-        setKnownReposSlugs(knownRepoSlugsAux);
+        try {
+            const [folderHandleAux, knownRepoSlugsAux] = await Promise.all([
+                currentRepoSlug ? loadFolderHandle(currentRepoSlug) : null,
+                loadKnownRepoSlugs()
+            ]);
+            setCurrentRepoFolderHandle(folderHandleAux);
+            setKnownReposSlugs(knownRepoSlugsAux);
+        } finally {
+            setRestoringRepos(false);
+        }
     }
 
     useEffect(() => {
@@ -68,13 +75,15 @@ export function RepoProvider({ children }: Readonly<{ children: ReactNode }>) {
         knownReposSlugs, setKnownReposSlugs,
         browserHasAcessToCurrentFolder, setBrowserHasAcessToCurrentFolder,
         repoPickerOpen, setRepoPickerOpen,
+        restoringRepos,
     }), [
-        currentRepoSlug, 
-        currentRepoOwnerAndName, 
-        currentRepoFolderHandle, 
-        knownReposSlugs, 
-        browserHasAcessToCurrentFolder, 
-        repoPickerOpen
+        currentRepoSlug,
+        currentRepoOwnerAndName,
+        currentRepoFolderHandle,
+        knownReposSlugs,
+        browserHasAcessToCurrentFolder,
+        repoPickerOpen,
+        restoringRepos,
     ]);
 
     return <RepoContext.Provider value={value}>{children}</RepoContext.Provider>;

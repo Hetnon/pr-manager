@@ -30,7 +30,7 @@ And in `../../repo/`:
 | `pickRepoFolder.ts` | `showDirectoryPicker()`, parse `.git/config` for the GitHub remote |
 | `repoFolderStorage.ts` | Persist `FileSystemDirectoryHandle`s in IndexedDB, keyed by repo slug (multiple projects) |
 | `RepoContext.tsx` | Owns the repo selection (slug in localStorage + handles in IDB) and mutators; exposes them via context |
-| `RepoSelector.tsx` | The folder-picker UI (shell over `PickerMessages` / `AllProjects` / `PickerActions`) |
+| `RepoSelector.tsx` | The folder-picker UI (shell over `PickerMessages` / `AllReposMapped` / `PickerActions`) |
 | `fsApiAdapter.ts` | node-style `fs.promises` over FSAPI — what `isomorphic-git` calls into |
 
 ## What the spike proved (now deleted)

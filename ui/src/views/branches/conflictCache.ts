@@ -1,4 +1,4 @@
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
 
 const CACHE_FILE = '/.tech_lead/cache.json';
 const GIT_EXCLUDE = '/.git/info/exclude';

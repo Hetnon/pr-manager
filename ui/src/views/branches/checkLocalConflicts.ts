@@ -1,5 +1,5 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../../repo/fsApiAdapter.js';
+import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
 import { computeFileConflicts, type FileConflictDetail } from './lineLevelConflicts.js';
 import type { ConflictCache } from './conflictCache.js';
 import { pairwiseFileOverlap } from '../../lib/fileOverlap.js';

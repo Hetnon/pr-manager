@@ -1,0 +1,56 @@
+/* Repo picker / folder-access modal styles, shared by FolderAccessModal + RepoSelector/*.
+   (.picker-error stays global — MasterCheck also uses it.) */
+
+.pickerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 31, 36, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.pickerOverlay[hidden] { display: none; }
+.picker {
+  background: white;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 24px;
+  width: min(560px, calc(100% - 32px));
+  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+}
+.picker h2 { margin: 0 0 8px; font-size: 16px; }
+.pickerMsg { margin: 0 0 16px; color: #57606a; font-size: 13px; }
+.pickerKnown { margin-bottom: 16px; }
+.pickerKnown .pickerMsg { margin-bottom: 8px; }
+.pickerKnownList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pickerKnownItem { display: flex; gap: 6px; align-items: stretch; }
+.pickerKnownSwitch {
+  flex: 1;
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+.pickerKnownSwitch:hover:not(:disabled) { background: #eef1f4; border-color: #0969da; }
+.pickerKnownForget {
+  flex: 0 0 auto;
+  width: 32px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: white;
+  color: #57606a;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.pickerKnownForget:hover:not(:disabled) { background: #ffebe9; border-color: #cf222e; color: #cf222e; }
+.pickerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

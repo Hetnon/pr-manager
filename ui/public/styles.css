@@ -69,74 +69,9 @@ button.primary:disabled { background: #94d3a2; border-color: #94d3a2; cursor: de
   white-space: nowrap;
 }
 
-/* Picker overlay */
-.picker-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(27, 31, 36, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-.picker-overlay[hidden] { display: none; }
-.picker {
-  background: white;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  padding: 24px;
-  width: min(560px, calc(100% - 32px));
-  box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
-}
-.picker h2 { margin: 0 0 8px; font-size: 16px; }
-.picker-msg { margin: 0 0 16px; color: #57606a; font-size: 13px; }
-.picker-row { display: flex; gap: 8px; margin-bottom: 16px; }
-.picker-row input[type="text"] {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 13px;
-}
-.picker-row input[type="text"]:focus {
-  outline: none;
-  border-color: #0969da;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
-}
-.picker-known { margin-bottom: 16px; }
-.picker-known .picker-msg { margin-bottom: 8px; }
-.picker-known-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.picker-known-item { display: flex; gap: 6px; align-items: stretch; }
-.picker-known-switch {
-  flex: 1;
-  text-align: left;
-  padding: 6px 10px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: #f6f8fa;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-}
-.picker-known-switch:hover:not(:disabled) { background: #eef1f4; border-color: #0969da; }
-.picker-known-forget {
-  flex: 0 0 auto;
-  width: 32px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: white;
-  color: #57606a;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-}
-.picker-known-forget:hover:not(:disabled) { background: #ffebe9; border-color: #cf222e; color: #cf222e; }
-.picker-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
+/* The repo picker / folder-access modal styling moved to src/repo/repoPicker.module.css
+   (used only by FolderAccessModal + RepoSelector/*). .picker-error stays here because
+   it's shared beyond that folder — views/prs/MasterCheck also uses it. */
 .picker-error {
   margin: 12px 0 0;
   color: #cf222e;

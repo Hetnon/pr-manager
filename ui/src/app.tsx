@@ -1,14 +1,17 @@
 import { createRoot } from 'react-dom/client';
 import MainPage from './MainPage.js';
-import SessionAuthLayer from './auth/SessionAuthLayer.js';
+import SessionAuthLayer from './SessionAuthLayer/SessionAuthLayer.js';
+import UiGlobal from './UiGlobal.js';
 
 // The application root: wraps the page in its provider stack (auth → repo) and
 // mounts it. This file is the webpack entry point.
 function Root() {
     return (
-        <SessionAuthLayer>
-            <MainPage />
-        </SessionAuthLayer>
+        <UiGlobal>
+            <SessionAuthLayer>
+                <MainPage />
+            </SessionAuthLayer>
+        </UiGlobal>
     );
 }
 

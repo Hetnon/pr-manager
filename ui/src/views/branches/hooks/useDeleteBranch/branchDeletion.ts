@@ -1,7 +1,7 @@
 import * as git from 'isomorphic-git';
 import type { BranchTarget, DeleteBranchResult } from '@shared/branches.js';
-import { deleteRemoteBranch } from '../api/branches.js';
-import { makeFsApiFs } from './fsApiAdapter.js';
+import { deleteRemoteBranch } from '../../../../api/branches.js';
+import { makeFsApiFs } from '../../../../fsAdapterForUI/fsApiAdapter.js';
 
 // Reusable branch-deletion orchestrator. Targets local, origin, or both.
 // Returns per-side outcomes so the caller can render granular feedback ("local

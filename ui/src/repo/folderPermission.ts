@@ -1,38 +1,20 @@
-// Permission helpers for FileSystemDirectoryHandle. The app gates folder access
-// once at entry (RepoContext.grantFolderAccess via the FolderAccessModal, and
-// selectKnownRepo on switch); everything downstream then assumes access.
-
-export type FolderPermLevel = 'readwrite' | 'read' | 'none' | 'unknown';
-
-type Queryable = FileSystemDirectoryHandle & {
-    queryPermission?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
-    requestPermission?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
+type PermissionedHandle = FileSystemDirectoryHandle & {
+    // queryPermission and requestPermission are part of the File System Access API's permissions extension
+    // They are not in the standardized WHATWG File System spec, so we have to cast the handle to this type here otherwise TypeScript will not compile
+    queryPermission?: (opts?: { mode?: 'readwrite' }) => Promise<PermissionState>;
+    requestPermission?: (opts?: { mode?: 'readwrite' }) => Promise<PermissionState>;
 };
 
-export async function queryFolderPermission(handle: FileSystemDirectoryHandle): Promise<FolderPermLevel> {
-    const queryableHandle = handle as Queryable;
-    if (!queryableHandle.queryPermission) return 'unknown';
-    const readWriteState = await queryableHandle.queryPermission({ mode: 'readwrite' });
-    if (readWriteState === 'granted') return 'readwrite';
-    const readState = await queryableHandle.queryPermission({ mode: 'read' });
-    if (readState === 'granted') return 'read';
-    return 'none';
-}
+//queryPermission and requestPermission should return 'granted', 'denied', or 'prompt' - for our case we need 'granted' to proceed
 
-// Prompts the user for readwrite. Must be called from a user-gesture handler
-// (button click) — browsers reject permission prompts in async chains
-// disconnected from user input.
-export async function requestFolderReadWrite(handle: FileSystemDirectoryHandle): Promise<FolderPermLevel> {
-    const queryableHandle = handle as Queryable;
-    if (!queryableHandle.requestPermission) return queryFolderPermission(handle);
-    await queryableHandle.requestPermission({ mode: 'readwrite' });
-    return queryFolderPermission(handle);
-}
-
-// Ensures readwrite, prompting if needed. Returns true if we now have it. Must
-// be called from a user-gesture handler (button click) — browsers reject
-// permission prompts outside user input.
 export async function ensureFolderWritePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
-    if ((await queryFolderPermission(handle)) === 'readwrite') return true;
-    return (await requestFolderReadWrite(handle)) === 'readwrite';
+    // Ensures readwrite access, if not already granted. Returns true once we have it. Must run from a user-gesture handler (button click) 
+    const permissionedHandle = handle as PermissionedHandle;
+
+    if (!permissionedHandle.queryPermission) return false; // handle has no query permission method - return false
+    
+    if ((await permissionedHandle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+    
+    if (!permissionedHandle.requestPermission) return false; // handle has no request permission method - return false
+    return (await permissionedHandle.requestPermission({ mode: 'readwrite' })) === 'granted';
 }

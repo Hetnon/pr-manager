@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
-import { AuthContext } from '../auth/AuthContext.js';
+import { AuthContext } from '../SessionAuthLayer/AuthContext.js';
 import { listPrs } from '../api/prs.js';
 import { ApiError } from '../api/client.js';
 import { RepoContext } from '../repo/RepoContext.js';
@@ -9,59 +9,54 @@ import { usePrAnalysis } from '../views/prs/usePrAnalysis.js';
 import { loadCachedPrs, saveCachedPrs, prSetKey } from './prCache.js';
 
 interface AnalysisContextValue {
-    prs: PR[] | null;          // null while loading
+    prs: PR[] | null;          // all the PRs in the chosen repo - null while loading
     prLoadStatus: string;      // transient "Loading…" / "Loaded N at HH:MM"
     contentError: string | null;
-    loadPrs: () => Promise<void>;   // refetch just the PRs (after a merge/close/push)
-    triggerRefresh: () => void;     // full reread: reload PRs + rerun the branch analysis
+    loadPrs: () => Promise<void>;   // refetch just the PRs (after a merge/close/push or refresh request)
+    refreshRepo: () => void;     // full reread: reload PRs + rerun the branch/PR analysis
     branch: ReturnType<typeof useBranchAnalysis>;
     pr: ReturnType<typeof usePrAnalysis>;
 }
 
-// Typed non-null (the shape is too large for a meaningful default) so callers
-// read useContext(AnalysisContext) directly. AnalysisProvider always supplies the
-// value; a missing provider surfaces as a natural dev-time error.
+
+//#region AnalysisContext note
+/**
+ * Typed non-null because the shape is too large for a meaningful default.
+ * Callers read useContext(AnalysisContext) directly.
+ * AnalysisProvider always supplies the value, so a missing provider
+ * surfaces as a natural dev-time error.
+ */
+//#endregion
 export const AnalysisContext = createContext<AnalysisContextValue>(null as unknown as AnalysisContextValue);
 
-// The repo's data layer. Fetches the open PRs and runs the branch + PR analyses,
-// all above the view toggle — so checks happen regardless of which tab is open
-// (and in parallel), and tab switches don't re-run anything. Reports each check's
-// progress into the shared top-level modal. The views consume the results here.
+
 export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>) {
     const { currentRepoSlug, currentRepoOwnerAndName } = useContext(RepoContext);
     const { recheckSession } = useContext(AuthContext);
+    const [refreshRepoNonce, setRefreshRepoNonce] = useState(0);
+    const refreshRepo = useCallback(() => setRefreshRepoNonce((nonce) => nonce + 1), []);
 
-    // Bumped by triggerRefresh (the header's ↻ Refresh) — both the PR reload below
-    // and the branch analysis watch this to reread local state and refetch.
-    const [refreshNonce, setRefreshNonce] = useState(0);
-    const triggerRefresh = useCallback(() => setRefreshNonce((nonce) => nonce + 1), []);
 
-    // Hydrate from the persisted PR list so a page reload shows the last-known PRs
-    // (and, downstream, the cached analysis) instantly instead of a blank spinner.
     const [prs, setPrs] = useState<PR[] | null>(() =>
         currentRepoOwnerAndName ? loadCachedPrs(`${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`) : null,
     );
     const [prLoadStatus, setPrLoadStatus] = useState('');
     const [contentError, setContentError] = useState<string | null>(null);
 
-    // On repo change, swap in the new repo's cached PRs immediately (instant), so
-    // the fetch below merely revalidates rather than blanking the view.
+
     useEffect(() => {
         setPrs(currentRepoOwnerAndName ? loadCachedPrs(`${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`) : null);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentRepoSlug]);
 
     const loadPrs = useCallback(async () => {
         if (!currentRepoOwnerAndName) return;
         const slug = `${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`;
-        // Keep whatever is on screen (cached or current) visible while revalidating.
         setPrLoadStatus('Loading…');
+        setPrs(null);
         setContentError(null);
         try {
             const loaded = await listPrs(currentRepoOwnerAndName.owner, currentRepoOwnerAndName.name);
-            saveCachedPrs(slug, loaded);
-            // Nothing new from the server → keep the same reference so the analysis
-            // (which keys on the prs identity) doesn't needlessly re-run.
+            saveCachedPrs(slug, loaded);// Nothing new from the server → keep the same reference so the analysis  (which keys on the prs identity) doesn't needlessly re-run.
             setPrs((current) => (current && prSetKey(current) === prSetKey(loaded) ? current : loaded));
             setPrLoadStatus(`Loaded ${loaded.length} open PR(s) at ${new Date().toLocaleTimeString()}`);
         } catch (error) {
@@ -75,17 +70,17 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
         }
     }, [currentRepoOwnerAndName, recheckSession]);
 
-    // Reload on repo change and on the App-level refresh signal.
-    useEffect(() => {
-        void loadPrs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentRepoSlug, refreshNonce]);
 
-    const branch = useBranchAnalysis(refreshNonce);
+    useEffect(() => {
+        // Reload on repo change and on the App-level refresh signal.
+        void loadPrs();
+    }, [currentRepoSlug, refreshRepoNonce]);
+
+    const branch = useBranchAnalysis(refreshRepoNonce);
     const pr = usePrAnalysis(prs ?? []);
 
     const value = useMemo<AnalysisContextValue>(() => ({
-        prs, prLoadStatus, contentError, loadPrs, triggerRefresh, branch, pr
-    }), [prs, prLoadStatus, contentError, loadPrs, triggerRefresh, branch, pr]);
+        prs, prLoadStatus, contentError, loadPrs, refreshRepo, branch, pr
+    }), [prs, prLoadStatus, contentError, loadPrs, refreshRepo, branch, pr]);
     return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
 }

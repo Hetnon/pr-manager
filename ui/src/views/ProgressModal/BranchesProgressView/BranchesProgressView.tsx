@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef } from 'react';
-import type { ConflictProgress } from '../branches/checkLocalConflicts.js';
-import { AnalysisContext } from '../AnalysisContext.js';
-import styles from './ProgressModal.module.css';
+import type { ConflictProgress } from '../../branches/checkLocalConflicts.js';
+import { AnalysisContext } from '../../AnalysisContext.js';
+import styles from '../ProgressModal.module.css';
 
 // Live progress of the local-branch conflict analysis: current phase, a progress bar,
 // and (during the line-level merge) the running list of processed files.

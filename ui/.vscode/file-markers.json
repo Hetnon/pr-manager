@@ -77,7 +77,12 @@
     "src/Header/AppHeader.tsx": "done",
     "src/Header/ViewToggle.tsx": "done",
     "src/Header/HeaderControls.tsx": "done",
-    "src/views/AnalysisContext.tsx": "done"
+    "src/views/AnalysisContext.tsx": "done",
+    "src/views/ProgressModal/ProgressModal.tsx": "done",
+    "src/views/ProgressModal/useDelayedFlag.ts": "done",
+    "src/views/ProgressModal/ProgressModal.module.css": "done",
+    "src/panels.module.css": "done",
+    "src/views/AppMain.tsx": "done"
   },
   "lineHighlightTypes": [
     {

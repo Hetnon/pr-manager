@@ -2,8 +2,8 @@ import { useContext } from 'react';
 import Modal from '../../components/Modal.js';
 import { useDelayedFlag } from './useDelayedFlag.js';
 import { AnalysisContext } from '../AnalysisContext.js';
-import BranchesProgressView from './BranchesProgressView.js';
-import PrProgressView from './PrProgressView.js';
+import BranchesProgressView from './BranchesProgressView/BranchesProgressView.js';
+import PrProgressView from './PrProgressView/PrProgressView.js';
 import styles from './ProgressModal.module.css';
 
 // One modal showing live progress of whichever repo checks are running — branch analysis and/or the PR conflict check, in parallel.

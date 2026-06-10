@@ -1,6 +1,6 @@
 import { useContext } from 'react';
-import { AnalysisContext } from '../AnalysisContext.js';
-import styles from './ProgressModal.module.css';
+import { AnalysisContext } from '../../AnalysisContext.js';
+import styles from '../ProgressModal.module.css';
 
 // Live progress of the PR conflict checks, shown in the shared top-level modal.
 export default function PrProgressView() {

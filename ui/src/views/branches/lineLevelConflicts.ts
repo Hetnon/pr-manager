@@ -40,12 +40,9 @@ export interface FileConflictDetail {
 
 const decoder = new TextDecoder('utf-8', { fatal: false });
 
-// For every file touched by 2+ branches, computes a per-file conflict verdict
-// via real 3-way merge (the same engine the PR matrix uses), plus the data the
-// UI needs to explain it: which branches edit which line ranges, where genuine
-// conflicts land, and whether any branches are byte-identical. Each
-// (branch-pair, file) and (branch, file) result is cached by SHA, so unchanged
-// inputs are hit on later runs even after other branches change or get deleted.
+// Per-file conflict verdict (real 3-way merge) for every file touched by 2+ branches, plus
+// the line ranges / conflict regions / identical groups the UI explains it with. The merge
+// results are cached by blob content, so they survive sha-only rewrites (dedup, rebase).
 export async function computeFileConflicts(
     handle: FileSystemDirectoryHandle,
     branchChanges: BranchChanges[],
@@ -85,8 +82,8 @@ export async function computeFileConflicts(
     if (multiTouchFiles.length === 0) return detail;
 
     // Per-run scratch caches (not persisted — blobs are big, merge-bases cheap).
-    const blobCache = new Map<string, Uint8Array | null>();  // `${commitOid}\0${file}` → bytes
-    const pairBaseCache = new Map<string, string>();         // sorted sha pair → merge-base oid
+    const blobCache = new Map<string, { oid: string; bytes: Uint8Array } | null>();  // `${commitOid}\0${file}` → blob
+    const pairBaseCache = new Map<string, string>();                                  // sorted sha pair → merge-base oid
 
     // Tracks the cache's miss count at the last persist, so we only flush after
     // files that actually computed something new (cache-hit files are free).
@@ -168,29 +165,44 @@ async function getOrComputeBranchFileInfo(
     fs: Fs, dir: string,
     branchSha: string, baseSha: string, file: string,
     cache: ConflictCache,
-    blobCache: Map<string, Uint8Array | null>,
+    blobCache: Map<string, { oid: string; bytes: Uint8Array } | null>,
 ): Promise<BranchFileInfo> {
-    const key = cache.branchFileInfoKey(branchSha, baseSha, file);
-    const cached = cache.branchFileInfo.get(key);
-    if (cached) { cache.hits++; return cached; }
+    // Fast path: a sha we've analyzed before maps straight to its content key — no read.
+    const shaKey = cache.branchFileInfoKey(branchSha, baseSha, file);
+    const indexedKey = cache.branchFileInfoIndex.get(shaKey);
+    if (indexedKey !== undefined) {
+        const cached = cache.branchFileInfo.get(indexedKey);
+        if (cached) { cache.hits++; return cached; }
+    }
+
+    // New sha (e.g. a dedup branch): key by the blob content the result depends on, so
+    // identical content reuses the entry even though the HEAD sha changed.
+    const head = await readBlobCached(fs, dir, branchSha, file, blobCache);
+    const base = await readBlobCached(fs, dir, baseSha, file, blobCache);
+    const contentKey = cache.branchFileInfoContentKey(head?.oid ?? '', base?.oid ?? '');
+    const byContent = cache.branchFileInfo.get(contentKey);
+    if (byContent) {
+        cache.hits++;
+        cache.branchFileInfoIndex.set(shaKey, contentKey);
+        return byContent;
+    }
     cache.misses++;
 
-    const head = await readBlobWithOid(fs, dir, branchSha, file);
     const headMissing = head === null;
     let binary = false;
     let ranges: LineRange[] = [];
     if (!headMissing) {
-        const baseBytes = await readBlobCached(fs, dir, baseSha, file, blobCache);
-        const headBytes = head.bytes;
-        if (looksBinary(headBytes) || (baseBytes && looksBinary(baseBytes))) {
+        const baseBytes = base?.bytes ?? null;
+        if (looksBinary(head.bytes) || (baseBytes && looksBinary(baseBytes))) {
             binary = true;
         } else {
-            const patch = structuredPatch(file, file, decoder.decode(baseBytes ?? new Uint8Array()), decoder.decode(headBytes), '', '', { context: 0 });
+            const patch = structuredPatch(file, file, decoder.decode(baseBytes ?? new Uint8Array()), decoder.decode(head.bytes), '', '', { context: 0 });
             ranges = patch.hunks.map((hunk): LineRange => [hunk.oldStart, hunk.oldStart + Math.max(hunk.oldLines, 1) - 1]);
         }
     }
     const info: BranchFileInfo = { oid: head?.oid ?? null, ranges, headMissing, binary };
-    cache.branchFileInfo.set(key, info);
+    cache.branchFileInfo.set(contentKey, info);
+    cache.branchFileInfoIndex.set(shaKey, contentKey);
     return info;
 }
 
@@ -198,32 +210,43 @@ async function getOrComputePairResult(
     fs: Fs, dir: string,
     shaA: string, shaB: string, file: string,
     cache: ConflictCache,
-    blobCache: Map<string, Uint8Array | null>,
+    blobCache: Map<string, { oid: string; bytes: Uint8Array } | null>,
     pairBaseCache: Map<string, string>,
 ): Promise<PairResult> {
-    const key = cache.pairResultKey(shaA, shaB, file);
-    const cached = cache.pairResults.get(key);
-    if (cached) { cache.hits++; return cached; }
-    cache.misses++;
+    // Fast path: a sha-pair we've analyzed before maps straight to its content key — no read.
+    const shaKey = cache.pairResultKey(shaA, shaB, file);
+    const indexedKey = cache.pairResultIndex.get(shaKey);
+    if (indexedKey !== undefined) {
+        const cached = cache.pairResults.get(indexedKey);
+        if (cached) { cache.hits++; return cached; }
+    }
 
     const baseKey = shaA < shaB ? `${shaA}|${shaB}` : `${shaB}|${shaA}`;
-    let baseOid = pairBaseCache.get(baseKey);
-    if (baseOid === undefined) {
+    let mergeBaseOid = pairBaseCache.get(baseKey);
+    if (mergeBaseOid === undefined) {
         const [base] = await git.findMergeBase({ fs, dir, oids: [shaA, shaB] });
-        baseOid = typeof base === 'string' ? base : '';
-        pairBaseCache.set(baseKey, baseOid);
+        mergeBaseOid = typeof base === 'string' ? base : '';
+        pairBaseCache.set(baseKey, mergeBaseOid);
     }
+    if (!mergeBaseOid) { cache.misses++; return { verdict: 'unknown' }; }
 
-    let result: PairResult;
-    if (!baseOid) {
-        result = { verdict: 'unknown' };
-    } else {
-        const baseBytes = await readBlobCached(fs, dir, baseOid, file, blobCache);
-        const blobA = await readBlobWithOid(fs, dir, shaA, file);
-        const blobB = await readBlobWithOid(fs, dir, shaB, file);
-        result = mergeVerdict(baseBytes, blobA?.bytes ?? null, blobB?.bytes ?? null);
+    // Key by the blob content the 3-way merge depends on, so a new sha with identical
+    // content (a dedup branch) reuses the verdict instead of re-merging.
+    const blobA = await readBlobCached(fs, dir, shaA, file, blobCache);
+    const blobB = await readBlobCached(fs, dir, shaB, file, blobCache);
+    const baseBlob = await readBlobCached(fs, dir, mergeBaseOid, file, blobCache);
+    const contentKey = cache.pairResultContentKey(blobA?.oid ?? '', blobB?.oid ?? '', baseBlob?.oid ?? '');
+    const byContent = cache.pairResults.get(contentKey);
+    if (byContent) {
+        cache.hits++;
+        cache.pairResultIndex.set(shaKey, contentKey);
+        return byContent;
     }
-    cache.pairResults.set(key, result);
+    cache.misses++;
+
+    const result = mergeVerdict(baseBlob?.bytes ?? null, blobA?.bytes ?? null, blobB?.bytes ?? null);
+    cache.pairResults.set(contentKey, result);
+    cache.pairResultIndex.set(shaKey, contentKey);
     return result;
 }
 
@@ -257,14 +280,13 @@ function mergeVerdict(baseBytes: Uint8Array | null, aBytes: Uint8Array | null, b
 
 async function readBlobCached(
     fs: Fs, dir: string, commitOid: string, file: string,
-    cache: Map<string, Uint8Array | null>,
-): Promise<Uint8Array | null> {
+    cache: Map<string, { oid: string; bytes: Uint8Array } | null>,
+): Promise<{ oid: string; bytes: Uint8Array } | null> {
     const key = `${commitOid}\0${file}`;
     if (cache.has(key)) return cache.get(key) ?? null;
     const blob = await readBlobWithOid(fs, dir, commitOid, file);
-    const bytes = blob?.bytes ?? null;
-    cache.set(key, bytes);
-    return bytes;
+    cache.set(key, blob);
+    return blob;
 }
 
 async function readBlobWithOid(fs: Fs, dir: string, commitOid: string, file: string): Promise<{ oid: string; bytes: Uint8Array } | null> {

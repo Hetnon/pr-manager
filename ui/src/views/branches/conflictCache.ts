@@ -2,7 +2,7 @@ import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
 
 const CACHE_FILE = '/.tech_lead/cache.json';
 const GIT_EXCLUDE = '/.git/info/exclude';
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 
 export type PairVerdict = 'clean' | 'conflict' | 'unknown';
 
@@ -28,10 +28,10 @@ export interface BranchFileInfo {
     binary: boolean;
 }
 
-// Granular cache of pure-function results. Each entry is keyed by the SHAs it
-// depends on, so it's always valid as long as the SHAs match — no staleness
-// checks needed. Deleting one branch doesn't invalidate cache entries that
-// don't involve it.
+// Granular cache of pure-function results. The cheap lookups (merge-base, changed
+// files) are keyed by sha. The expensive 3-way-merge results are keyed by the BLOB
+// CONTENT they actually depend on, with a sha→content index as the fast path — so a
+// commit that doesn't change a file's content (dedup, rebase, amend) still hits.
 export class ConflictCache {
     // (branch.sha + default.sha) → merge-base sha
     mergeBases = new Map<string, string>();
@@ -39,10 +39,14 @@ export class ConflictCache {
     branchFiles = new Map<string, string[]>();
     // (default.sha + base.sha) → files default changed vs base
     defaultSinceBase = new Map<string, string[]>();
-    // (sorted sha pair + filepath) → 3-way merge verdict + conflict regions
+    // content key (sorted blob oids + base blob oid) → 3-way merge verdict + regions
     pairResults = new Map<string, PairResult>();
-    // (branch.sha + base.sha + filepath) → blob oid + changed line ranges
+    // sha key (sorted sha pair + file) → content key above; lets a hit skip blob reads
+    pairResultIndex = new Map<string, string>();
+    // content key (head blob oid + base blob oid) → blob oid + changed line ranges
     branchFileInfo = new Map<string, BranchFileInfo>();
+    // sha key (branch.sha + base.sha + file) → content key above
+    branchFileInfoIndex = new Map<string, string>();
 
     hits = 0;
     misses = 0;
@@ -60,8 +64,15 @@ export class ConflictCache {
         const [first, second] = shaA < shaB ? [shaA, shaB] : [shaB, shaA];
         return `${first}|${second}|${file}`;
     }
+    pairResultContentKey(oidA: string, oidB: string, baseOid: string): string {
+        const [first, second] = oidA < oidB ? [oidA, oidB] : [oidB, oidA];
+        return `${first}|${second}|${baseOid}`;
+    }
     branchFileInfoKey(branchSha: string, baseSha: string, file: string): string {
         return `${branchSha}|${baseSha}|${file}`;
+    }
+    branchFileInfoContentKey(headOid: string, baseOid: string): string {
+        return `${headOid}|${baseOid}`;
     }
 }
 
@@ -72,7 +83,9 @@ interface CacheShape {
     branchFiles: Record<string, string[]>;
     defaultSinceBase: Record<string, string[]>;
     pairResults: Record<string, PairResult>;
+    pairResultIndex: Record<string, string>;
     branchFileInfo: Record<string, BranchFileInfo>;
+    branchFileInfoIndex: Record<string, string>;
 }
 
 export async function loadCache(handle: FileSystemDirectoryHandle): Promise<ConflictCache> {
@@ -95,7 +108,9 @@ export async function loadCache(handle: FileSystemDirectoryHandle): Promise<Conf
     for (const [key, value] of Object.entries(parsed.branchFiles ?? {})) cache.branchFiles.set(key, value);
     for (const [key, value] of Object.entries(parsed.defaultSinceBase ?? {})) cache.defaultSinceBase.set(key, value);
     for (const [key, value] of Object.entries(parsed.pairResults ?? {})) cache.pairResults.set(key, value);
+    for (const [key, value] of Object.entries(parsed.pairResultIndex ?? {})) cache.pairResultIndex.set(key, value);
     for (const [key, value] of Object.entries(parsed.branchFileInfo ?? {})) cache.branchFileInfo.set(key, value);
+    for (const [key, value] of Object.entries(parsed.branchFileInfoIndex ?? {})) cache.branchFileInfoIndex.set(key, value);
     return cache;
 }
 
@@ -110,7 +125,9 @@ async function writeCacheJson(fs: ReturnType<typeof makeFsApiFs>, cache: Conflic
         branchFiles: Object.fromEntries(cache.branchFiles),
         defaultSinceBase: Object.fromEntries(cache.defaultSinceBase),
         pairResults: Object.fromEntries(cache.pairResults),
+        pairResultIndex: Object.fromEntries(cache.pairResultIndex),
         branchFileInfo: Object.fromEntries(cache.branchFileInfo),
+        branchFileInfoIndex: Object.fromEntries(cache.branchFileInfoIndex),
     };
     await fs.promises.writeFile(CACHE_FILE, JSON.stringify(shape));
 }

@@ -1,6 +1,6 @@
 import type { LocalBranch } from './readLocalRepo.js';
 import { gitPushBranch } from './gitPushBranch.js';
-import { foldDedupIntoOriginal, DEDUP_SUFFIX } from './hooks/createDedupBranch.js';
+import { foldDedupIntoOriginal, DEDUP_SUFFIX } from './dedup/createDedupBranch.js';
 import { workingTreeBlockReason } from './workingTreeStatus.js';
 
 export type FoldPlan =

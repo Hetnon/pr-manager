@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import type { LocalConflictReport } from '../checkLocalConflicts.js';
 import { createDedupBranch } from './createDedupBranch.js';
-import { filesToStripByDonor, applyDedupToReport, type DedupOption } from './planDedup.js';
+import { applyDedupToReport } from './applyDedupToReport.js';
 import { workingTreeBlockReason } from '../workingTreeStatus.js';
 
-// Owns the "create dedup branches" action and its busy/result state. Lives with
-// DedupPanel (the only place it's used). Patches the conflict report in place on
-// success so the matrix updates without re-analysis.
+// Owns the "create dedup branches" action and its busy/result state. Patches the report
+// in place on success so the matrix updates without re-analysis.
 export function useDedup(
     currentRepoFolderHandle: FileSystemDirectoryHandle | null,
     conflictReport: LocalConflictReport | null,
@@ -15,10 +14,10 @@ export function useDedup(
     const [dedupBusy, setDedupBusy] = useState(false);
     const [lastDedup, setLastDedup] = useState<{ ok: boolean; message: string } | null>(null);
 
-    async function applyDedup(approved: DedupOption[]) {
-        if (!currentRepoFolderHandle || !conflictReport) return;
-        const filesByDonor = filesToStripByDonor(approved);
-        if (filesByDonor.size === 0) return;
+    // filesByDonor: for each branch that should DROP files, the files it drops (already
+    // resolved from the user's per-group keeper choice — the keeper isn't a donor).
+    async function applyDedup(filesByDonor: Map<string, Set<string>>) {
+        if (!currentRepoFolderHandle || !conflictReport || filesByDonor.size === 0) return;
         setDedupBusy(true);
         setLastDedup(null);
         try {
@@ -49,8 +48,6 @@ export function useDedup(
             if (created.length) parts.push(`Created ${created.join(', ')}`);
             if (errors.length) parts.push(`Errors: ${errors.join('; ')}`);
             setLastDedup({ ok: errors.length === 0, message: parts.join(' · ') || 'Nothing to do.' });
-            // Patch the existing report in place — analysis was already done, so we
-            // just drop the deduped files from each donor. No re-analysis.
             if (appliedByDonor.size > 0) {
                 setConflictReport((prev) => (prev ? applyDedupToReport(prev, appliedByDonor) : prev));
             }

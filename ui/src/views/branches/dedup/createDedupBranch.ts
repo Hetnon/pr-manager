@@ -15,16 +15,9 @@ export interface DedupResult {
 // revert to, or null to delete the entry outright (file didn't exist in base).
 type Override = string | null;
 
-/**
- * Creates (or overwrites) a local `‹branch›-dedup` branch: a copy of `branch`'s
- * HEAD with `files` reverted to the branch's merge-base content — or deleted if
- * the branch newly added them. Those files then drop out of the dedup branch's
- * diff vs the default branch, so merging it won't carry or re-diff them.
- *
- * Pure object-level git (build tree → write commit → write ref): the working
- * tree and index are never touched. The original branch is left untouched.
- * Requires readwrite folder permission.
- */
+// Creates (or overwrites) a local `‹branch›-dedup` branch: a copy of `branch`'s HEAD with
+// `files` reverted to the merge-base content (or deleted if newly added), so they drop out
+// of its diff vs the default branch. Pure object-level git — working tree/index untouched.
 export async function createDedupBranch(
     handle: FileSystemDirectoryHandle,
     branch: string,
@@ -116,13 +109,9 @@ function anyUnder(overrides: Map<string, Override>, dirPath: string): boolean {
 // Suffix used for the local deduplicated copy of a branch.
 export const DEDUP_SUFFIX = '-dedup';
 
-/**
- * Folds `‹branch›-dedup` back onto its original: fast-forwards `original` to the
- * dedup commit and deletes the dedup ref, so there's a single branch (the
- * original name) carrying the deduplicated content. The dedup commit's parent is
- * the original's HEAD, so this is a true fast-forward (no force, history kept) —
- * we verify that and refuse if the original moved since dedup.
- */
+// Folds `‹branch›-dedup` back onto its original: fast-forwards `original` to the dedup
+// commit and deletes the dedup ref. Verifies it's a true fast-forward (dedup's parent is
+// the original's HEAD) and refuses if the original moved since dedup.
 export async function foldDedupIntoOriginal(
     handle: FileSystemDirectoryHandle,
     dedupBranch: string,

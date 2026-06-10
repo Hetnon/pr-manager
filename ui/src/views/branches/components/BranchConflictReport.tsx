@@ -1,6 +1,6 @@
 import type { LocalConflictReport } from '../checkLocalConflicts.js';
 import type { LocalRepoSnapshot } from '../readLocalRepo.js';
-import DedupPanel from '../DedupPanel.js';
+import DedupPanel from '../dedup/DedupPanel.js';
 import LocalBranchesMatrix from '../LocalBranchesMatrix.js';
 import DuplicatesBanner from './DuplicatesBanner.js';
 import MatrixLegend from './MatrixLegend.js';

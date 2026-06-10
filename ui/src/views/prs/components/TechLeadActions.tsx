@@ -41,7 +41,7 @@ export default function TechLeadActions({
                         <>
                             <ol>{lastMerge.steps.map((step, index) => <li key={index}>{step}</li>)}</ol>
                             {lastMerge.branchDeleteError && (
-                                <p style={{ marginTop: 4, color: '#9a6700', fontSize: 12 }}>
+                                <p className={styles.branchDeleteError}>
                                     ⚠ Branch wasn't deleted: {lastMerge.branchDeleteError}
                                 </p>
                             )}
@@ -55,7 +55,7 @@ export default function TechLeadActions({
                 {readyToMerge.map((pr) => (
                     <li key={pr.number}>
                         <span><strong>#{pr.number}</strong> — {pr.title} <span className="muted">({pr.author.login} · {pr.headRefName})</span></span>
-                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#57606a', whiteSpace: 'nowrap' }}>
+                        <label className={styles.deleteBranchLabel}>
                             <input
                                 type="checkbox"
                                 checked={!skipBranchDelete.has(pr.number)}

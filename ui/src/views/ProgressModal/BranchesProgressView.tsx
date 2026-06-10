@@ -68,7 +68,7 @@ export default function BranchesProgressView() {
     );
 }
 
-function ProcessedFilesList({ files }: { files: string[] }) {
+function ProcessedFilesList({ files }: Readonly<{ files: string[] }>) {
     const ref = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
@@ -77,8 +77,8 @@ function ProcessedFilesList({ files }: { files: string[] }) {
         <div ref={ref} className={styles.fileList}>
             {files.length === 0
                 ? <div className={styles.fileListEmpty}>(no files processed yet)</div>
-                : files.map((file, index) => (
-                    <div key={index} className={styles.fileRow} title={file}>
+                : files.map(file => (
+                    <div key={file} className={styles.fileRow} title={file}>
                         <span className={styles.fileCheck}>✓</span>{file}
                     </div>
                 ))}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import styles from '../../components/Matrix.module.css';
+import branchStyles from './BranchesView.module.css';
 import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../components/Matrix.js';
 import { formatRelative, formatDateTime } from '../../lib/formatDate.js';
 import type { LocalBranch } from './readLocalRepo.js';
@@ -152,7 +153,7 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
             header: (
                 <>
                     <code>{column.branch}</code>
-                    {extras > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: '#57606a' }}>(+{extras})</span>}
+                    {extras > 0 && <span className={branchStyles.extraBadge}>(+{extras})</span>}
                 </>
             ),
             headerClassName: safe ? styles.prSafe : styles.prConflict,

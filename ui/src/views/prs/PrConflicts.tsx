@@ -100,7 +100,7 @@ export default function PrConflicts({ onMerged }: Props) {
             {loading && <p className={panels.status}>Checking {readyToCheck.length} candidate PR(s) against the base branch…</p>}
             {error && <p className="picker-error">{error}</p>}
             {lastClose && (
-                <p style={{ margin: '6px 0', color: lastClose.ok ? '#1a7f37' : '#cf222e', fontSize: 13 }}>
+                <p className={`${styles.closeStatus} ${lastClose.ok ? styles.statusOk : styles.statusBad}`}>
                     {lastClose.ok ? '✓ ' : `✗ Couldn't close #${lastClose.prNumber}: `}{lastClose.message}
                 </p>
             )}

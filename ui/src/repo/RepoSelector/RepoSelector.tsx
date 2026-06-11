@@ -11,7 +11,7 @@ export default function RepoSelector() {
         return (
             <div className={styles.pickerOverlay}>
                 <div className={styles.picker}>
-                    <p className="picker-error">
+                    <p className="error-banner">
                         Your browser doesn't support the folder picker. Please use Chrome or Edge.
                     </p>
                 </div>

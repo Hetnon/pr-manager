@@ -17,7 +17,7 @@ export default function FolderAccessModal() {
 
     async function grant() {
         if (!currentRepoFolderHandle) return;
-        beginLoading();
+            beginLoading();
         try {
             setBrowserHasAcessToCurrentFolder(await ensureFolderWritePermission(currentRepoFolderHandle));
         } finally {

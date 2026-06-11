@@ -46,7 +46,7 @@ export default function PickerActions() {
                     {loading ? 'Opening…' : 'Choose folder…'}
                 </button>
             </div>
-            {error && <p className="picker-error">{error}</p>}
+            {error && <p className="error-banner">{error}</p>}
         </>
     );
 }

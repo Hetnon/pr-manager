@@ -69,10 +69,9 @@ button.primary:disabled { background: #94d3a2; border-color: #94d3a2; cursor: de
   white-space: nowrap;
 }
 
-/* The repo picker / folder-access modal styling moved to src/repo/repoPicker.module.css
-   (used only by FolderAccessModal + RepoSelector/*). .picker-error stays here because
-   it's shared beyond that folder — views/prs/PrConflicts also uses it. */
-.picker-error {
+/* Inline error banner. Global because it's shared across unrelated features —
+   the repo picker, PickerActions, and views/prs/PrConflicts all use it. */
+.error-banner {
   margin: 12px 0 0;
   color: #cf222e;
   font-size: 13px;

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import styles from '../../components/Matrix.module.css';
-import branchStyles from './BranchesView.module.css';
-import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../components/Matrix.js';
-import { formatRelative, formatDateTime } from '../../lib/formatDate.js';
-import type { LocalBranch } from './readLocalRepo.js';
-import type { BranchChanges, BranchGroup } from './checkLocalConflicts.js';
-import type { FileConflictDetail, FileSeverity } from './lineLevelConflicts.js';
-import type { LineRange } from './conflictCache.js';
+import styles from '../../../components/Matrix.module.css';
+import branchStyles from '../BranchesView.module.css';
+import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../components/Matrix.js';
+import { formatRelative, formatDateTime } from '../../../../lib/formatDate.js';
+import type { LocalBranch } from '../../readLocalRepo.js';
+import type { BranchChanges, BranchGroup } from '../../checkLocalConflicts.js';
+import type { FileConflictDetail, FileSeverity } from '../../lineLevelConflicts.js';
+import type { LineRange } from '../../conflictCache.js';
 
 interface Props {
     defaultBranch: string;

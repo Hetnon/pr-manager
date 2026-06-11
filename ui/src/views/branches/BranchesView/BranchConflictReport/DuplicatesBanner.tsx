@@ -1,6 +1,6 @@
-import type { BranchGroup } from '../checkLocalConflicts.js';
+import type { BranchGroup } from '../../checkLocalConflicts.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
-import { useDeleteBranch } from '../hooks/useDeleteBranch/useDeleteBranch.js';
+import { useDeleteBranch } from '../../hooks/useDeleteBranch/useDeleteBranch.js';
 import styles from '../BranchesView.module.css';
 
 interface Props {

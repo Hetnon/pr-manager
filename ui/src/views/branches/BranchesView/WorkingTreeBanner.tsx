@@ -1,41 +1,37 @@
-import { useState } from 'react';
-import type { WorkingTreeStatus } from '../workingTreeStatus.js';
-import styles from '../BranchesView.module.css';
-
-interface Props {
-    status: WorkingTreeStatus | null;
-    busy: boolean;
-    error: string | null;
-    currentBranch: string | null;
-}
+import { useContext, useState } from 'react';
+import { AnalysisContext } from '../../AnalysisContext.js';
+import styles from './BranchesView.module.css';
 
 // Surfaces working-tree state on refresh: branch ops (fold/dedup/merge) move
 // refs but never touch these files, so a dirty tree is worth flagging up front.
-export default function WorkingTreeBanner({ status, busy, error, currentBranch }: Props) {
+export default function WorkingTreeBanner() {
+    const { branchesAnalysis } = useContext(AnalysisContext);
+    const { worktree, worktreeBusy, worktreeError, snapshot } = branchesAnalysis;
+    const currentBranch = snapshot?.currentBranch ?? null;
     const [open, setOpen] = useState(false);
-    if (busy && !status) {
+    if (worktreeBusy && !worktree) {
         return <p className={styles.wtChecking}>Checking working tree…</p>;
     }
-    if (error) {
+    if (worktreeError) {
         return (
             <p className={styles.wtError}>
-                ⚠ Couldn't read working-tree status: {error}
+                ⚠ Couldn't read working-tree status: {worktreeError}
             </p>
         );
     }
-    if (!status) return null;
-    if (status.clean) {
+    if (!worktree) return null;
+    if (worktree.clean) {
         return <p className={styles.wtClean}>✓ Working tree clean</p>;
     }
 
     const parts: string[] = [];
-    if (status.untracked.length) parts.push(`${status.untracked.length} untracked`);
-    if (status.modified.length) parts.push(`${status.modified.length} modified`);
-    if (status.deleted.length) parts.push(`${status.deleted.length} deleted`);
+    if (worktree.untracked.length) parts.push(`${worktree.untracked.length} untracked`);
+    if (worktree.modified.length) parts.push(`${worktree.modified.length} modified`);
+    if (worktree.deleted.length) parts.push(`${worktree.deleted.length} deleted`);
     const groups: Array<[string, string[]]> = [
-        ['Untracked', status.untracked],
-        ['Modified', status.modified],
-        ['Deleted', status.deleted],
+        ['Untracked', worktree.untracked],
+        ['Modified', worktree.modified],
+        ['Deleted', worktree.deleted],
     ];
 
     return (

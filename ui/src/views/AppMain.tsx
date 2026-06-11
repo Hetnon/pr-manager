@@ -1,5 +1,5 @@
 import ProgressModal from './ProgressModal/ProgressModal.js';
-import BranchesView from './branches/BranchesView.js';
+import BranchesView from './branches/BranchesView/BranchesView.js';
 import PrView from './prs/PrView.js';
 import type { View } from '../Header/AppHeader.js';
 

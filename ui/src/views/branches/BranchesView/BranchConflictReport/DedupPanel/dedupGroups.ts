@@ -1,4 +1,4 @@
-import type { FileConflictDetail } from '../lineLevelConflicts.js';
+import type { FileConflictDetail } from '../../../lineLevelConflicts.js';
 
 export interface DedupGroup {
     branches: string[];   // branches sharing byte-identical content for every file in `files` (sorted)

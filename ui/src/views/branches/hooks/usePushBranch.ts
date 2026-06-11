@@ -29,8 +29,7 @@ export function usePushBranch(
         setPushingBranch(branch.name);
         setLastPush(null);
         try {
-            const localNames = new Set(snapshot.branches.map((localBranch) => localBranch.name));
-            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, localNames, owner, repo);
+            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, owner, repo);
             if (!result.ok) {
                 setLastPush({ ok: false, branch: result.pushName, message: result.message });
                 return;
@@ -38,7 +37,6 @@ export function usePushBranch(
             setLastPush(existingPr
                 ? { ok: true, branch: result.pushName, updatedPr: { number: existingPr.number, url: existingPr.url } }
                 : { ok: true, branch: result.pushName });
-            if (result.folded) await refresh(currentRepoFolderHandle); // reflect the fold (X-dedup gone, X moved)
             onPushed?.();
         } finally {
             setPushingBranch(null);

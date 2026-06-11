@@ -12,8 +12,8 @@ export type PrOutcome =
     | { ok: true; branch: string; prNumber: number; prUrl: string }
     | { ok: false; branch: string; message: string };
 
-// One row of the branch list: a local branch and its matching open PR (if any).
-export interface Row {
-    branch: LocalBranch;
+// A branch as shown in the branches view: the local git branch (LocalBranch)
+// enriched with its matching open PR, or null when none is open for it.
+export interface Branch extends LocalBranch {
     pr: PR | null;
 }

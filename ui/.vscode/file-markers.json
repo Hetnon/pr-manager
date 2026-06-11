@@ -83,7 +83,11 @@
     "src/views/ProgressModal/ProgressModal.module.css": "done",
     "src/panels.module.css": "done",
     "src/views/AppMain.tsx": "done",
-    "src/views/branches/BranchesView.tsx": "done"
+    "src/views/branches/BranchesView.tsx": "done",
+    "src/views/branches/BranchesView/BranchesView.tsx": "done",
+    "src/views/branches/BranchesView/BranchesPanelHeader.tsx": "done",
+    "src/views/branches/BranchesView/BranchesMessages.tsx": "done",
+    "src/views/branches/BranchesView/WorkingTreeBanner.tsx": "done"
   },
   "lineHighlightTypes": [
     {

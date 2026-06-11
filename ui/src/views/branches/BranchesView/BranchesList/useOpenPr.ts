@@ -1,9 +1,9 @@
 import { useContext, useState } from 'react';
-import type { LocalBranch, LocalRepoSnapshot } from '../readLocalRepo.js';
-import { RepoContext } from '../../../repo/RepoContext.js';
-import { pushBranchToOrigin, resolveFold } from '../pushBranchToOrigin.js';
-import { createPr } from '../../../api/prs.js';
-import type { PrOutcome } from '../types.js';
+import type { LocalBranch, LocalRepoSnapshot } from '../../readLocalRepo.js';
+import { RepoContext } from '../../../../repo/RepoContext.js';
+import { pushBranchToOrigin } from '../../pushBranchToOrigin.js';
+import { createPr } from '../../../../api/prs.js';
+import type { PrOutcome } from '../../types.js';
 
 // Owns the "push branch and open its PR" action. Lives with BranchList. Pushes
 // the branch to origin first (GitHub requires the head branch to exist on the
@@ -22,9 +22,7 @@ export function useOpenPr(
 
     async function openPr(branch: LocalBranch) {
         if (!currentRepoFolderHandle || !owner || !repo || !snapshot?.defaultBranch) return;
-        const localNames = new Set(snapshot.branches.map((localBranch) => localBranch.name));
-        const { pushName } = resolveFold(branch, localNames);
-
+        const pushName = branch.name;
         const defaultTitle = branch.head?.message ?? pushName;
         const title = globalThis.prompt(`PR title for ${pushName} → ${snapshot.defaultBranch}?`, defaultTitle);
         if (title === null) return; // cancelled
@@ -32,7 +30,7 @@ export function useOpenPr(
         setOpeningPr(branch.name);
         setLastPr(null);
         try {
-            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, localNames, owner, repo);
+            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, owner, repo);
             if (!result.ok) {
                 setLastPr({ ok: false, branch: result.pushName, message: result.message });
                 return;
@@ -45,7 +43,6 @@ export function useOpenPr(
                     title,
                 });
                 setLastPr({ ok: true, branch: result.pushName, prNumber: createdPr.number, prUrl: createdPr.url });
-                if (result.folded) await refresh(currentRepoFolderHandle); // reflect the fold (X-dedup gone, X moved)
                 onOpened?.();
             } catch (error) {
                 // Push succeeded but PR creation failed — surface both facts.

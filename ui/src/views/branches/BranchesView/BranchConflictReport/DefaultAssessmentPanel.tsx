@@ -1,4 +1,4 @@
-import type { BranchVsDefault } from '../checkLocalConflicts.js';
+import type { BranchVsDefault } from '../../checkLocalConflicts.js';
 import styles from '../BranchesView.module.css';
 
 interface Props {

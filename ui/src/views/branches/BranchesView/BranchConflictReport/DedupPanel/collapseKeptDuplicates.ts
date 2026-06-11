@@ -1,10 +1,11 @@
-import type { LocalConflictReport } from '../checkLocalConflicts.js';
-import type { FileConflictDetail, FileSeverity } from '../lineLevelConflicts.js';
+import type { LocalConflictReport } from '../../../checkLocalConflicts.js';
+import type { FileConflictDetail, FileSeverity } from '../../../lineLevelConflicts.js';
 
-// Patches the report in place after a dedup — drops the deduped files from each donor
-// branch and re-derives only the affected file verdicts by filtering the data we already
-// have (no git, no re-analysis), which is what lets the matrix update instantly.
-export function applyDedupToReport(report: LocalConflictReport, filesByDonor: Map<string, Set<string>>): LocalConflictReport {
+// Pure VIEW transform: returns the report as if each donor branch had dropped the
+// given files (kept only in the chosen branch). Filters the data we already have and
+// re-derives the affected verdicts — no git, no commits, no re-analysis. Collapses the
+// identical-file overlaps out of the matrix so the user only sees what remains.
+export function collapseKeptDuplicates(report: LocalConflictReport, filesByDonor: Map<string, Set<string>>): LocalConflictReport {
     const droppedDonorsByFile = new Map<string, Set<string>>();
     for (const [donor, files] of filesByDonor) {
         for (const file of files) {

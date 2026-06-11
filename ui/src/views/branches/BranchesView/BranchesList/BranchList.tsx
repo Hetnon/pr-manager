@@ -1,21 +1,13 @@
 import { useContext } from 'react';
-import type { LocalRepoSnapshot } from '../readLocalRepo.js';
-import type { WorkingTreeStatus } from '../workingTreeStatus.js';
-import type { Row } from '../types.js';
-import { RepoContext } from '../../../repo/RepoContext.js';
-import { useClosePr } from '../../prs/useClosePr.js';
-import { usePushBranch } from '../hooks/usePushBranch.js';
-import { useOpenPr } from '../hooks/useOpenPr.js';
-import { formatDateTime } from '../../../lib/formatDate.js';
+import type { PR } from '@shared/pr.js';
+import type { Branch } from '../../types.js';
+import { RepoContext } from '../../../../repo/RepoContext.js';
+import { useClosePr } from '../../../prs/useClosePr.js';
+import { usePushBranch } from '../../hooks/usePushBranch.js';
+import { useOpenPr } from './useOpenPr.js';
+import { formatDateTime } from '../../../../lib/formatDate.js';
 import styles from '../BranchesView.module.css';
-
-interface Props {
-    rows: Row[];
-    snapshot: LocalRepoSnapshot;
-    worktree: WorkingTreeStatus | null;
-    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>;
-    onPushed?: () => void;
-}
+import { AnalysisContext } from '../../../AnalysisContext.js';
 
 function formatCount(count: number, truncated: boolean): string {
     if (truncated) return `${count}+`;
@@ -26,21 +18,31 @@ function formatCount(count: number, truncated: boolean): string {
 // close actions per row. A flex layout, not a <table> — fixed column widths keep
 // header and rows aligned. Owns those actions (and their result banners) itself,
 // since they're only triggered from here.
-export default function BranchList({ rows, snapshot, worktree, refresh, onPushed }: Props) {
+export default function BranchList() {
+    const { prs, loadPrs, branchesAnalysis } = useContext(AnalysisContext);
+    const { snapshot, worktree, refresh } = branchesAnalysis;
     const { currentRepoOwnerAndName } = useContext(RepoContext);
     const owner = currentRepoOwnerAndName?.owner ?? null;
     const repo = currentRepoOwnerAndName?.name ?? null;
-    const defaultBranch = snapshot.defaultBranch;
-    const { pushingBranch, lastPush, pushBranch } = usePushBranch(snapshot, refresh, onPushed);
-    const { openingPr, lastPr, openPr } = useOpenPr(snapshot, refresh, onPushed);
-    const { closingPr, lastClose, close } = useClosePr(onPushed);
-    const busy = pushingBranch !== null || openingPr !== null;
+    const { pushingBranch, lastPush, pushBranch } = usePushBranch(snapshot, refresh, loadPrs);
+    const { openingPr, lastPr, openPr } = useOpenPr(snapshot, refresh, loadPrs);
+    const { closingPr, lastClose, close } = useClosePr(loadPrs);
 
+    if (!snapshot) return null;
+
+    const prByRef = new Map<string, PR>();
+    for (const pr of prs ?? []) prByRef.set(pr.headRefName, pr);
+    const branches: Branch[] = snapshot.branches
+        .map((branch) => ({ ...branch, pr: prByRef.get(branch.name) ?? null }));
+    if (branches.length === 0) return null;
+
+    const defaultBranch = snapshot.defaultBranch;
+    const busy = pushingBranch !== null || openingPr !== null;
     const worktreeDirty = !!worktree && !worktree.clean;
     // Show the explainer note only when the asymmetry is actually on screen: the
     // current branch is dirty (its actions are greyed) AND some other branch is
     // still pushable.
-    const hasOtherPushable = rows.some(({ branch }) =>
+    const hasOtherPushable = branches.some((branch) =>
         !branch.current
         && branch.name !== defaultBranch
         && branch.aheadOfDefault > 0
@@ -78,7 +80,8 @@ export default function BranchList({ rows, snapshot, worktree, refresh, onPushed
                     <div className={styles.colCommit}>Last commit</div>
                     <div className={styles.colActions}>Actions</div>
                 </div>
-                {rows.map(({ branch, pr }) => {
+                {branches.map((branch) => {
+                    const { pr } = branch;
                     const isDefault = branch.name === defaultBranch;
                     // Backup-push is offered for any non-default branch that's ahead,
                     // even one with an open PR (pushing updates that PR). Opening a PR

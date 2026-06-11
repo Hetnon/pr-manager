@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import { heatClass, type SharedFileMatrix } from '../sharedFiles.js';
-import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../components/Matrix.js';
+import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../components/Matrix.js';
 import PrMatrixSummary from './PrMatrixSummary.js';
 import { formatAbsolute, formatTimeAgo } from '../../../lib/formatDate.js';
-import styles from '../../../components/Matrix.module.css';
+import styles from '../../components/Matrix.module.css';
 
 export type CellState = 'conflict' | 'warning' | undefined;
 

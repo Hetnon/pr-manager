@@ -1,16 +1,10 @@
-import type { LocalRepoSnapshot } from '../readLocalRepo.js';
-import styles from '../BranchesView.module.css';
+import { useContext } from 'react';
+import { AnalysisContext } from '../../AnalysisContext.js';
+import styles from './BranchesView.module.css';
 
-interface Props {
-    busy: boolean;
-    fetching: boolean;
-    conflictBusy: boolean;
-    snapshot: LocalRepoSnapshot | null;
-}
-
-// The panel's header row: the title, a transient "what's happening" word, and a
-// one-line repo summary (default/current branch, branch count, read time).
-export default function BranchesPanelHeader({ busy, fetching, conflictBusy, snapshot }: Props) {
+export default function BranchesPanelHeader() {
+    const { branchesAnalysis } = useContext(AnalysisContext);
+    const { busy, fetching, conflictBusy, snapshot } = branchesAnalysis;
     return (
         <div className={styles.panelHead}>
             <strong>Local branches</strong>

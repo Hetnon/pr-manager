@@ -82,7 +82,8 @@
     "src/views/ProgressModal/useDelayedFlag.ts": "done",
     "src/views/ProgressModal/ProgressModal.module.css": "done",
     "src/panels.module.css": "done",
-    "src/views/AppMain.tsx": "done"
+    "src/views/AppMain.tsx": "done",
+    "src/views/branches/BranchesView.tsx": "done"
   },
   "lineHighlightTypes": [
     {

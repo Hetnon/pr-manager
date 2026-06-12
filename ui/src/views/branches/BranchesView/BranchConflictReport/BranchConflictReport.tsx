@@ -7,7 +7,6 @@ import { useDedupChoices } from './DedupPanel/useDedupChoices.js';
 import ConflictTriagePanel from './ConflictTriagePanel/ConflictTriagePanel.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 import DuplicatesBanner from './DuplicatesBanner/DuplicatesBanner.js';
-import MatrixLegend from './MatrixLegend.js';
 import DefaultAssessmentPanel from './DefaultAssessmentPanel.js';
 import styles from './BranchConflictReport.module.css';
 
@@ -47,7 +46,6 @@ function ConflictReport({ conflictReport, snapshot, refresh }: Readonly<Props>) 
                 toggleIncluded={toggleIncluded}
                 setKeeper={setKeeper}
             />
-            <MatrixLegend />
             <LocalBranchesMatrix
                 defaultBranch={effectiveReport.defaultBranch}
                 branches={snapshot.branches}

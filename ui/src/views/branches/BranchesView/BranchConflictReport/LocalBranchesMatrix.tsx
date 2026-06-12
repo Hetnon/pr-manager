@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import styles from '../../../components/Matrix.module.css';
 import branchStyles from './LocalBranchesMatrix.module.css';
 import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../components/Matrix.js';
+import MatrixLegend, { type LegendItem } from '../../../components/MatrixLegend.js';
 import { formatRelative, formatDateTime } from '../../../../lib/formatDate.js';
 import type { LocalBranch } from '../../readLocalRepo.js';
 import type { BranchChanges, BranchGroup } from '../../checkLocalConflicts.js';
@@ -27,6 +28,14 @@ interface MatrixData {
 }
 
 const META_LABELS = ['HEAD', 'Author', 'Last commit', 'When'];
+
+const LEGEND: LegendItem[] = [
+    { kind: 'dot', label: '= branch touches this file (presence)' },
+    { kind: 'safe', label: 'only one branch — safe' },
+    { kind: 'identical', label: 'identical content' },
+    { kind: 'clean', label: 'shared, non-overlapping (clean merge)' },
+    { kind: 'conflict', label: 'real conflict' },
+];
 
 function buildBranchMatrix(branchChanges: BranchChanges[]): MatrixData {
     const usable = branchChanges.filter((branchChange) => !branchChange.error && branchChange.files.length > 0);
@@ -110,7 +119,7 @@ const STATUS_CLASS: Record<FileSeverity, string> = {
     conflict: styles.conflict,
 };
 
-export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges, branchGroups, fileDetail }: Props) {
+export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges, branchGroups, fileDetail }: Readonly<Props>) {
     const [expanded, setExpanded] = useState(true);
     const matrix = useMemo(() => buildBranchMatrix(branchChanges), [branchChanges]);
 
@@ -159,10 +168,10 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
             headerClassName: safe ? styles.prSafe : styles.prConflict,
             headerTitle: tooltip,
             meta: [
-                <div className={`${styles.metaContent} ${styles.branch}`} title={column.sha}>{column.sha.slice(0, 8)}</div>,
-                <div className={`${styles.metaContent} ${styles.author}`} title={head ? `${head.authorName} <${head.authorEmail}>` : ''}>{head?.authorName ?? '—'}</div>,
-                <div className={`${styles.metaContent} ${styles.title}`} title={head?.message ?? ''}>{head?.message ?? '—'}</div>,
-                <div className={`${styles.metaContent} ${styles.timestamp}`} title={head ? formatDateTime(head.date) : ''}>{head ? formatRelative(head.date) : '—'}</div>,
+                <div key="branch" className={`${styles.metaContent} ${styles.branch}`} title={column.sha}>{column.sha.slice(0, 8)}</div>,
+                <div key="author" className={`${styles.metaContent} ${styles.author}`} title={head ? `${head.authorName} <${head.authorEmail}>` : ''}>{head?.authorName ?? '—'}</div>,
+                <div key="title" className={`${styles.metaContent} ${styles.title}`} title={head?.message ?? ''}>{head?.message ?? '—'}</div>,
+                <div key="timestamp" className={`${styles.metaContent} ${styles.timestamp}`} title={head ? formatDateTime(head.date) : ''}>{head ? formatRelative(head.date) : '—'}</div>,
             ],
             footer: safe ? '✓' : '✗',
             footerClassName: safe ? styles.safe : styles.conflict,
@@ -173,7 +182,7 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
         const detail = fileDetail?.[filePath];
         const severity = severityOf(filePath, branchSet.size, fileDetail);
         const heat = heatFor(severity);
-        const branchesTouching = [...branchSet].sort();
+        const branchesTouching = [...branchSet].sort((a, b) => a.localeCompare(b));
         // Branches whose content is identical to another touching branch's: their
         // cells go identical-blue even when the file overall is warning/conflict
         // (e.g. 2 of 3 branches match — those two are blue, the odd one keeps the
@@ -195,22 +204,25 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
         };
     });
 
+    const summary = (
+        <div className={styles.summary}>
+            <strong>{safeCount}</strong> of <strong>{matrix.columns.length}</strong> branch(es) have no real conflicts.
+            {' '}Conflicts: <strong>{conflictFiles}</strong> file(s) · Review: {warningFiles} · Identical: {identicalFiles}
+            {' · '}vs <code>{defaultBranch}</code>
+        </div>
+    );
+
     return (
-        <>
-            <div className={styles.summary}>
-                <strong>{safeCount}</strong> of <strong>{matrix.columns.length}</strong> branch(es) have no real conflicts.
-                {' '}Conflicts: <strong>{conflictFiles}</strong> file(s) · Review: {warningFiles} · Identical: {identicalFiles}
-                {' · '}vs <code>{defaultBranch}</code>
-            </div>
-            <Matrix
-                cornerLabel="Branch"
-                metaLabels={META_LABELS}
-                columns={columns}
-                footerLabel={<strong>Good to merge? ({matrix.files.length} files)</strong>}
-                files={fileRows}
-                expanded={expanded}
-                onToggle={() => setExpanded((isExpanded) => !isExpanded)}
-            />
-        </>
+        <Matrix
+            cornerLabel="Branch"
+            metaLabels={META_LABELS}
+            columns={columns}
+            footerLabel={<strong>Good to merge? ({matrix.files.length} files)</strong>}
+            files={fileRows}
+            expanded={expanded}
+            onToggle={() => setExpanded((isExpanded) => !isExpanded)}
+            summary={summary}
+            legend={<MatrixLegend items={LEGEND} note="hover a row's status for details" />}
+        />
     );
 }

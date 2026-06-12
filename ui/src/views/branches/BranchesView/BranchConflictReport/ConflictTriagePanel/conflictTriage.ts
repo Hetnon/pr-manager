@@ -1,4 +1,4 @@
-import type { LocalConflictReport } from '../checkLocalConflicts.js';
+import type { LocalConflictReport } from '../../../checkLocalConflicts.js';
 
 export type ConflictKind = 'textual-conflict' | 'clean-overlap' | 'additive' | 'cross-reference' | 'possible-dynamic';
 export type Risk = 'low' | 'medium' | 'high';

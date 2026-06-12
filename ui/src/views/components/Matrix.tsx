@@ -51,6 +51,10 @@ interface Props {
     files: MatrixFileRow[];
     expanded: boolean;
     onToggle: () => void;
+    /** Summary line, rendered above the legend and grid. */
+    summary?: ReactNode;
+    /** Legend, rendered between the summary and the grid (closest to it). */
+    legend?: ReactNode;
 }
 
 /**
@@ -61,10 +65,13 @@ interface Props {
  * see Matrix.module.css for the layout/gridline model.
  */
 export default function Matrix({
-    cornerLabel, metaLabels, statusLabel = 'Safe?', columns, footerLabel, files, expanded, onToggle,
-}: Props) {
+    cornerLabel, metaLabels, statusLabel = 'Safe?', columns, footerLabel, files, expanded, onToggle, summary, legend,
+}: Readonly<Props>) {
     return (
-        <div className={styles.matrix}>
+        <>
+            {summary}
+            {legend}
+            <div className={styles.matrix}>
             <div className={styles.headerBlock}>
                 <div className={styles.labelColumn}>
                     <div className={`${styles.rowLabel} ${styles.cornerLabel}`}>{cornerLabel}</div>
@@ -127,6 +134,7 @@ export default function Matrix({
                     ))}
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 }

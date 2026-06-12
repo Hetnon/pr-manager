@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { type TriageResult, type ResolutionOption, triageStatically } from './conflictTriage.js';
-import type { LocalConflictReport } from '../checkLocalConflicts.js';
+import type { LocalConflictReport } from '../../../checkLocalConflicts.js';
 import styles from './ConflictTriagePanel.module.css';
 
 const OPTION_LABEL: Record<ResolutionOption, string> = {

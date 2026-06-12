@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import { heatClass, type SharedFileMatrix } from '../../../sharedFiles.js';
 import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../../components/Matrix.js';
+import MatrixLegend, { type LegendItem } from '../../../../components/MatrixLegend.js';
 import PrMatrixSummary from './PrMatrixSummary.js';
 import { formatAbsolute, formatTimeAgo } from '../../../../../lib/formatDate.js';
 import styles from '../../../../components/Matrix.module.css';
@@ -22,6 +23,13 @@ const STATE_TITLE: Record<NonNullable<CellState>, string> = {
 };
 
 const META_LABELS = ['Branch Name', "Dev's Name", 'PR Name', 'Created', 'Last Modified'];
+
+const LEGEND: LegendItem[] = [
+    { kind: 'dot', label: '= PR touches this file' },
+    { kind: 'safe', label: 'only one PR — safe' },
+    { kind: 'conflict', label: 'shared by multiple PRs' },
+    { label: '✗ conflicts with base · ⚠ base also touched (clean, review)' },
+];
 
 interface Props {
     matrix: SharedFileMatrix;
@@ -47,11 +55,11 @@ export default function PrMatrix({ matrix, cellState, renderFileExtra }: Props) 
             headerClassName: safe ? styles.prSafe : styles.prConflict,
             headerTitle: `GitHub: ${pr.mergeStateStatus} | ${pr.mergeable}`,
             meta: [
-                <div className={`${styles.metaContent} ${styles.branch}`} title={pr.headRefName}>{pr.headRefName}</div>,
-                <div className={`${styles.metaContent} ${styles.author}`} title={pr.author.login}>{pr.author.login}</div>,
-                <div className={`${styles.metaContent} ${styles.title}`} title={pr.title}>{pr.title}</div>,
-                <div className={`${styles.metaContent} ${styles.timestamp}`} title={formatAbsolute(pr.createdAt)}>{formatTimeAgo(pr.createdAt)}</div>,
-                <div className={`${styles.metaContent} ${styles.timestamp}`} title={formatAbsolute(pr.updatedAt)}>{formatTimeAgo(pr.updatedAt)}</div>,
+                <div key={`branch-${pr.number}`} className={`${styles.metaContent} ${styles.branch}`} title={pr.headRefName}>{pr.headRefName}</div>,
+                <div key={`author-${pr.number}`} className={`${styles.metaContent} ${styles.author}`} title={pr.author.login}>{pr.author.login}</div>,
+                <div key={`title-${pr.number}`} className={`${styles.metaContent} ${styles.title}`} title={pr.title}>{pr.title}</div>,
+                <div key={`created-${pr.number}`} className={`${styles.metaContent} ${styles.timestamp}`} title={formatAbsolute(pr.createdAt)}>{formatTimeAgo(pr.createdAt)}</div>,
+                <div key={`updated-${pr.number}`} className={`${styles.metaContent} ${styles.timestamp}`} title={formatAbsolute(pr.updatedAt)}>{formatTimeAgo(pr.updatedAt)}</div>,
             ],
             footer: safe ? '✓' : '✗',
             footerClassName: safe ? styles.safe : styles.conflict,
@@ -83,17 +91,16 @@ export default function PrMatrix({ matrix, cellState, renderFileExtra }: Props) 
     });
 
     return (
-        <>
-            <PrMatrixSummary safeCount={safeCount} totalPrs={sortedPrs.length} hotFileCount={hotFileCount} />
-            <Matrix
-                cornerLabel="PR #"
-                metaLabels={META_LABELS}
-                columns={columns}
-                footerLabel={<strong>Good to Merge? ({files.length} files)</strong>}
-                files={fileRows}
-                expanded={expanded}
-                onToggle={() => setExpanded((isExpanded) => !isExpanded)}
-            />
-        </>
+        <Matrix
+            cornerLabel="PR #"
+            metaLabels={META_LABELS}
+            columns={columns}
+            footerLabel={<strong>Good to Merge? ({files.length} files)</strong>}
+            files={fileRows}
+            expanded={expanded}
+            onToggle={() => setExpanded((isExpanded) => !isExpanded)}
+            summary={<PrMatrixSummary safeCount={safeCount} totalPrs={sortedPrs.length} hotFileCount={hotFileCount} />}
+            legend={<MatrixLegend items={LEGEND} note="hover a cell for details" />}
+        />
     );
 }

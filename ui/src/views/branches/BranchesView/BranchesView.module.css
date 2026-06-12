@@ -1,18 +1,2 @@
-/* BranchesView shared styles. Element-local styles live in colocated modules
-   next to their owner (WorkingTreeBanner/WorkingTreeBanner.module.css,
-   BranchesPanelHeader/BranchesPanelHeader.module.css, BranchesList/BranchList.module.css,
-   BranchConflictReport/*.module.css). Only classes used by multiple files across
-   this subtree live here. */
-
-/* Outer card. Used only by BranchesView itself — kept here because this file
-   is BranchesView's own module. */
-.panel { border: 1px solid #d0d7de; padding: 12px; margin: 12px 0; }
-
-/* Status / message helpers used by BranchesMessages + BranchList. */
+/* Status-line spacing — used by BranchesMessages + BranchList. */
 .message { margin-top: 8px; }
-.ok { color: #1a7f37; }
-.bad { color: #cf222e; }
-
-/* Subtle dim-text helper. Used by WorkingTreeBanner + DefaultAssessmentPanel
-   (two different subfolders) — their LCA is this folder. */
-.subtle { color: #57606a; }

@@ -1,0 +1,4 @@
+/* Outer wrapper shared by the two top-level views — BranchesView and PrView.
+   Spacing only; <main> already supplies the surrounding frame. */
+
+.panel { padding: 12px; margin: 12px 0; }

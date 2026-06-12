@@ -5,7 +5,7 @@ import BranchesMessages from './BranchesMessages.js';
 import WorkingTreeBanner from './WorkingTreeBanner/WorkingTreeBanner.js';
 import BranchConflictReport from './BranchConflictReport/BranchConflictReport.js';
 import BranchList from './BranchesList/BranchList.js';
-import styles from './BranchesView.module.css';
+import styles from '../../viewPanel.module.css';
 
 
 export default function BranchesView() {

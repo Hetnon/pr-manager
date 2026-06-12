@@ -68,3 +68,9 @@ main {
    multiple unrelated features (SessionAuthLayer, MainPage, PrView). */
 .loading, .error { padding: 40px; text-align: center; color: #6e7781; }
 .error { color: #cf222e; }
+
+/* Shared status-color helpers — green/red/dim. Used across unrelated feature
+   folders (branches messages/list, conflict report subpanels, etc.). */
+.ok { color: #1a7f37; }
+.bad { color: #cf222e; }
+.subtle { color: #57606a; }

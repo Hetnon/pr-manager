@@ -1,0 +1,22 @@
+/* Shared surface chrome for the PR view panels (DevActions + PrConflicts): the
+   white card box and the success/warning banner surfaces. Only the surface lives
+   here — text color and spacing stay with each consumer (they differ). */
+
+.card {
+  background: white;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 16px 20px;
+}
+
+.bannerOk {
+  background: #dafbe1;
+  border-left: 4px solid #1f883d;
+  border-radius: 6px;
+}
+
+.bannerWarn {
+  background: #fff8c5;
+  border-left: 4px solid #d4a72c;
+  border-radius: 6px;
+}

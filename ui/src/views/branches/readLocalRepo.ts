@@ -1,5 +1,5 @@
 import * as git from 'isomorphic-git';
-import { makeFsApiFs } from '../../fsAdapterForUI/fsApiAdapter.js';
+import { makeFsApiFs } from '../../adapters/fsApiAdapter.js';
 
 export interface LocalBranchHead {
     message: string;

@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { RepoContext } from './RepoContext.js';
-import { UiGlobalContext } from '../UiGlobal.js';
+import { UiGlobalContext } from '../UiGlobalContext.js';
 import { ensureFolderWritePermission } from './folderPermission.js';
 import styles from './repoPicker.module.css';
 
@@ -17,7 +17,7 @@ export default function FolderAccessModal() {
 
     async function grant() {
         if (!currentRepoFolderHandle) return;
-            beginLoading();
+        beginLoading();
         try {
             setBrowserHasAcessToCurrentFolder(await ensureFolderWritePermission(currentRepoFolderHandle));
         } finally {

@@ -87,7 +87,13 @@
     "src/views/branches/BranchesView/BranchesView.tsx": "done",
     "src/views/branches/BranchesView/BranchesPanelHeader.tsx": "done",
     "src/views/branches/BranchesView/BranchesMessages.tsx": "done",
-    "src/views/branches/BranchesView/WorkingTreeBanner.tsx": "done"
+    "src/views/branches/BranchesView/WorkingTreeBanner.tsx": "done",
+    "src/api/git.ts": "done",
+    "public/index.html": "done",
+    "src/lib/fileOverlap.ts": "done",
+    "src/lib/localStorage.ts": "done",
+    "src/adapters/fsApiAdapter.ts": "done",
+    "src/adapters/gitHttpAdapter.ts": "done"
   },
   "lineHighlightTypes": [
     {

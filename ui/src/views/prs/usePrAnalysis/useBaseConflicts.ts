@@ -3,7 +3,7 @@ import type { PR } from '@shared/pr.js';
 import type { CheckConflictsResponse, BaseTouch } from '@shared/conflicts.js';
 import { RepoContext } from '../../../repo/RepoContext.js';
 import * as prApi from '../../../api/prs.js';
-import { loadCachedBaseCheck, saveCachedBaseCheck, prSetKey } from '../../../analysis/prCache.js';
+import { loadCachedBaseCheck, saveCachedBaseCheck, prSetKey } from '../prCache.js';
 
 // Runs the server-side "does each candidate PR conflict with the base branch?" check
 // whenever the candidate set changes, shaping the response into fast lookups:

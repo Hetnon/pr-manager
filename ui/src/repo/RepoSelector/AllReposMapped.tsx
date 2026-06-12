@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { RepoContext } from '../RepoContext.js';
-import { UiGlobalContext } from '../../UiGlobal.js';
+import { UiGlobalContext } from '../../UiGlobalContext.js';
 import { clearFolderHandle, loadFolderHandle, saveLastOpenedRepoPointerOnStorage } from '../repoFolderStorage.js';
 import { ensureFolderWritePermission } from '../folderPermission.js';
 import styles from '../repoPicker.module.css';

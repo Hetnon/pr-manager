@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import { FolderPickError, pickRepoFolder } from './pickRepoFolder.js';
 import { RepoContext } from '../RepoContext.js';
-import { UiGlobalContext } from '../../UiGlobal.js';
+import { UiGlobalContext } from '../../UiGlobalContext.js';
 import { saveFolderHandle, saveLastOpenedRepoPointerOnStorage } from '../repoFolderStorage.js';
 import styles from '../repoPicker.module.css';
 

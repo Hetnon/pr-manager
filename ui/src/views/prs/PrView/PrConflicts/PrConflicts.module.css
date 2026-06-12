@@ -1,0 +1,164 @@
+/* PrConflicts + its sub-panels (ConflictingPrsPanel, LocalPairwiseStatus,
+   PrDuplicatesBanner). Shared card/banner surfaces compose from ../panelChrome.module.css. */
+
+.section {
+  composes: card from '../panelChrome.module.css';
+  margin-top: 20px;
+}
+.section h2 { margin: 0 0 8px; font-size: 16px; color: #24292f; }
+.intro { margin: 0 0 12px; color: #57606a; font-size: 13px; }
+.status { margin: 0 0 12px; color: #57606a; font-size: 13px; font-style: italic; }
+
+.clean {
+  composes: bannerOk from '../panelChrome.module.css';
+  margin: 0;
+  padding: 12px 16px;
+  color: #1a7f37;
+  font-weight: 600;
+  font-size: 14px;
+}
+.errors {
+  composes: bannerWarn from '../panelChrome.module.css';
+  margin: 0 0 12px;
+  padding: 8px 12px 8px 32px;
+  color: #9a6700;
+  font-size: 13px;
+}
+
+.legendBad {
+  color: white;
+  background: #cf222e;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+.legendWarn {
+  color: #24292f;
+  background: #fff8c5;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-weight: bold;
+  border: 1px solid #d4a72c;
+}
+
+.base-chip {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: normal;
+  color: #57606a;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  white-space: nowrap;
+  cursor: help;
+}
+.base-chip code {
+  background: none;
+  padding: 0;
+  font-size: 10px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.chip-stale {
+  color: #9a6700;
+  background: #fff8c5;
+  border-color: #d4a72c;
+}
+
+/* lastClose status line — color picked by .statusOk / .statusBad */
+.closeStatus {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.statusOk { color: #1a7f37; }
+.statusBad { color: #cf222e; }
+
+/* ConflictingPrsPanel */
+.conflictPanel {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: #fffbe6;
+  border: 1px solid #d4a72c;
+  border-radius: 6px;
+}
+.conflictTitle {
+  font-size: 14px;
+}
+.conflictIntro {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  color: #57606a;
+}
+.conflictList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.conflictItem {
+  padding: 8px 0;
+  border-top: 1px solid rgba(212, 167, 44, 0.3);
+}
+.conflictRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.conflictLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+}
+.conflictCheckbox {
+  margin-top: 3px;
+}
+.conflictBody {
+  flex: 1;
+  font-size: 13px;
+}
+.conflictMeta {
+  color: #8c959f;
+}
+.conflictPromoted {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #1a7f37;
+  font-weight: 600;
+}
+.conflictFiles {
+  margin: 4px 0 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #57606a;
+}
+.conflictCloseBtn {
+  white-space: nowrap;
+}
+
+/* LocalPairwiseStatus — color picked by phase modifier below */
+.pairwiseStatus {
+  margin: 6px 0;
+  font-size: 12px;
+}
+.pairwiseWarn { color: #9a6700; }
+.pairwiseMuted { color: #57606a; }
+.pairwiseFail { color: #cf222e; }
+
+/* PrDuplicatesBanner */
+.dupesBanner {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: #fff8c5;
+  border: 1px solid #d4a72c;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.dupesList {
+  margin: 6px 0 0 0;
+  padding-left: 18px;
+}
+.dupesItem {
+  margin-bottom: 2px;
+}

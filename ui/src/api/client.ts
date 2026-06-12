@@ -18,7 +18,8 @@ function deriveApiBase(): string {
     return `${protocol}//${parts.join('.')}`;
 }
 
-const API_BASE = deriveApiBase().replace(/\/+$/, '');
+// The single resolved base for every UI→server call (REST here, git-proxy in api/git.ts).
+export const API_BASE = deriveApiBase().replace(/\/+$/, '');
 
 export interface RequestOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

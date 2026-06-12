@@ -4,9 +4,10 @@ import { AuthContext } from '../SessionAuthLayer/AuthContext.js';
 import { listPrs } from '../api/prs.js';
 import { ApiError } from '../api/client.js';
 import { RepoContext } from '../repo/RepoContext.js';
-import { useBranchAnalysis } from './branches/hooks/useBranchAnalysis/useBranchAnalysis.js';
+import { useBranchAnalysis } from './branches/useBranchAnalysis/useBranchAnalysis.js';
 import { usePrAnalysis } from './prs/usePrAnalysis/usePrAnalysis.js';
-import { loadCachedPrs, saveCachedPrs, prSetKey } from '../analysis/prCache.js';
+import { loadCachedPrs, saveCachedPrs, prSetKey } from './prs/prCache.js';
+import { formatDateTime } from '../lib/formatDate.js';
 
 interface AnalysisContextValue {
     prs: PR[] | null;          // all the PRs in the chosen repo - null while loading
@@ -51,7 +52,7 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
             saveCachedPrs(slug, loaded);
             // Same PRs → keep the old reference so the identity-keyed analysis doesn't re-run.
             setPrs((current) => (current && prSetKey(current) === prSetKey(loaded) ? current : loaded));
-            setPrLoadStatus(`Loaded ${loaded.length} open PR(s) at ${new Date().toLocaleTimeString()}`);
+            setPrLoadStatus(`Loaded ${loaded.length} open PR(s) at ${formatDateTime(new Date().toISOString())}`);
         } catch (error) {
             // If the server says we lost the session, refresh auth state to redirect to login.
             if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {

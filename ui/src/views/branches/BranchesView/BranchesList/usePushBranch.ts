@@ -1,0 +1,47 @@
+import { useContext, useState } from 'react';
+import type { PR } from '@shared/pr.js';
+import type { LocalBranch, LocalRepoSnapshot } from '../../readLocalRepo.js';
+import { RepoContext } from '../../../../repo/RepoContext.js';
+import { pushBranchToOrigin } from '../../pushBranchToOrigin.js';
+import type { PushOutcome } from '../../types.js';
+
+// Owns the "push branch to origin" backup action — get a branch's committed work
+// onto the remote without opening a PR (for solo work, or saving in-progress work
+// off your laptop). Lives with BranchList. Pushing a branch that already has an
+// open PR updates that PR — a PR is a live view of its head branch, with no
+// per-push opt-out — so we confirm first.
+export function usePushBranch(
+    snapshot: LocalRepoSnapshot | null,
+    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>,
+    onPushed?: () => void,
+) {
+    const { currentRepoFolderHandle, currentRepoOwnerAndName } = useContext(RepoContext);
+    const owner = currentRepoOwnerAndName?.owner ?? null;
+    const repo = currentRepoOwnerAndName?.name ?? null;
+    const [pushingBranch, setPushingBranch] = useState<string | null>(null);
+    const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
+
+    async function pushBranch(branch: LocalBranch, existingPr?: PR | null) {
+        if (!currentRepoFolderHandle || !owner || !repo || !snapshot) return;
+        if (existingPr && !globalThis.confirm(
+            `Push new commits to ${branch.name}? This updates open PR #${existingPr.number} — the PR always reflects this branch's latest pushed commits.`
+        )) return;
+        setPushingBranch(branch.name);
+        setLastPush(null);
+        try {
+            const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, owner, repo);
+            if (!result.ok) {
+                setLastPush({ ok: false, branch: result.pushName, message: result.message });
+                return;
+            }
+            setLastPush(existingPr
+                ? { ok: true, branch: result.pushName, updatedPr: { number: existingPr.number, url: existingPr.url } }
+                : { ok: true, branch: result.pushName });
+            onPushed?.();
+        } finally {
+            setPushingBranch(null);
+        }
+    }
+
+    return { pushingBranch, lastPush, pushBranch };
+}

@@ -1,5 +1,5 @@
 import type { LocalBranch } from './readLocalRepo.js';
-import { gitPushBranch } from './gitPushBranch.js';
+import { gitPushBranch } from '../../api/git.js';
 
 export type PushToOriginResult =
     | { ok: true; pushName: string }

@@ -1,13 +1,12 @@
-import { useContext, useMemo } from 'react';
+import { useContext } from 'react';
 import type { LocalConflictReport } from '../../checkLocalConflicts.js';
 import type { LocalRepoSnapshot } from '../../readLocalRepo.js';
 import { AnalysisContext } from '../../../AnalysisContext.js';
 import DedupPanel from './DedupPanel/DedupPanel.js';
 import { useDedupChoices } from './DedupPanel/useDedupChoices.js';
-import { triageStatically } from '../../triage/conflictTriage.js';
-import ConflictTriagePanel from '../../triage/ConflictTriagePanel.js';
+import ConflictTriagePanel from './ConflictTriagePanel/ConflictTriagePanel.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';
-import DuplicatesBanner from './DuplicatesBanner.js';
+import DuplicatesBanner from './DuplicatesBanner/DuplicatesBanner.js';
 import MatrixLegend from './MatrixLegend.js';
 import DefaultAssessmentPanel from './DefaultAssessmentPanel.js';
 import styles from '../BranchesView.module.css';
@@ -34,7 +33,7 @@ interface Props {
 function ConflictReport({ conflictReport, snapshot, refresh }: Readonly<Props>) {
     const { groups, keeperFor, isIncluded, toggleIncluded, setKeeper, effectiveReport } = useDedupChoices(conflictReport);
     // Triage runs on the effective (post-dedup) report, so the dedup decisions gate it.
-    const triage = useMemo(() => triageStatically(effectiveReport), [effectiveReport]);
+
     return (
         <div className={styles.reportBlock}>
             <div className={styles.analyzeNote}>
@@ -60,7 +59,7 @@ function ConflictReport({ conflictReport, snapshot, refresh }: Readonly<Props>) 
                 defaultBranch={effectiveReport.defaultBranch}
                 branchVsDefault={effectiveReport.branchVsDefault}
             />
-            <ConflictTriagePanel results={triage} />
+            <ConflictTriagePanel effectiveReport={effectiveReport} />
         </div>
     );
 }

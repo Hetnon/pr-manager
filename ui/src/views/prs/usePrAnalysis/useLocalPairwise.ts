@@ -2,9 +2,9 @@ import { useContext, useEffect, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { PairwisePrConflicts } from '@shared/conflicts.js';
 import { RepoContext } from '../../../repo/RepoContext.js';
-import { fetchPrRefs } from '../fetchPrRefs.js';
-import { computeBrowserPairwise } from '../computeBrowserPairwise.js';
-import { loadCachedPairwise, saveCachedPairwise, prSetKey } from '../../../analysis/prCache.js';
+import { fetchPrRefs } from '../../../api/git.js';
+import { computeBrowserPairwise } from './computeBrowserPairwise.js';
+import { loadCachedPairwise, saveCachedPairwise, prSetKey } from '../prCache.js';
 import type { LocalPairwiseState } from '../types.js';
 
 // Browser-side pairwise conflict detection between the candidate PRs. Fetches

@@ -1,27 +1,25 @@
 import { useContext, useMemo, useState } from 'react';
 import type { LocalConflictReport } from '../../../checkLocalConflicts.js';
 import { RepoContext } from '../../../../../repo/RepoContext.js';
+import { loadJson, saveJson } from '../../../../../lib/localStorage.js';
 import { buildDedupGroups, type DedupGroup } from './dedupGroups.js';
 import { collapseKeptDuplicates } from './collapseKeptDuplicates.js';
 
 export const dedupGroupKey = (group: DedupGroup) => group.branches.join('\n');
-const defaultKeeper = (group: DedupGroup) => group.branches[group.branches.length - 1];
+const defaultKeeper = (group: DedupGroup) => group.branches.at(-1);
 
 interface PersistedChoices {
     excluded: string[];              // group keys the user chose NOT to collapse
     keepers: [string, string][];     // group key → branch that keeps the files
 }
 
+const dedupStorageKey = (slug: string) => `pr-matrix.dedup.${slug}`;
 function loadChoices(slug: string | null): PersistedChoices {
     if (!slug) return { excluded: [], keepers: [] };
-    try {
-        const raw = localStorage.getItem(`pr-matrix.dedup.${slug}`);
-        return raw ? (JSON.parse(raw) as PersistedChoices) : { excluded: [], keepers: [] };
-    } catch { return { excluded: [], keepers: [] }; }
+    return loadJson<PersistedChoices>(dedupStorageKey(slug)) ?? { excluded: [], keepers: [] };
 }
 function saveChoices(slug: string | null, choices: PersistedChoices): void {
-    if (!slug) return;
-    try { localStorage.setItem(`pr-matrix.dedup.${slug}`, JSON.stringify(choices)); } catch { /* fine */ }
+    if (slug) saveJson(dedupStorageKey(slug), choices);
 }
 
 // Owns the "collapse identical files" choices as pure VIEW state — which identical
@@ -65,7 +63,7 @@ export function useDedupChoices(rawReport: LocalConflictReport) {
         return byDonor;
     }, [groups, excluded, keepers]);
 
-    const effectiveReport = useMemo(
+    const effectiveReport: LocalConflictReport = useMemo(
         () => (filesByDonor.size === 0 ? rawReport : collapseKeptDuplicates(rawReport, filesByDonor)),
         [rawReport, filesByDonor],
     );

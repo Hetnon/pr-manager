@@ -1,3 +1,5 @@
+import { loadString, saveString } from '../lib/localStorage.js';
+
 const DB_NAME = 'pr-matrix';
 const STORE = 'kv';
 // Pre-multi-project builds stored a single handle under this fixed key. We now
@@ -6,18 +8,11 @@ const LEGACY_KEY = 'repo-folder-handle';
 const LAST_OPENED_REPO_STORAGE_KEY = 'pr-matrix.repo';
 
 export function saveLastOpenedRepoPointerOnStorage(slug: string | null) {
-    try {
-        if (slug) localStorage.setItem(LAST_OPENED_REPO_STORAGE_KEY, slug);
-        else localStorage.removeItem(LAST_OPENED_REPO_STORAGE_KEY);
-    } catch { /* localStorage disabled — fine */ }
+    saveString(LAST_OPENED_REPO_STORAGE_KEY, slug);
 }
 
 export function loadLastOpenedRepoPointerFromStorage(): string | null {
-    try {
-        return localStorage.getItem(LAST_OPENED_REPO_STORAGE_KEY);
-    } catch {
-        return null;
-    }
+    return loadString(LAST_OPENED_REPO_STORAGE_KEY);
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -29,7 +24,7 @@ function openDb(): Promise<IDBDatabase> {
             }
         };
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB'));
     });
 }
 
@@ -40,7 +35,7 @@ async function withStore<T>(mode: IDBTransactionMode, storeOperation: (store: ID
             const transaction = db.transaction(STORE, mode);
             const request = storeOperation(transaction.objectStore(STORE));
             request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
+            request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
         });
     } finally {
         db.close();

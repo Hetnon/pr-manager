@@ -87,7 +87,7 @@ export default function Matrix({
                                 {column.header}
                             </div>
                             {column.meta.map((node, i) => (
-                                <div key={metaLabels[i] ?? i} className={styles.metaCell}>{node}</div>
+                                <div key={metaLabels[i] ?? i} className={styles.metaBox}>{node}</div>
                             ))}
                         </div>
                     ))}

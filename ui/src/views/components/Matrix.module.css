@@ -35,10 +35,14 @@
   border: 1px solid var(--grid);
   font-size: 13px;
   color: #24292f;
+  /* Cap to the viewport and scroll rows internally so the sticky header (and the
+     summary/legend rendered above this box) stay visible on long matrices. */
+  max-height: 70vh;
+  overflow: auto;
 }
 
 /* ---- Header (column-major) ---- */
-.headerBlock { display: flex; gap: 1px; background: var(--grid); align-items: stretch; }
+.headerBlock { display: flex; gap: 1px; background: var(--grid); align-items: stretch; position: sticky; top: 0; z-index: 1; }
 
 .labelColumn {
   display: flex;
@@ -103,7 +107,7 @@
 .colHeader a { color: #0969da; text-decoration: none; font-weight: 600; }
 .colHeader a:hover { text-decoration: underline; }
 
-.metaCell {
+.metaBox {
   height: var(--meta-row-h);
   background: var(--meta-bg);
   display: flex;
@@ -160,7 +164,7 @@
   align-items: center;
   gap: 6px;
 }
-.triangle { width: 10px; text-align: center; font-size: 9px; color: #6e7781; }
+.triangle { display: inline-block; width: 10px; text-align: center; font-size: 9px; color: #6e7781; }
 
 /* ---- Body file rows (row-major) ---- */
 .body { display: flex; flex-direction: column; gap: 1px; background: var(--grid); }
@@ -203,7 +207,7 @@
 }
 
 /* Status + per-cell states */
-.safe { color: #1f883d; background: #dafbe1; }
+.safe { color: #1a7f37; background: #dafbe1; }
 .conflict { color: #cf222e; background: #ffebe9; }
 .hit { color: #1f883d; font-size: 16px; font-weight: bold; }
 .miss { color: #d0d7de; }

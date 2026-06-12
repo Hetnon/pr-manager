@@ -17,7 +17,7 @@ const SWATCH: Record<Exclude<LegendKind, 'dot'>, string> = {
 
 // Lives with Matrix so every consumer renders the same vocabulary in the same
 // fixed spot above the grid — only the items differ per matrix.
-export default function MatrixLegend({ items, note }: { items: LegendItem[]; note?: string }) {
+export default function MatrixLegend({ items, note }: Readonly<{ items: LegendItem[]; note?: string }>) {
     return (
         <div className={styles.legend}>
             {items.map((item, index) => (

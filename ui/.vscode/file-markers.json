@@ -96,7 +96,8 @@
     "src/adapters/gitHttpAdapter.ts": "done",
     "src/views/branches/BranchesView/BranchesPanelHeader": "done",
     "src/views/branches/BranchesView/BranchesPanelHeader/BranchesPanelHeader.module.css": "done",
-    "src/views/branches/BranchesView/BranchesPanelHeader/BranchesPanelHeader.tsx": "done"
+    "src/views/branches/BranchesView/BranchesPanelHeader/BranchesPanelHeader.tsx": "done",
+    "src/views/ProgressModal/Modal.tsx": "done"
   },
   "lineHighlightTypes": [
     {

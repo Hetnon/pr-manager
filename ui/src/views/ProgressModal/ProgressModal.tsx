@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import Modal from '../components/Modal.js';
+import Modal from './Modal.js';
 import { useDelayedFlag } from './useDelayedFlag.js';
 import { AnalysisContext } from '../AnalysisContext.js';
 import BranchesProgressView from './BranchesProgressView/BranchesProgressView.js';

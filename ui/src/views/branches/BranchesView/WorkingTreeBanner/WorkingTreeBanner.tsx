@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
-import { AnalysisContext } from '../../AnalysisContext.js';
+import { AnalysisContext } from '../../../AnalysisContext.js';
 import styles from './WorkingTreeBanner.module.css';
-import shared from './BranchesView.module.css';
+import shared from '../BranchesView.module.css';
 
 // Surfaces working-tree state on refresh: branch ops (fold/dedup/merge) move
 // refs but never touch these files, so a dirty tree is worth flagging up front.

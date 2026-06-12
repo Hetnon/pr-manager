@@ -6,7 +6,7 @@ import { buildDedupGroups, type DedupGroup } from './dedupGroups.js';
 import { collapseKeptDuplicates } from './collapseKeptDuplicates.js';
 
 export const dedupGroupKey = (group: DedupGroup) => group.branches.join('\n');
-const defaultKeeper = (group: DedupGroup) => group.branches.at(-1);
+const defaultKeeper = (group: DedupGroup) => group.branches[group.branches.length - 1];
 
 interface PersistedChoices {
     excluded: string[];              // group keys the user chose NOT to collapse

@@ -1,7 +1,8 @@
 /* BranchesView shared styles. Element-local styles live in colocated modules
-   next to their owner (WorkingTreeBanner.module.css, BranchesPanelHeader.module.css,
-   BranchesList/BranchList.module.css, BranchConflictReport/*.module.css). Only
-   classes used by multiple files across this subtree live here. */
+   next to their owner (WorkingTreeBanner/WorkingTreeBanner.module.css,
+   BranchesPanelHeader/BranchesPanelHeader.module.css, BranchesList/BranchList.module.css,
+   BranchConflictReport/*.module.css). Only classes used by multiple files across
+   this subtree live here. */
 
 /* Outer card. Used only by BranchesView itself — kept here because this file
    is BranchesView's own module. */

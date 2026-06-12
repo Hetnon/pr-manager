@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AnalysisContext } from '../../AnalysisContext.js';
+import { AnalysisContext } from '../../../AnalysisContext.js';
 import styles from './BranchesPanelHeader.module.css';
 
 export default function BranchesPanelHeader() {

@@ -54,7 +54,7 @@ export default function TechLeadActions({
             <ul className={styles.mergeList}>
                 {readyToMerge.map((pr) => (
                     <li key={pr.number}>
-                        <span><strong>#{pr.number}</strong> — {pr.title} <span className="muted">({pr.author.login} · {pr.headRefName})</span></span>
+                        <span><strong>#{pr.number}</strong> — {pr.title} <span className={styles.muted}>({pr.author.login} · {pr.headRefName})</span></span>
                         <label className={styles.deleteBranchLabel}>
                             <input
                                 type="checkbox"

@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { AnalysisContext } from '../../AnalysisContext.js';
-import styles from './BranchesView.module.css';
+import styles from './WorkingTreeBanner.module.css';
+import shared from './BranchesView.module.css';
 
 // Surfaces working-tree state on refresh: branch ops (fold/dedup/merge) move
 // refs but never touch these files, so a dirty tree is worth flagging up front.
@@ -38,7 +39,7 @@ export default function WorkingTreeBanner() {
         <div className={styles.warnBanner}>
             <strong>⚠ Working tree not clean</strong>
             {currentBranch && <> on <code>{currentBranch}</code></>} — {parts.join(', ')}.
-            <span className={styles.subtle}> Branch operations here move refs but don't touch these files — commit or stash before merging/folding.</span>
+            <span className={shared.subtle}> Branch operations here move refs but don't touch these files — commit or stash before merging/folding.</span>
             {' '}
             <button
                 type="button"
@@ -51,7 +52,7 @@ export default function WorkingTreeBanner() {
                 <div className={styles.wtFiles}>
                     {groups.filter(([, files]) => files.length > 0).map(([label, files]) => (
                         <div key={label} className={styles.wtGroup}>
-                            <span className={styles.subtle}>{label}:</span>
+                            <span className={shared.subtle}>{label}:</span>
                             <ul className={styles.fileUl}>
                                 {files.map((file) => <li key={file}>{file}</li>)}
                             </ul>

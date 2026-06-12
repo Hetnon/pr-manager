@@ -9,7 +9,7 @@ import LocalBranchesMatrix from './LocalBranchesMatrix.js';
 import DuplicatesBanner from './DuplicatesBanner/DuplicatesBanner.js';
 import MatrixLegend from './MatrixLegend.js';
 import DefaultAssessmentPanel from './DefaultAssessmentPanel.js';
-import styles from '../BranchesView.module.css';
+import styles from './BranchConflictReport.module.css';
 
 // Gate: the conflict report only exists once analysis has run (and needs a snapshot).
 // useDedupChoices dereferences the report, so the hook-using body is a separate

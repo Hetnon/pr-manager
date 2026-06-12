@@ -5,6 +5,7 @@ import Matrix, { type MatrixColumn, type MatrixFileRow } from '../../../../compo
 import PrMatrixSummary from './PrMatrixSummary.js';
 import { formatAbsolute, formatTimeAgo } from '../../../../../lib/formatDate.js';
 import styles from '../../../../components/Matrix.module.css';
+import localStyles from './PrMatrix.module.css';
 
 export type CellState = 'conflict' | 'warning' | undefined;
 
@@ -35,14 +36,14 @@ export default function PrMatrix({ matrix, cellState, renderFileExtra }: Props) 
     const { sortedPrs, files, prSafe, safeCount, hotFileCount } = matrix;
 
     if (sortedPrs.length === 0) {
-        return <p className="empty">No open PRs. 🎉</p>;
+        return <p className={localStyles.empty}>No open PRs. 🎉</p>;
     }
 
     const columns: MatrixColumn[] = sortedPrs.map((pr) => {
         const safe = prSafe.get(pr.number);
         return {
             key: pr.number,
-            header: <a className="pr-link" href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>,
+            header: <a href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number}</a>,
             headerClassName: safe ? styles.prSafe : styles.prConflict,
             headerTitle: `GitHub: ${pr.mergeStateStatus} | ${pr.mergeable}`,
             meta: [

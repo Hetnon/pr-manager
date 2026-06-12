@@ -1,0 +1,9 @@
+/* PrMatrix-local styles. The matrix layout itself lives in
+   ../../../../components/Matrix.module.css — this module only holds the
+   "no open PRs" empty-state. */
+
+.empty {
+  padding: 40px;
+  text-align: center;
+  color: #6e7781;
+}

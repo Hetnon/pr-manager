@@ -1,0 +1,4 @@
+/* LocalBranchesMatrix-local styles. Matrix layout itself lives in
+   ../../../components/Matrix.module.css. */
+
+.extraBadge { margin-left: 4px; font-size: 10px; color: #57606a; }

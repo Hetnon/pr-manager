@@ -6,7 +6,8 @@ import { useClosePr } from '../../../useClosePr.js';
 import { usePushBranch } from './usePushBranch.js';
 import { useOpenPr } from './useOpenPr.js';
 import { formatDateTime } from '../../../../lib/formatDate.js';
-import styles from '../BranchesView.module.css';
+import styles from './BranchList.module.css';
+import shared from '../BranchesView.module.css';
 import { AnalysisContext } from '../../../AnalysisContext.js';
 
 function formatCount(count: number, truncated: boolean): string {
@@ -52,21 +53,21 @@ export default function BranchList() {
     return (
         <>
             {lastPush && (
-                <p className={`${styles.message} ${lastPush.ok ? styles.ok : styles.bad}`}>
+                <p className={`${shared.message} ${lastPush.ok ? shared.ok : shared.bad}`}>
                     {lastPush.ok
                         ? <>✓ Pushed <code>{lastPush.branch}</code> to origin{lastPush.updatedPr && <> (updated <a href={lastPush.updatedPr.url} target="_blank" rel="noreferrer">PR #{lastPush.updatedPr.number}</a>)</>}</>
                         : <>✗ <code>{lastPush.branch}</code>: {lastPush.message}</>}
                 </p>
             )}
             {lastPr && (
-                <p className={`${styles.message} ${lastPr.ok ? styles.ok : styles.bad}`}>
+                <p className={`${shared.message} ${lastPr.ok ? shared.ok : shared.bad}`}>
                     {lastPr.ok
                         ? <>✓ Pushed <code>{lastPr.branch}</code> and opened <a href={lastPr.prUrl} target="_blank" rel="noreferrer">PR #{lastPr.prNumber}</a></>
                         : <>✗ <code>{lastPr.branch}</code>: {lastPr.message}</>}
                 </p>
             )}
             {lastClose && (
-                <p className={`${styles.message} ${lastClose.ok ? styles.ok : styles.bad}`}>
+                <p className={`${shared.message} ${lastClose.ok ? shared.ok : shared.bad}`}>
                     {lastClose.ok ? `✓ ${lastClose.message}` : `✗ Couldn't close #${lastClose.prNumber}: ${lastClose.message}`}
                 </p>
             )}
@@ -116,7 +117,7 @@ export default function BranchList() {
                             </div>
                             <div className={styles.colCommit}>
                                 {branch.error
-                                    ? <span className={styles.bad}>{branch.error}</span>
+                                    ? <span className={shared.bad}>{branch.error}</span>
                                     : branch.head
                                         ? <span title={`${branch.head.authorName} · ${formatDateTime(branch.head.date)}`}>{branch.head.message}</span>
                                         : '—'}

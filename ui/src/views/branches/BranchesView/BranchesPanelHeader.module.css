@@ -1,0 +1,5 @@
+/* BranchesPanelHeader-local styles. */
+
+.panelHead { display: flex; align-items: center; gap: 8px; }
+.headBusy { font-size: 12px; color: #57606a; font-style: italic; }
+.headMeta { font-size: 12px; color: #57606a; }

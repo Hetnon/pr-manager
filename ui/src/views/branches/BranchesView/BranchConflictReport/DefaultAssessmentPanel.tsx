@@ -1,5 +1,6 @@
 import type { BranchVsDefault } from '../../checkLocalConflicts.js';
-import styles from '../BranchesView.module.css';
+import styles from './DefaultAssessmentPanel.module.css';
+import shared from '../BranchesView.module.css';
 
 interface Props {
     defaultBranch: string;
@@ -43,7 +44,7 @@ export default function DefaultAssessmentPanel({ defaultBranch, branchVsDefault 
                         {overlapping.map((assessment) => (
                             <li key={assessment.branch} className={styles.assessItem}>
                                 <code>{assessment.branch}</code>{' '}
-                                <span className={styles.subtle}>
+                                <span className={shared.subtle}>
                                     — {assessment.intersection.length} file{assessment.intersection.length === 1 ? '' : 's'} also changed on {defaultBranch}:
                                 </span>
                                 <ul className={styles.assessSubList}>

@@ -1,7 +1,8 @@
 import type { BranchGroup } from '../../../checkLocalConflicts.js';
 import type { DeleteBranchResult } from '@shared/branches.js';
 import { useDeleteBranch } from './useDeleteBranch/useDeleteBranch.js';
-import styles from '../../BranchesView.module.css';
+import styles from './DuplicatesBanner.module.css';
+import shared from '../../BranchesView.module.css';
 
 interface Props {
     groups: BranchGroup[];
@@ -65,7 +66,7 @@ function DeleteOutcomeNote({ outcome }: { outcome: DeleteBranchResult }) {
     }
     const allOk = (!outcome.local.attempted || outcome.local.ok) && (!outcome.origin.attempted || outcome.origin.ok);
     return (
-        <div className={`${styles.outcomeNote} ${allOk ? styles.ok : styles.warn}`}>
+        <div className={`${styles.outcomeNote} ${allOk ? shared.ok : styles.warn}`}>
             <code>{outcome.branch}</code>: {bits.join(' · ')}
         </div>
     );

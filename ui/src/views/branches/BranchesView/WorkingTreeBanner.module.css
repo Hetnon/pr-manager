@@ -1,0 +1,18 @@
+/* WorkingTreeBanner-local styles. .subtle is shared with DefaultAssessmentPanel
+   so it stays in ../BranchesView.module.css. */
+
+.warnBanner {
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: #fff8c5;
+  border: 1px solid #d4a72c;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.wtChecking { margin: 8px 0; font-size: 12px; color: #57606a; font-style: italic; }
+.wtError { margin: 8px 0; font-size: 12px; color: #cf222e; }
+.wtClean { margin: 8px 0; font-size: 12px; color: #57606a; }
+.linkButton { background: none; border: none; color: #0969da; cursor: pointer; font: inherit; padding: 0; }
+.wtFiles { margin-top: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.wtGroup { margin-top: 4px; }
+.fileUl { margin: 2px 0 0; padding-left: 18px; }

@@ -1,4 +1,4 @@
-import styles from '../BranchesView.module.css';
+import styles from './MatrixLegend.module.css';
 
 // Explains what the matrix's dots and colors mean — the dot is presence only;
 // the cell color carries the 3-way-merge verdict.

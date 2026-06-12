@@ -35,6 +35,9 @@
   white-space: nowrap;
 }
 
+/* Dim text for the "(author · branch)" suffix on each merge-ready row. */
+.muted { color: #6e7781; font-weight: normal; }
+
 .merge-success,
 .merge-warn {
   margin: 12px 0;

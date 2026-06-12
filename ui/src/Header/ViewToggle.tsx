@@ -1,3 +1,5 @@
+import styles from './Header.module.css';
+
 export type View = 'branches' | 'prs';
 
 interface Props {
@@ -8,13 +10,13 @@ interface Props {
 // The Branches | Pull Requests switch. Hard toggle — exactly one is active.
 export default function ViewToggle({ view, onSelectView }: Readonly<Props>) {
     return (
-        <nav className="view-toggle">
+        <nav className={styles.viewToggle}>
             <button
-                className={view === 'branches' ? 'active' : ''}
+                className={view === 'branches' ? styles.active : undefined}
                 onClick={() => onSelectView('branches')}
             >Branches</button>
             <button
-                className={view === 'prs' ? 'active' : ''}
+                className={view === 'prs' ? styles.active : undefined}
                 onClick={() => onSelectView('prs')}
             >Pull Requests</button>
         </nav>

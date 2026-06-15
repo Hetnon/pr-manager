@@ -1,4 +1,4 @@
 /* BranchConflictReport-local wrapper styles. */
 
 .reportBlock { margin-top: 16px; }
-.analyzeNote { font-size: 12px; color: #57606a; margin-bottom: 6px; }
+.analyzeNote { font-size: 12px; color: var(--color-text-muted); margin-bottom: 6px; }

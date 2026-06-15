@@ -2,14 +2,59 @@
    button styling, and classes genuinely used by three or more unrelated
    feature folders. Anything feature- or component-local lives in a
    colocated CSS module — search those for the class instead of adding here. */
+ :root {
+   /* Text */
+   --color-text-default: #24292f;
+   --color-text-muted: #57606a;
+   --color-text-subtle: #6e7781;
+   --color-text-strong: #424a53;
+   --color-text-faint: #8c959f;
+
+   --color-text-success: #1a7f37;
+   --color-text-danger: #cf222e;
+   --color-text-warning: #9a6700;
+   --color-text-info: #0a3069;
+
+   --color-text-link: #0969da;
+   --color-text-link-hover: #0860ca;
+
+   /* Backgrounds */
+   --color-bg-page: #f6f8fa;
+   --color-bg-surface: #ffffff;
+   --color-bg-surface-muted: #fafbfc;
+
+   --color-bg-success: #dafbe1;
+   --color-bg-danger: #ffebe9;
+   --color-bg-danger-strong: #ffcecb;
+   --color-bg-warning: #fff8c5;
+   --color-bg-warning-muted: #fffbe6;
+   --color-bg-info: #ddf4ff;
+
+   /* Borders */
+   --color-border-default: #d0d7de;
+   --color-border-muted: #eaeef2;
+   --color-border-warning: #d4a72c;
+   --color-border-info: #54aeff;
+
+   /* Buttons */
+   --color-button-primary-bg: #1f883d;
+   --color-button-primary-bg-hover: #1a7f37;
+   --color-button-primary-bg-disabled: #94d3a2;
+   --color-button-primary-border: #1f883d;
+
+   /* Effects */
+   --color-overlay-backdrop: rgba(27, 31, 36, 0.5);
+   --color-shadow-default: rgba(140, 149, 159, 0.2);
+   --color-bg-code: rgba(175, 184, 193, 0.2);
+ }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
   margin: 0;
-  background: #f6f8fa;
-  color: #24292f;
+  background: var(--color-bg-page);
+  color: var(--color-text-default);
 }
 #root {
   height: 100%;
@@ -19,8 +64,8 @@ body {
 header {
   flex: 0 0 auto;
   padding: 12px 20px;
-  background: white;
-  border-bottom: 1px solid #d0d7de;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -30,30 +75,30 @@ h1 { margin: 0; font-size: 18px; }
 /* Default button look — applies to every <button> not styled by a module. */
 button {
   padding: 6px 12px;
-  border: 1px solid #d0d7de;
-  background: white;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
 }
-button:hover { background: #f6f8fa; }
+button:hover { background: var(--color-bg-page); }
 button.primary {
-  background: #1f883d;
-  color: white;
-  border-color: #1f883d;
+  background: var(--color-button-primary-bg);
+  color: var(--color-bg-surface);
+  border-color: var(--color-button-primary-border);
 }
-button.primary:hover { background: #1a7f37; }
-button.primary:disabled { background: #94d3a2; border-color: #94d3a2; cursor: default; }
+button.primary:hover { background: var(--color-button-primary-bg-hover); }
+button.primary:disabled { background: var(--color-button-primary-bg-disabled); border-color: var(--color-button-primary-bg-disabled); cursor: default; }
 
 /* Inline error banner — shared across unrelated features (repo picker,
    PickerActions, PrConflicts). LCA is the src root, so it stays global. */
 .error-banner {
   margin: 12px 0 0;
-  color: #cf222e;
+  color: var(--color-text-danger);
   font-size: 13px;
   padding: 8px 12px;
-  background: #ffebe9;
-  border: 1px solid #ffcecb;
+  background: var(--color-bg-danger);
+  border: 1px solid var(--color-bg-danger-strong);
   border-radius: 6px;
 }
 
@@ -66,11 +111,11 @@ main {
 
 /* Generic "we're working" / "something broke" placeholders, used by
    multiple unrelated features (SessionAuthLayer, MainPage, PrView). */
-.loading, .error { padding: 40px; text-align: center; color: #6e7781; }
-.error { color: #cf222e; }
+.loading, .error { padding: 40px; text-align: center; color: var(--color-text-subtle); }
+.error { color: var(--color-text-danger); }
 
 /* Shared status-color helpers — green/red/dim. Used across unrelated feature
    folders (branches messages/list, conflict report subpanels, etc.). */
-.ok { color: #1a7f37; }
-.bad { color: #cf222e; }
-.subtle { color: #57606a; }
+.ok { color: var(--color-text-success); }
+.bad { color: var(--color-text-danger); }
+.subtle { color: var(--color-text-muted); }

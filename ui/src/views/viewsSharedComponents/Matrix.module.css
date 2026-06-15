@@ -23,9 +23,9 @@
   --col-w: 160px;
   --header-row-h: 38px;
   --meta-row-h: 22px;
-  --grid: #d0d7de;
-  --header-bg: #f6f8fa;
-  --meta-bg: #fafbfc;
+  --grid: var(--color-border-default);
+  --header-bg: var(--color-bg-page);
+  --meta-bg: var(--color-bg-surface-muted);
 
   display: flex;
   flex-direction: column;
@@ -34,7 +34,7 @@
   background: var(--grid);
   border: 1px solid var(--grid);
   font-size: 13px;
-  color: #24292f;
+  color: var(--color-text-default);
   /* Cap to the viewport and scroll rows internally so the sticky header (and the
      summary/legend rendered above this box) stay visible on long matrices. */
   max-height: 70vh;
@@ -61,7 +61,7 @@
   padding: 0 10px;
   font-size: 11px;
   font-weight: 600;
-  color: #6e7781;
+  color: var(--color-text-subtle);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -100,11 +100,11 @@
   padding: 0 8px;
   font-weight: 600;
   text-align: center;
-  white-space: nowrap;
+  var(--color-bg-surface)-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.colHeader a { color: #0969da; text-decoration: none; font-weight: 600; }
+.colHeader a { color: var(--color-text-link); text-decoration: none; font-weight: 600; }
 .colHeader a:hover { text-decoration: underline; }
 
 .metaBox {
@@ -122,18 +122,18 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  var(--color-bg-surface)-space: nowrap;
   font-size: 11px;
-  color: #57606a;
+  color: var(--color-text-muted);
 }
-.branch { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #6e7781; }
-.author { font-weight: 500; color: #24292f; }
+.branch { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--color-text-subtle); }
+.author { font-weight: 500; color: var(--color-text-default); }
 .title { font-style: italic; }
-.timestamp { color: #57606a; }
+.timestamp { color: var(--color-text-muted); }
 
 /* Entity-header tints */
-.prSafe { background: #dafbe1; }
-.prConflict { background: #ffebe9; }
+.prSafe { background: var(--color-bg-success); }
+.prConflict { background: var(--color-bg-danger); }
 
 /* ---- Footer toggle row (row-major) ---- */
 .footerRow { display: flex; gap: 1px; background: var(--grid); }
@@ -164,7 +164,7 @@
   align-items: center;
   gap: 6px;
 }
-.triangle { display: inline-block; width: 10px; text-align: center; font-size: 9px; color: #6e7781; }
+.triangle { display: inline-block; width: 10px; text-align: center; font-size: 9px; color: var(--color-text-subtle); }
 
 /* ---- Body file rows (row-major) ---- */
 .body { display: flex; flex-direction: column; gap: 1px; background: var(--grid); }
@@ -174,7 +174,7 @@
   flex: 0 0 var(--label-col-w);
   min-width: 0;
   overflow: hidden;
-  background: white;
+  background: var(--color-bg-surface);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -199,7 +199,7 @@
   flex: 0 0 var(--col-w);
   min-width: 0;
   overflow: hidden;
-  background: white;
+  background: var(--color-bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -207,39 +207,39 @@
 }
 
 /* Status + per-cell states */
-.safe { color: #1a7f37; background: #dafbe1; }
-.conflict { color: #cf222e; background: #ffebe9; }
-.hit { color: #1f883d; font-size: 16px; font-weight: bold; }
-.miss { color: #d0d7de; }
-.cellConflict { color: white; background: #cf222e; font-size: 14px; }
-.cellWarning { color: #24292f; background: #fff8c5; font-size: 14px; }
+.safe { color: var(--color-text-success); background: var(--color-bg-success); }
+.conflict { color: var(--color-text-danger); background: var(--color-bg-danger); }
+.hit { color: var(--color-button-primary-bg); font-size: 16px; font-weight: bold; }
+.miss { color: var(--color-border-default); }
+.cellConflict { color: var(--color-bg-surface); background: var(--color-text-danger); font-size: 14px; }
+.cellWarning { color: var(--color-text-default); background: var(--color-bg-warning); font-size: 14px; }
 
 /* File heat tints */
-.heat1 { background: white; }
-.heatIdentical { background: #ddf4ff; }
-.heatWarning { background: #fff8c5; }
-.heatConflict { background: #ffcecb; }
+.heat1 { background: var(--color-bg-surface); }
+.heatIdentical { background: var(--color-bg-info); }
+.heatWarning { background: var(--color-bg-warning); }
+.heatConflict { background: var(--color-bg-danger-strong); }
 
 /* Identical-content status glyph/cell */
-.identical { color: #0969da; background: #ddf4ff; }
+.identical { color: var(--color-text-link); background: var(--color-bg-info); }
 
 /* Summary line shown above the matrix (rendered by the adapters). */
 .summary {
   margin-bottom: 16px;
   padding: 12px 16px;
-  background: white;
-  border: 1px solid #d0d7de;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
   border-radius: 6px;
   font-size: 14px;
 }
 
 /* ---- Legend (rendered above the grid by MatrixLegend) ---- */
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #57606a; margin: 0 0 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--color-text-muted); margin: 0 0 8px; }
 .legendItem { display: inline-flex; align-items: center; gap: 2px; }
-.legendDot { color: #1f883d; font-weight: bold; }
-.swatch { display: inline-block; width: 11px; height: 11px; border-radius: 2px; border: 1px solid #d0d7de; vertical-align: middle; margin-right: 4px; }
-.swatchSafe { background: white; }
-.swatchIdentical { background: #ddf4ff; }
-.swatchClean { background: #fff8c5; }
-.swatchConflict { background: #ffcecb; }
+.legendDot { color: var(--color-button-primary-bg); font-weight: bold; }
+.swatch { display: inline-block; width: 11px; height: 11px; border-radius: 2px; border: 1px solid var(--color-border-default); vertical-align: middle; margin-right: 4px; }
+.swatchSafe { background: var(--color-bg-surface); }
+.swatchIdentical { background: var(--color-bg-info); }
+.swatchClean { background: var(--color-bg-warning); }
+.swatchConflict { background: var(--color-bg-danger-strong); }
 .italic { font-style: italic; }

@@ -1,14 +1,14 @@
 /* DuplicatesBanner-local styles. .ok is shared and stays in
    ../../../BranchesView.module.css. */
 
-.dupBanner { margin-bottom: 8px; padding: 8px 12px; background: #fff8c5; border: 1px solid #d4a72c; border-radius: 4px; font-size: 13px; }
+.dupBanner { margin-bottom: 8px; padding: 8px 12px; background: var(--color-bg-warning); border: 1px solid var(--color-border-warning); border-radius: 4px; font-size: 13px; }
 .dupList { margin: 6px 0 0; padding-left: 18px; }
 .dupGroup { margin-bottom: 4px; }
 .dupBranchList { margin: 2px 0 0; padding-left: 18px; list-style: none; }
 .dupBranchRow { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-.keepTag { font-size: 11px; color: #1a7f37; font-weight: 600; }
+.keepTag { font-size: 11px; color: var(--color-text-success); font-weight: 600; }
 .smallBtn { font-size: 11px; padding: 1px 6px; }
 .outcomeNote { margin-top: 6px; font-size: 12px; }
 
 /* Only used by .outcomeNote as the "partial failure" variant. */
-.warn { color: #9a6700; }
+.warn { color: var(--color-text-warning); }

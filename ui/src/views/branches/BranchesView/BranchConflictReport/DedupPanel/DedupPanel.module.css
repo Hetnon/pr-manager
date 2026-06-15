@@ -1,16 +1,16 @@
-.card { margin: 0 0 12px; border: 1px solid #54aeff; border-radius: 6px; background: #ddf4ff; }
-.toggle { width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 10px 14px; font: inherit; color: #0a3069; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card { margin: 0 0 12px; border: 1px solid var(--color-border-info); border-radius: 6px; background: var(--color-bg-info); }
+.toggle { width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 10px 14px; font: inherit; color: var(--color-text-info); font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .caret { font-size: 9px; }
 .body { padding: 0 14px 12px; }
-.intro { margin: 0 0 10px; font-size: 12px; color: #0a3069; }
+.intro { margin: 0 0 10px; font-size: 12px; color: var(--color-text-info); }
 .list { list-style: none; margin: 0; padding: 0; }
 .row { padding: 8px 0; border-top: 1px solid rgba(10, 48, 105, 0.15); font-size: 13px; }
 .rowHead { display: flex; align-items: flex-start; gap: 8px; }
 .includeLabel { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; flex: 1; }
 .includeCheckbox { margin-top: 3px; }
-.showFiles { background: none; border: none; color: #0969da; cursor: pointer; font: inherit; padding: 0; white-space: nowrap; }
-.keepRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 0 24px; font-size: 12px; color: #0a3069; }
+.showFiles { background: none; border: none; color: var(--color-text-link); cursor: pointer; font: inherit; padding: 0; var(--color-bg-surface)-space: nowrap; }
+.keepRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 0 24px; font-size: 12px; color: var(--color-text-info); }
 .keepOption { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.fileList { margin: 4px 0 0 24px; padding: 0; list-style: none; font-size: 12px; color: #0a3069; font-family: ui-monospace, Consolas, monospace; }
+.fileList { margin: 4px 0 0 24px; padding: 0; list-style: none; font-size: 12px; color: var(--color-text-info); font-family: ui-monospace, Consolas, monospace; }
 .apply { margin-top: 12px; }
 .message { margin: 0 0 8px; font-size: 13px; }

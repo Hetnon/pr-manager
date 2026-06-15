@@ -5,15 +5,15 @@
   composes: card from '../panelChrome.module.css';
   margin-top: 20px;
 }
-.section h2 { margin: 0 0 8px; font-size: 16px; color: #24292f; }
-.intro { margin: 0 0 12px; color: #57606a; font-size: 13px; }
-.status { margin: 0 0 12px; color: #57606a; font-size: 13px; font-style: italic; }
+.section h2 { margin: 0 0 8px; font-size: 16px; color: var(--color-text-default); }
+.intro { margin: 0 0 12px; color: var(--color-text-muted); font-size: 13px; }
+.status { margin: 0 0 12px; color: var(--color-text-muted); font-size: 13px; font-style: italic; }
 
 .clean {
   composes: bannerOk from '../panelChrome.module.css';
   margin: 0;
   padding: 12px 16px;
-  color: #1a7f37;
+  color: var(--color-text-success);
   font-weight: 600;
   font-size: 14px;
 }
@@ -21,24 +21,24 @@
   composes: bannerWarn from '../panelChrome.module.css';
   margin: 0 0 12px;
   padding: 8px 12px 8px 32px;
-  color: #9a6700;
+  color: var(--color-text-warning);
   font-size: 13px;
 }
 
 .legendBad {
-  color: white;
-  background: #cf222e;
+  color: var(--color-bg-surface);
+  background: var(--color-text-danger);
   padding: 0 4px;
   border-radius: 3px;
   font-weight: bold;
 }
 .legendWarn {
-  color: #24292f;
-  background: #fff8c5;
+  color: var(--color-text-default);
+  background: var(--color-bg-warning);
   padding: 0 4px;
   border-radius: 3px;
   font-weight: bold;
-  border: 1px solid #d4a72c;
+  border: 1px solid var(--color-border-warning);
 }
 
 .base-chip {
@@ -48,10 +48,10 @@
   border-radius: 3px;
   font-size: 10px;
   font-weight: normal;
-  color: #57606a;
-  background: #f6f8fa;
-  border: 1px solid #d0d7de;
-  white-space: nowrap;
+  color: var(--color-text-muted);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  var(--color-bg-surface)-space: nowrap;
   cursor: help;
 }
 .base-chip code {
@@ -61,9 +61,9 @@
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 .chip-stale {
-  color: #9a6700;
-  background: #fff8c5;
-  border-color: #d4a72c;
+  color: var(--color-text-warning);
+  background: var(--color-bg-warning);
+  border-color: var(--color-border-warning);
 }
 
 /* lastClose status line — color picked by .statusOk / .statusBad */
@@ -71,15 +71,15 @@
   margin: 6px 0;
   font-size: 13px;
 }
-.statusOk { color: #1a7f37; }
-.statusBad { color: #cf222e; }
+.statusOk { color: var(--color-text-success); }
+.statusBad { color: var(--color-text-danger); }
 
 /* ConflictingPrsPanel */
 .conflictPanel {
   margin: 12px 0;
   padding: 12px 14px;
-  background: #fffbe6;
-  border: 1px solid #d4a72c;
+  background: var(--color-bg-warning-muted);
+  border: 1px solid var(--color-border-warning);
   border-radius: 6px;
 }
 .conflictTitle {
@@ -88,7 +88,7 @@
 .conflictIntro {
   margin: 4px 0 10px;
   font-size: 12px;
-  color: #57606a;
+  color: var(--color-text-muted);
 }
 .conflictList {
   list-style: none;
@@ -119,22 +119,22 @@
   font-size: 13px;
 }
 .conflictMeta {
-  color: #8c959f;
+  color: var(--color-text-faint);
 }
 .conflictPromoted {
   margin-left: 8px;
   font-size: 11px;
-  color: #1a7f37;
+  color: var(--color-text-success);
   font-weight: 600;
 }
 .conflictFiles {
   margin: 4px 0 0 0;
   padding-left: 16px;
   font-size: 12px;
-  color: #57606a;
+  color: var(--color-text-muted);
 }
 .conflictCloseBtn {
-  white-space: nowrap;
+  var(--color-bg-surface)-space: nowrap;
 }
 
 /* LocalPairwiseStatus — color picked by phase modifier below */
@@ -142,16 +142,16 @@
   margin: 6px 0;
   font-size: 12px;
 }
-.pairwiseWarn { color: #9a6700; }
-.pairwiseMuted { color: #57606a; }
-.pairwiseFail { color: #cf222e; }
+.pairwiseWarn { color: var(--color-text-warning); }
+.pairwiseMuted { color: var(--color-text-muted); }
+.pairwiseFail { color: var(--color-text-danger); }
 
 /* PrDuplicatesBanner */
 .dupesBanner {
   margin: 8px 0;
   padding: 8px 12px;
-  background: #fff8c5;
-  border: 1px solid #d4a72c;
+  background: var(--color-bg-warning);
+  border: 1px solid var(--color-border-warning);
   border-radius: 4px;
   font-size: 13px;
 }

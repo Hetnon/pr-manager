@@ -5,5 +5,5 @@
 .empty {
   padding: 40px;
   text-align: center;
-  color: #6e7781;
+  color: var(--color-text-subtle);
 }

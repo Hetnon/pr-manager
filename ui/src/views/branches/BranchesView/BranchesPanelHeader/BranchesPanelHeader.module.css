@@ -9,7 +9,7 @@
 
 .headBusy { 
     font-size: 12px; 
-    color: #57606a; 
+    color: var(--color-text-muted); 
     font-style: italic; 
 }
 
@@ -18,5 +18,5 @@
     flex-direction: column; 
     gap: 4px;
     font-size: 12px; 
-    color: #57606a; 
+    color: var(--color-text-muted); 
 }

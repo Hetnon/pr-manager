@@ -1,14 +1,14 @@
 .merge-ready {
   margin-top: 16px;
   padding: 12px;
-  background: #dafbe1;
-  border-left: 4px solid #1f883d;
+  background: var(--color-bg-success);
+  border-left: 4px solid var(--color-button-primary-bg);
   border-radius: 6px;
 }
-.merge-ready h3 { margin: 0 0 4px; font-size: 14px; color: #1a7f37; }
-.merge-intro { margin: 0 0 8px; font-size: 12px; color: #57606a; font-style: italic; }
+.merge-ready h3 { margin: 0 0 4px; font-size: 14px; color: var(--color-text-success); }
+.merge-intro { margin: 0 0 8px; font-size: 12px; color: var(--color-text-muted); font-style: italic; }
 .merge-intro code {
-  background: rgba(175, 184, 193, 0.2);
+  background: var(--color-bg-code);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -24,19 +24,19 @@
   font-size: 13px;
 }
 .merge-list li + li { border-top: 1px solid rgba(31, 136, 61, 0.2); }
-.merge-btn { white-space: nowrap; }
-.branch-delete-error { margin-top: 4px; color: #9a6700; font-size: 12px; }
+.merge-btn { var(--color-bg-surface)-space: nowrap; }
+.branch-delete-error { margin-top: 4px; color: var(--color-text-warning); font-size: 12px; }
 .delete-branch-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #57606a;
-  white-space: nowrap;
+  color: var(--color-text-muted);
+  var(--color-bg-surface)-space: nowrap;
 }
 
 /* Dim text for the "(author · branch)" suffix on each merge-ready row. */
-.muted { color: #6e7781; font-weight: normal; }
+.muted { color: var(--color-text-subtle); font-weight: normal; }
 
 .merge-success,
 .merge-warn {
@@ -46,20 +46,20 @@
   font-size: 13px;
 }
 .merge-success {
-  background: white;
-  border-left: 4px solid #1f883d;
-  color: #1a7f37;
+  background: var(--color-bg-surface);
+  border-left: 4px solid var(--color-button-primary-bg);
+  color: var(--color-text-success);
 }
 .merge-warn {
-  background: #fff8c5;
-  border-left: 4px solid #d4a72c;
-  color: #9a6700;
+  background: var(--color-bg-warning);
+  border-left: 4px solid var(--color-border-warning);
+  color: var(--color-text-warning);
 }
 .merge-success ol { margin: 6px 0 0; padding-left: 24px; }
-.merge-success li { margin: 2px 0; color: #24292f; font-size: 12px; }
+.merge-success li { margin: 2px 0; color: var(--color-text-default); font-size: 12px; }
 .merge-success code,
 .merge-warn code {
-  background: rgba(175, 184, 193, 0.2);
+  background: var(--color-bg-code);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 11px;

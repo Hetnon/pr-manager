@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { type TriageResult, type ResolutionOption, triageStatically } from './conflictTriage.js';
-import type { LocalConflictReport } from '../../../checkLocalConflicts.js';
+import { BranchReportContext } from '../BranchReportContext.js';
 import styles from './ConflictTriagePanel.module.css';
 
 const OPTION_LABEL: Record<ResolutionOption, string> = {
@@ -11,10 +11,11 @@ const OPTION_LABEL: Record<ResolutionOption, string> = {
 };
 const riskClass: Record<TriageResult['risk'], string> = { high: styles.high, medium: styles.medium, low: styles.low };
 
-// The second gate: shows the cheap triage's verdict per remaining-conflict file and lets
-// the user accept a recommendation or ignore the file. Decisions are local for now —
-// applying them (drop to the view, hand "deep investigate" to the model) is the next layer.
-export default function ConflictTriagePanel({ effectiveReport }: Readonly<{ effectiveReport: LocalConflictReport }>) {
+// The second gate: the cheap triage's verdict per remaining-conflict file, where the
+// user accepts a recommendation or ignores the file. Decisions are local — applying them
+// is the next layer.
+export default function ConflictTriagePanel() {
+    const { effectiveReport } = useContext(BranchReportContext);
     const [decisions, setDecisions] = useState<Map<string, string>>(new Map());
     const results = useMemo(() => triageStatically(effectiveReport), [effectiveReport]);
     if (results.length === 0) {

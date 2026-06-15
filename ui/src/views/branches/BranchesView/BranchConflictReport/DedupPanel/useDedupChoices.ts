@@ -22,11 +22,18 @@ function saveChoices(slug: string | null, choices: PersistedChoices): void {
     if (slug) saveJson(dedupStorageKey(slug), choices);
 }
 
-// Owns the "collapse identical files" choices as pure VIEW state — which identical
-// groups to collapse and which branch keeps each — and derives the effective report
-// the matrix (and the downstream funnel) render. No git, no commits: groups collapse by
-// default to cut noise, and the choices persist per repo.
-export function useDedupChoices(rawReport: LocalConflictReport) {
+export interface DedupChoices {
+    groups: DedupGroup[];
+    keeperFor: (group: DedupGroup) => string;
+    isIncluded: (group: DedupGroup) => boolean;
+    toggleIncluded: (key: string) => void;
+    setKeeper: (key: string, branch: string) => void;
+    effectiveReport: LocalConflictReport;
+}
+
+// Owns the "collapse identical files" choices as pure view state and derives the
+// effective report the matrix and downstream funnel render. Choices persist per repo.
+export function useDedupChoices(rawReport: LocalConflictReport): DedupChoices {
     const { currentRepoSlug } = useContext(RepoContext);
     const groups = useMemo(() => buildDedupGroups(rawReport.fileDetail), [rawReport.fileDetail]);
 

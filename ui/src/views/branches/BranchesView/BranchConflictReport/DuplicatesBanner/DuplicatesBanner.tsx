@@ -1,19 +1,17 @@
-import type { BranchGroup } from '../../../checkLocalConflicts.js';
+import { useContext } from 'react';
 import type { DeleteBranchResult } from '@shared/branches.js';
+import { AnalysisContext } from '../../../../AnalysisContext.js';
+import { BranchReportContext } from '../BranchReportContext.js';
 import { useDeleteBranch } from './useDeleteBranch/useDeleteBranch.js';
 import styles from './DuplicatesBanner.module.css';
 
-interface Props {
-    groups: BranchGroup[];
-    refresh: (currentRepoFolderHandle: FileSystemDirectoryHandle) => Promise<void>;
-}
-
-// Warns when multiple local branches point at the same HEAD sha, with a button
-// to delete each redundant copy (local + origin) while keeping the canonical one.
-// Owns the delete action itself (useDeleteBranch).
-export default function DuplicatesBanner({ groups, refresh }: Props) {
-    const { deletingBranch, lastDelete, deleteBranch } = useDeleteBranch(refresh);
-    const dupes = groups.filter((group) => group.branches.length > 1);
+// Warns when multiple local branches point at the same HEAD sha, with a button to delete
+// each redundant copy (local + origin) while keeping the canonical one.
+export default function DuplicatesBanner() {
+    const { rawReport } = useContext(BranchReportContext);
+    const { branchesAnalysis } = useContext(AnalysisContext);
+    const { deletingBranch, lastDelete, deleteBranch } = useDeleteBranch(branchesAnalysis.refresh);
+    const dupes = rawReport.branchGroups.filter((group) => group.branches.length > 1);
     if (dupes.length === 0) return null;
     const totalRedundant = dupes.reduce((total, group) => total + group.branches.length - 1, 0);
     return (
@@ -51,18 +49,18 @@ export default function DuplicatesBanner({ groups, refresh }: Props) {
     );
 }
 
-function DeleteOutcomeNote({ outcome }: { outcome: DeleteBranchResult }) {
+function describeLeg(leg: DeleteBranchResult['local']): string | null {
+    if (!leg.attempted) return null;
+    if (!leg.ok) return `✗ (${leg.error ?? 'failed'})`;
+    return leg.alreadyGone ? '✓ (was already gone)' : '✓';
+}
+
+function DeleteOutcomeNote({ outcome }: Readonly<{ outcome: DeleteBranchResult }>) {
     const bits: string[] = [];
-    if (outcome.local.attempted) {
-        bits.push(outcome.local.ok
-            ? (outcome.local.alreadyGone ? 'local ✓ (was already gone)' : 'local ✓')
-            : `local ✗ (${outcome.local.error ?? 'failed'})`);
-    }
-    if (outcome.origin.attempted) {
-        bits.push(outcome.origin.ok
-            ? (outcome.origin.alreadyGone ? 'origin ✓ (was already gone)' : 'origin ✓')
-            : `origin ✗ (${outcome.origin.error ?? 'failed'})`);
-    }
+    const local = describeLeg(outcome.local);
+    if (local) bits.push(`local ${local}`);
+    const origin = describeLeg(outcome.origin);
+    if (origin) bits.push(`origin ${origin}`);
     const allOk = (!outcome.local.attempted || outcome.local.ok) && (!outcome.origin.attempted || outcome.origin.ok);
     return (
         <div className={`${styles.outcomeNote} ${allOk ? 'ok' : styles.warn}`}>

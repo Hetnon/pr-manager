@@ -1,31 +1,14 @@
-import type { PR } from '@shared/pr.js';
-import type { LastMerge } from '../../types.js';
+import { useContext } from 'react';
+import { PrConflictsContext } from './PrConflictsContext.js';
 import styles from './TechLeadActions.module.css';
 
-interface Props {
-    readyToMerge: PR[];
-    lastMerge: LastMerge;
-    merging: number | null;
-    closingPr: number | null;
-    skipBranchDelete: Set<number>;
-    onToggleSkipBranchDelete: (prNumber: number, skip: boolean) => void;
-    onMerge: (prNumber: number) => void;
-    onClose: (prNumber: number) => void;
-}
-
-// The merge panel: PRs that are clean against the base branch, each with a one-click
-// squash-merge (via the GitHub API), a "delete branch" opt-out, and a close
-// button. Also surfaces the outcome of the last merge attempt.
-export default function TechLeadActions({
-    readyToMerge,
-    lastMerge,
-    merging,
-    closingPr,
-    skipBranchDelete,
-    onToggleSkipBranchDelete,
-    onMerge,
-    onClose,
-}: Props) {
+// The merge panel: PRs clean against the base branch, each with a one-click squash-merge
+// (via the GitHub API), a "delete branch" opt-out, and a close button. Also surfaces the
+// outcome of the last merge attempt.
+export default function TechLeadActions() {
+    const {
+        readyToMerge, lastMerge, merging, closingPr, skipBranchDelete, toggleSkipBranchDelete, handleMerge, close,
+    } = useContext(PrConflictsContext);
     return (
         <div className={styles.mergeReady}>
             <h3>Tech Lead Actions ({readyToMerge.length})</h3>
@@ -59,21 +42,21 @@ export default function TechLeadActions({
                             <input
                                 type="checkbox"
                                 checked={!skipBranchDelete.has(pr.number)}
-                                onChange={(event) => onToggleSkipBranchDelete(pr.number, !event.target.checked)}
+                                onChange={(event) => toggleSkipBranchDelete(pr.number, !event.target.checked)}
                                 disabled={merging !== null}
                             />
                             Delete branch
                         </label>
                         <button
                             className={`primary ${styles.mergeBtn}`}
-                            onClick={() => onMerge(pr.number)}
+                            onClick={() => handleMerge(pr.number)}
                             disabled={merging !== null || closingPr !== null}
                         >
                             {merging === pr.number ? 'Merging…' : 'Squash & merge'}
                         </button>
                         <button
                             type="button"
-                            onClick={() => onClose(pr.number)}
+                            onClick={() => close(pr.number)}
                             disabled={merging !== null || closingPr !== null}
                             title="Close this PR without merging (reopenable on GitHub)"
                         >

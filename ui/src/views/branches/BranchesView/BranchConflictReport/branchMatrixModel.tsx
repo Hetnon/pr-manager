@@ -1,8 +1,8 @@
-import styles from '../../../components/Matrix.module.css';
+import styles from '../../../viewsSharedComponents/Matrix.module.css';
 import branchStyles from './LocalBranchesMatrix.module.css';
-import { metaCell } from '../../../components/metaCell.js';
-import type { MatrixColumn, MatrixFileRow } from '../../../components/Matrix.js';
-import type { LegendItem } from '../../../components/MatrixLegend.js';
+import { metaCell } from '../../../viewsSharedComponents/metaCell.js';
+import type { MatrixColumn, MatrixFileRow } from '../../../viewsSharedComponents/Matrix/Matrix.types.js';
+import type { LegendItem } from '../../../viewsSharedComponents/MatrixLegend.js';
 import { formatRelative, formatDateTime } from '../../../../lib/formatDate.js';
 import type { LocalBranch } from '../../readLocalRepo.js';
 import type { BranchChanges, BranchGroup } from '../../checkLocalConflicts.js';

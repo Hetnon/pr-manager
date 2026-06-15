@@ -1,19 +1,12 @@
-import type { PR } from '@shared/pr.js';
+import { useContext } from 'react';
+import { PrConflictsContext } from './PrConflictsContext.js';
 import styles from './PrConflicts.module.css';
 
-interface Props {
-    nonGreens: PR[];
-    promoted: Set<number>;
-    onToggle: (prNumber: number, on: boolean) => void;
-    conflictsByPr: Map<number, Array<{ file: string; others: number[] }>>;
-    onClose: (prNumber: number) => void;
-    closingPr: number | null;
-}
-
-// Lists PRs that share files with other open PRs, with a checkbox to promote one
-// into the base check and a button to close it. Shown before the matrix so a
-// tech lead can see exactly what they're choosing between before promoting.
-export default function ConflictingPrsPanel({ nonGreens, promoted, onToggle, conflictsByPr, onClose, closingPr }: Props) {
+// Lists PRs that share files with other open PRs, with a checkbox to promote one into the
+// base check and a button to close it. Shown before the matrix so a tech lead can see what
+// they're choosing between before promoting.
+export default function ConflictingPrsPanel() {
+    const { nonGreens, promoted, togglePromoted, conflictsByPr, close, closingPr } = useContext(PrConflictsContext);
     return (
         <div className={styles.conflictPanel}>
             <strong className={styles.conflictTitle}>Conflicting PRs ({nonGreens.length})</strong>
@@ -32,7 +25,7 @@ export default function ConflictingPrsPanel({ nonGreens, promoted, onToggle, con
                                     <input
                                         type="checkbox"
                                         checked={isPromoted}
-                                        onChange={(event) => onToggle(pr.number, event.target.checked)}
+                                        onChange={(event) => togglePromoted(pr.number, event.target.checked)}
                                         className={styles.conflictCheckbox}
                                     />
                                     <div className={styles.conflictBody}>
@@ -57,7 +50,7 @@ export default function ConflictingPrsPanel({ nonGreens, promoted, onToggle, con
                                 </label>
                                 <button
                                     type="button"
-                                    onClick={() => onClose(pr.number)}
+                                    onClick={() => close(pr.number)}
                                     disabled={closingPr !== null}
                                     title="Close this PR without merging (reopenable on GitHub)"
                                     className={styles.conflictCloseBtn}

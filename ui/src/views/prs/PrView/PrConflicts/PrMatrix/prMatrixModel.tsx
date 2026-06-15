@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import { heatClass, type SharedFileMatrix } from '../../../sharedFiles.js';
-import { metaCell } from '../../../../components/metaCell.js';
-import type { MatrixColumn, MatrixFileRow } from '../../../../components/Matrix.js';
-import type { LegendItem } from '../../../../components/MatrixLegend.js';
+import { metaCell } from '../../../../viewsSharedComponents/metaCell.js';
+import type { MatrixColumn, MatrixFileRow } from '../../../../viewsSharedComponents/Matrix/Matrix.types.js';
+import type { LegendItem } from '../../../../viewsSharedComponents/MatrixLegend.js';
 import { formatAbsolute, formatTimeAgo } from '../../../../../lib/formatDate.js';
-import styles from '../../../../components/Matrix.module.css';
+import styles from '../../../../viewsSharedComponents/Matrix.module.css';
 
 export type CellState = 'conflict' | 'warning' | undefined;
 

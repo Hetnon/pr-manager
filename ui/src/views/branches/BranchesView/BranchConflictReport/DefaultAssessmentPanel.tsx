@@ -1,15 +1,13 @@
-import type { BranchVsDefault } from '../../checkLocalConflicts.js';
+import { useContext } from 'react';
+import { BranchReportContext } from './BranchReportContext.js';
 import styles from './DefaultAssessmentPanel.module.css';
 
-interface Props {
-    defaultBranch: string;
-    branchVsDefault: BranchVsDefault[];
-}
-
-// Per-branch assessment against the default branch. A branch whose changed
-// files don't intersect what the default branch changed since the merge-base can be
-// merged and deleted cleanly — doing so shrinks the matrix and the conflict surface.
-export default function DefaultAssessmentPanel({ defaultBranch, branchVsDefault }: Props) {
+// Per-branch assessment against the default branch. A branch whose changed files don't
+// intersect what the default changed since the merge-base can be merged and deleted
+// cleanly — doing so shrinks the matrix and the conflict surface.
+export default function DefaultAssessmentPanel() {
+    const { effectiveReport } = useContext(BranchReportContext);
+    const { defaultBranch, branchVsDefault } = effectiveReport;
     const analyzable = branchVsDefault.filter((assessment) => !assessment.error);
     if (analyzable.length === 0) return null;
     const clean = analyzable.filter((assessment) => assessment.intersection.length === 0);

@@ -1,26 +1,16 @@
-import { useMemo, useState } from 'react';
-import Matrix from '../../../components/Matrix.js';
-import MatrixLegend from '../../../components/MatrixLegend.js';
-import styles from '../../../components/Matrix.module.css';
-import type { LocalBranch } from '../../readLocalRepo.js';
-import type { BranchChanges, BranchGroup } from '../../checkLocalConflicts.js';
-import type { FileConflictDetail } from '../../lineLevelConflicts.js';
+import { useContext, useMemo, useState } from 'react';
+import Matrix from '../../../viewsSharedComponents/Matrix/Matrix.js';
+import MatrixLegend from '../../../viewsSharedComponents/MatrixLegend.js';
+import styles from '../../../viewsSharedComponents/Matrix.module.css';
+import { BranchReportContext } from './BranchReportContext.js';
 import {
     LEGEND, META_LABELS,
     buildBranchMatrix, summarizeBranches, buildBranchColumns, buildBranchFileRows,
 } from './branchMatrixModel.js';
 
-interface Props {
-    defaultBranch: string;
-    branches: LocalBranch[];
-    branchChanges: BranchChanges[];
-    // Groups of branches sharing a HEAD sha; each maps to one column via canonical.
-    branchGroups?: BranchGroup[];
-    // Per-file 3-way-merge detail; absent → presence-only coloring.
-    fileDetail?: Record<string, FileConflictDetail>;
-}
-
-export default function LocalBranchesMatrix({ defaultBranch, branches, branchChanges, branchGroups, fileDetail }: Readonly<Props>) {
+export default function LocalBranchesMatrix() {
+    const { effectiveReport, snapshot } = useContext(BranchReportContext);
+    const { defaultBranch, branchChanges, branchGroups, fileDetail } = effectiveReport;
     const [expanded, setExpanded] = useState(true);
     const matrix = useMemo(() => buildBranchMatrix(branchChanges), [branchChanges]);
 
@@ -29,7 +19,7 @@ export default function LocalBranchesMatrix({ defaultBranch, branches, branchCha
     }
 
     const stats = summarizeBranches(matrix, fileDetail);
-    const columns = buildBranchColumns(matrix, branches, branchGroups, stats.conflictBranches);
+    const columns = buildBranchColumns(matrix, snapshot.branches, branchGroups, stats.conflictBranches);
     const fileRows = buildBranchFileRows(matrix, fileDetail);
 
     const summary = (

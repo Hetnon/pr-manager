@@ -1,20 +1,13 @@
-import { useState } from 'react';
-import type { DedupGroup } from './dedupGroups.js';
+import { useContext, useState } from 'react';
 import { dedupGroupKey } from './useDedupChoices.js';
+import { BranchReportContext } from '../BranchReportContext.js';
 import DedupGroupRow from './DedupGroupRow.js';
 import styles from './DedupPanel.module.css';
 
-interface Props {
-    groups: DedupGroup[];
-    keeperFor: (group: DedupGroup) => string;
-    isIncluded: (group: DedupGroup) => boolean;
-    toggleIncluded: (key: string) => void;
-    setKeeper: (key: string, branch: string) => void;
-}
-
 // Controls which identical-file groups are collapsed out of the matrix and which branch
 // each is shown under. Pure view state (from useDedupChoices) — no git, nothing applied.
-export default function DedupPanel({ groups, keeperFor, isIncluded, toggleIncluded, setKeeper }: Readonly<Props>) {
+export default function DedupPanel() {
+    const { groups, keeperFor, isIncluded, toggleIncluded, setKeeper } = useContext(BranchReportContext);
     const [panelOpen, setPanelOpen] = useState(false);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 

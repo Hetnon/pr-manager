@@ -51,7 +51,7 @@
   color: var(--color-text-muted);
   background: var(--color-bg-page);
   border: 1px solid var(--color-border-default);
-  var(--color-bg-surface)-space: nowrap;
+  white-space: nowrap;
   cursor: help;
 }
 .base-chip code {
@@ -134,7 +134,7 @@
   color: var(--color-text-muted);
 }
 .conflictCloseBtn {
-  var(--color-bg-surface)-space: nowrap;
+  white-space: nowrap;
 }
 
 /* LocalPairwiseStatus — color picked by phase modifier below */

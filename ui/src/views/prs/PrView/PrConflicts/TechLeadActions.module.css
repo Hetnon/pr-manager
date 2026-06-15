@@ -24,7 +24,7 @@
   font-size: 13px;
 }
 .merge-list li + li { border-top: 1px solid rgba(31, 136, 61, 0.2); }
-.merge-btn { var(--color-bg-surface)-space: nowrap; }
+.merge-btn { white-space: nowrap; }
 .branch-delete-error { margin-top: 4px; color: var(--color-text-warning); font-size: 12px; }
 .delete-branch-label {
   display: inline-flex;
@@ -32,7 +32,7 @@
   gap: 4px;
   font-size: 12px;
   color: var(--color-text-muted);
-  var(--color-bg-surface)-space: nowrap;
+  white-space: nowrap;
 }
 
 /* Dim text for the "(author · branch)" suffix on each merge-ready row. */

@@ -1,7 +1,7 @@
 /* BranchList-local styles. .message/.ok/.bad are shared and stay in
    ../BranchesView.module.css. */
 
-.ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; var(--color-bg-surface)-space: nowrap; }
+.ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .list { margin-top: 12px; font-size: 13px; }
 .row { display: flex; gap: 12px; align-items: center; padding: 6px 8px; }

@@ -17,7 +17,7 @@
   max-width: 360px;
   overflow: hidden;
   text-overflow: ellipsis;
-  var(--color-bg-surface)-space: nowrap;
+  white-space: nowrap;
 }
 
 /* Branches | Pull Requests view switch. Element selectors target the

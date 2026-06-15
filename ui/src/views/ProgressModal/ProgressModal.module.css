@@ -26,7 +26,7 @@
     margin-top: 6px;
 }
 .fileListEmpty { color: var(--color-text-faint); font-style: italic; }
-.fileRow { color: var(--color-text-default); var(--color-bg-surface)-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fileRow { color: var(--color-text-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fileCheck { color: var(--color-text-success); margin-right: 4px; }
 
 .prProgress { font-size: 13px; color: var(--color-text-muted); }

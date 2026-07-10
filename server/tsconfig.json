@@ -11,7 +11,6 @@
     "noEmit": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
-    "baseUrl": ".",
     "paths": {
       "@shared/*": ["../TypesAndInterfaces/*", "./TypesAndInterfaces/*"]
     }

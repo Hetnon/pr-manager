@@ -12,7 +12,6 @@
     "noEmit": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": false,
-    "baseUrl": ".",
     "paths": {
       "@shared/*": ["../TypesAndInterfaces/*"]
     }

@@ -15,7 +15,9 @@
       "PowerShell(node \"D:\\\\AI Projects\\\\pr-matrix\\\\scripts\\\\gcp-bootstrap.js\" --help)",
       "PowerShell(npm view *)",
       "PowerShell(Rename-Item *)",
-      "PowerShell(npm test *)"
+      "PowerShell(npm test *)",
+      "Bash(npm audit *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);for\\(const[k,v]of Object.entries\\(j.vulnerabilities\\)\\)console.log\\(v.severity.padEnd\\(9\\),k,'| fix:',JSON.stringify\\(v.fixAvailable\\)\\);}\\)\")"
     ]
   }
 }

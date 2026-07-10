@@ -1,0 +1,22 @@
+/* WorkingTreeBanner-local styles. .subtle is shared with DefaultAssessmentPanel
+   so it stays in ../BranchesView.module.css. */
+
+/* Inline single-line status so the current branch row stays the same height as
+   the rest; the file breakdown lives in the modal, not the row. */
+.warnBanner {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--color-text-warning);
+  text-align: left;
+  cursor: pointer;
+}
+.warnBanner:hover { text-decoration: underline; }
+.wtChecking { margin: 0; color: var(--color-text-muted); font-style: italic; }
+.wtError { margin: 0; color: var(--color-text-danger); }
+.wtClean { margin: 0; color: var(--color-text-muted); }
+.wtFiles { margin-top: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.wtGroup { margin-top: 4px; }
+.fileUl { margin: 2px 0 0; padding-left: 18px; }

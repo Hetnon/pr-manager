@@ -2,7 +2,7 @@ import { useContext, useState } from 'react';
 import type { PR } from '@shared/pr.js';
 import type { LocalBranch, LocalRepoSnapshot } from '../../readLocalRepo.js';
 import { RepoContext } from '../../../../repo/RepoContext.js';
-import { pushBranchToOrigin } from '../../pushBranchToOrigin.js';
+import { pushBranchToOrigin } from './pushBranchToOrigin.js';
 import type { PushOutcome } from '../../types.js';
 
 // Owns the "push branch to origin" backup action — get a branch's committed work
@@ -19,7 +19,14 @@ export function usePushBranch(
     const owner = currentRepoOwnerAndName?.owner ?? null;
     const repo = currentRepoOwnerAndName?.name ?? null;
     const [pushingBranch, setPushingBranch] = useState<string | null>(null);
-    const [lastPush, setLastPush] = useState<PushOutcome | null>(null);
+    const [lastPushByBranch, setLastPushByBranch] = useState<Map<string, PushOutcome>>(new Map());
+
+    const recordOutcome = (name: string, outcome: PushOutcome | null) =>
+        setLastPushByBranch((current) => {
+            const next = new Map(current);
+            if (outcome) next.set(name, outcome); else next.delete(name);
+            return next;
+        });
 
     async function pushBranch(branch: LocalBranch, existingPr?: PR | null) {
         if (!currentRepoFolderHandle || !owner || !repo || !snapshot) return;
@@ -27,14 +34,14 @@ export function usePushBranch(
             `Push new commits to ${branch.name}? This updates open PR #${existingPr.number} — the PR always reflects this branch's latest pushed commits.`
         )) return;
         setPushingBranch(branch.name);
-        setLastPush(null);
+        recordOutcome(branch.name, null);
         try {
             const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, owner, repo);
             if (!result.ok) {
-                setLastPush({ ok: false, branch: result.pushName, message: result.message });
+                recordOutcome(result.pushName, { ok: false, branch: result.pushName, message: result.message });
                 return;
             }
-            setLastPush(existingPr
+            recordOutcome(result.pushName, existingPr
                 ? { ok: true, branch: result.pushName, updatedPr: { number: existingPr.number, url: existingPr.url } }
                 : { ok: true, branch: result.pushName });
             onPushed?.();
@@ -43,5 +50,5 @@ export function usePushBranch(
         }
     }
 
-    return { pushingBranch, lastPush, pushBranch };
+    return { pushingBranch, lastPushByBranch, pushBranch };
 }

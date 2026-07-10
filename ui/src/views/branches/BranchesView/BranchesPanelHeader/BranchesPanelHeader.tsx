@@ -36,9 +36,7 @@ export default function BranchesPanelHeader() {
             
             {snapshot && (
                 <div className={styles.headMeta}>
-                    <span>Default branch: {snapshot.defaultBranch ?? '(none)'}</span>
-                    <span>Current branch: {snapshot.currentBranch ?? '(detached)'}</span>
-                    <span>Total: {snapshot.branches.length} branch{snapshot.branches.length === 1 ? '' : 'es'}</span>
+                    {!snapshot.currentBranch && <span>No Branch currently attached to the repo</span>}
                 </div>
             )}
         </div>

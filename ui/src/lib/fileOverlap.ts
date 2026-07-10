@@ -19,8 +19,12 @@ export function mapFilesToChangeSets<Id>(changeSets: ChangeSet<Id>[]): Map<strin
     const fileToIds = new Map<string, Id[]>();
     for (const changeSet of changeSets) {
         for (const path of changeSet.files) {
-            if (!fileToIds.has(path)) fileToIds.set(path, []);
-            fileToIds.get(path)!.push(changeSet.id);
+            let ids = fileToIds.get(path);
+            if (!ids) {
+                ids = [];
+                fileToIds.set(path, ids);
+            }
+            ids.push(changeSet.id);
         }
     }
     return fileToIds;

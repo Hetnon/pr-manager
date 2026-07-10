@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import type { LocalBranch, LocalRepoSnapshot } from '../../readLocalRepo.js';
 import { RepoContext } from '../../../../repo/RepoContext.js';
-import { pushBranchToOrigin } from '../../pushBranchToOrigin.js';
+import { pushBranchToOrigin } from './pushBranchToOrigin.js';
 import { createPr } from '../../../../api/prs.js';
 import type { PrOutcome } from '../../types.js';
 
@@ -18,7 +18,14 @@ export function useOpenPr(
     const owner = currentRepoOwnerAndName?.owner ?? null;
     const repo = currentRepoOwnerAndName?.name ?? null;
     const [openingPr, setOpeningPr] = useState<string | null>(null);
-    const [lastPr, setLastPr] = useState<PrOutcome | null>(null);
+    const [lastPrByBranch, setLastPrByBranch] = useState<Map<string, PrOutcome>>(new Map());
+
+    const recordOutcome = (name: string, outcome: PrOutcome | null) =>
+        setLastPrByBranch((current) => {
+            const next = new Map(current);
+            if (outcome) next.set(name, outcome); else next.delete(name);
+            return next;
+        });
 
     async function openPr(branch: LocalBranch) {
         if (!currentRepoFolderHandle || !owner || !repo || !snapshot?.defaultBranch) return;
@@ -28,11 +35,11 @@ export function useOpenPr(
         if (title === null) return; // cancelled
 
         setOpeningPr(branch.name);
-        setLastPr(null);
+        recordOutcome(branch.name, null);
         try {
             const result = await pushBranchToOrigin(currentRepoFolderHandle, branch, owner, repo);
             if (!result.ok) {
-                setLastPr({ ok: false, branch: result.pushName, message: result.message });
+                recordOutcome(result.pushName, { ok: false, branch: result.pushName, message: result.message });
                 return;
             }
             try {
@@ -42,17 +49,17 @@ export function useOpenPr(
                     base: snapshot.defaultBranch,
                     title,
                 });
-                setLastPr({ ok: true, branch: result.pushName, prNumber: createdPr.number, prUrl: createdPr.url });
+                recordOutcome(result.pushName, { ok: true, branch: result.pushName, prNumber: createdPr.number, prUrl: createdPr.url });
                 onOpened?.();
             } catch (error) {
                 // Push succeeded but PR creation failed — surface both facts.
                 const message = error instanceof Error ? error.message : String(error);
-                setLastPr({ ok: false, branch: result.pushName, message: `Push OK, but PR create failed: ${message}` });
+                recordOutcome(result.pushName, { ok: false, branch: result.pushName, message: `Push OK, but PR create failed: ${message}` });
             }
         } finally {
             setOpeningPr(null);
         }
     }
 
-    return { openingPr, lastPr, openPr };
+    return { openingPr, lastPrByBranch, openPr };
 }

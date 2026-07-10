@@ -12,7 +12,6 @@ export default function BranchesMessages() {
         <>
             {error && <p className={`${styles.message} bad`}>{error}</p>}
             {conflictError && <p className={`${styles.message} bad`}>{conflictError}</p>}
-
         </>
     );
 }

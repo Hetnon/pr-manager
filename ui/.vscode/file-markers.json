@@ -97,7 +97,11 @@
     "src/views/branches/BranchesView/BranchesPanelHeader": "done",
     "src/views/branches/BranchesView/BranchesPanelHeader/BranchesPanelHeader.module.css": "done",
     "src/views/branches/BranchesView/BranchesPanelHeader/BranchesPanelHeader.tsx": "done",
-    "src/views/ProgressModal/Modal.tsx": "done"
+    "src/views/ProgressModal/Modal.tsx": "done",
+    "src/lib/formatDate.ts": "done",
+    "src/Header/Header.module.css": "done",
+    "src/views/ProgressModal/PrProgressView/PrProgressView.tsx": "pending",
+    "src/views/branches/BranchesView/BranchesView.module.css": "done"
   },
   "lineHighlightTypes": [
     {

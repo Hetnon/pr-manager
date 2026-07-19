@@ -2,10 +2,12 @@
   "name": "pr-matrix",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "webpack --mode production",
-    "build:dev": "webpack --mode development",
-    "watch": "webpack serve --mode development",
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -21,20 +23,11 @@
     "react-dom": "latest"
   },
   "devDependencies": {
-    "@babel/core": "latest",
-    "@babel/preset-env": "latest",
-    "@babel/preset-react": "latest",
-    "@babel/preset-typescript": "latest",
+    "@types/node": "^22.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "babel-loader": "latest",
-    "copy-webpack-plugin": "latest",
-    "css-loader": "^7.1.4",
-    "html-webpack-plugin": "latest",
-    "style-loader": "^4.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.6.0",
-    "webpack": "latest",
-    "webpack-cli": "latest",
-    "webpack-dev-server": "^6.0.0"
+    "vite": "^5.4.11"
   }
 }

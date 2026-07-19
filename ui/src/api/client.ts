@@ -1,7 +1,7 @@
 import { getCsrfToken } from './csrf.js';
 
 // Resolution order:
-//   1. __API_BASE_URL__ injected at build time (set via webpack DefinePlugin
+//   1. __API_BASE_URL__ injected at build time (set via Vite's `define`
 //      or the API_BASE_URL env var when running `npm run build`).
 //   2. Derive from window.location — replace the project subdomain with the
 //      api-dot variant. e.g. https://my-app.ts.r.appspot.com →

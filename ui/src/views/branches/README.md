@@ -42,8 +42,8 @@ end-to-end before we built the real feature. Findings still relevant:
   importing it — `Buffer` is assumed global. Browsers don't have it, so any
   pack-file read failed silently (`fs.read` wrapper swallows the
   `ReferenceError` and returns `null`; caller crashes on `null.slice()`). Fix:
-  the `buffer` npm polyfill exposed as a global via Webpack's `ProvidePlugin`
-  (see `ui/webpack.config.cjs`).
+  the `buffer` npm polyfill installed on `globalThis` before any isomorphic-git
+  code runs (see `ui/src/bufferPolyfill.ts`, imported first in `ui/src/app.tsx`).
 - Pack-file reads via the FSAPI adapter work for all `.idx` files in a real
   multi-pack repo (tested with 4 packs, 197k / 8k / 20k / 18k bytes).
 - `git.findMergeBase`, `git.log`, `git.walk` all work over the FSAPI adapter.

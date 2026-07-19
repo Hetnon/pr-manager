@@ -41,7 +41,8 @@ As of this writing, the derived repos are:
   itself (canonical).
 - `D:\AI Projects\agentic_enterprise\` — derived.
 - `D:\AI Projects\pr-matrix\` — derived. Adds isomorphic-git + MUI on top of
-  the base boilerplate; webpack config has an extra `ProvidePlugin(Buffer)`.
+  the base boilerplate; installs a `Buffer` global via `ui/src/bufferPolyfill.ts`
+  (Vite has no `ProvidePlugin`).
 
 The procedure for any structural change:
 

@@ -8,7 +8,7 @@ steps:
     dir: 'ui'
     id: 'install-ui-deps'
 
-  # Step 2: Build the webpack bundle into ui/dist/
+  # Step 2: Build the Vite bundle into ui/dist/
   - name: 'gcr.io/cloud-builders/npm'
     args: ['run', 'build']
     env:

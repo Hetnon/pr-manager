@@ -1,4 +1,4 @@
-// Injected by webpack DefinePlugin — see webpack.config.cjs.
+// Injected by Vite's `define` at build time — see vite.config.ts.
 declare const __API_BASE_URL__: string;
 
 // CSS Modules — typed as opaque class maps so TS-aware imports work.

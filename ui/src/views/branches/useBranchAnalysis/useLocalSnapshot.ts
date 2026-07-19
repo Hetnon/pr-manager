@@ -27,8 +27,10 @@ export function useLocalSnapshot(refreshNonce: number) {
         }
     }
 
-    // We deliberately DON'T reread after the fetch: fetch only touches refs/remotes/
-    // origin/*, while readLocalRepo reads refs/heads/* — local branches are unchanged.
+    // We deliberately DON'T reread after the fetch: the local-branch data (heads,
+    // ahead/behind, commits) is unchanged by a fetch, and rereading would repeat the
+    // commit walk. The snapshot's remoteSha reflects refs/remotes/origin/* as of the
+    // PREVIOUS fetch, so on-origin status can lag by one refresh — an accepted tradeoff.
     async function runRefresh(targetFolder: FileSystemDirectoryHandle) {
         await load(targetFolder);
         if (!owner || !repo) return;

@@ -8,7 +8,7 @@ local repo folder picked in-browser, file-by-PR overlap matrix out.
 - **`server/`** — Node/Express. Owns auth (GitHub OAuth + sessions), GitHub API
   calls (list PRs, merge), and user/observability persistence in Firestore.
   OAuth tokens are KMS-envelope-encrypted at rest.
-- **`ui/`** — React + TypeScript (Webpack). Browser-only local-git compute over
+- **`ui/`** — React + TypeScript (Vite). Browser-only local-git compute over
   the user's picked folder via the File System Access API + `isomorphic-git`.
 - **`TypesAndInterfaces/`** — shared type definitions imported by both sides as
   `@shared/*` (alias configured in both tsconfigs).
@@ -24,7 +24,7 @@ npm start          # https://localhost:3030
 ```powershell
 cd ui
 npm install
-npm run watch      # webpack-dev-server, serves the bundle from memory at https://localhost:7654
+npm run dev        # vite dev server, serves the bundle from memory at https://localhost:7654
 ```
 
 The Firestore emulator is launched automatically by the server in dev. Debug

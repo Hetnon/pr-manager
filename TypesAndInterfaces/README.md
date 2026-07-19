@@ -4,8 +4,8 @@ The single source of truth for type definitions that cross the server/UI
 boundary, or that would otherwise be duplicated between them.
 
 Imported as `@shared/<name>.js` from both sides (path mapped in
-`server/tsconfig.json` and `ui/tsconfig.json`; webpack alias in
-`ui/webpack.config.cjs`).
+`server/tsconfig.json` and `ui/tsconfig.json`; Vite alias in
+`ui/vite.config.ts`).
 
 ## What goes here
 

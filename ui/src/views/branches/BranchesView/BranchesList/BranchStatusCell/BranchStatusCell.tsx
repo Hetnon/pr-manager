@@ -9,9 +9,20 @@ import WorkingTreeBanner from './WorkingTreeBanner/WorkingTreeBanner.js';
 // current branch additionally owns the working tree: once its work is pushed and
 // the tree is clean the outcome is the whole story, but a dirty tree (which
 // stales that push) or a not-yet-pushed state defers to WorkingTreeBanner.
+//
+// With no in-app push/PR outcome to report, the cell falls back to the branch's
+// remote-tracking state (from the last fetch, so it can lag origin by one refresh)
+// rather than assuming the branch is local: on origin & in sync, on origin at a
+// different commit, or genuinely never pushed.
 export default function BranchStatusCell({
-    push, pr, isCurrent,
-}: Readonly<{ push: PushOutcome | null; pr: PrOutcome | null; isCurrent: boolean }>) {
+    push, pr, isCurrent, localSha, remoteSha,
+}: Readonly<{
+    push: PushOutcome | null;
+    pr: PrOutcome | null;
+    isCurrent: boolean;
+    localSha: string;
+    remoteSha: string | null;
+}>) {
     const { branchesAnalysis } = useContext(AnalysisContext);
     const treeClean = !!branchesAnalysis.worktree && branchesAnalysis.worktree.clean;
     const failed = (push && !push.ok) || (pr && !pr.ok);
@@ -19,7 +30,15 @@ export default function BranchStatusCell({
 
     if (isCurrent && !failed && !pushedClean) return <WorkingTreeBanner />;
 
-    if (!push && !pr) return <span className={styles.dash}>Branch still local</span>;
+    if (!push && !pr) {
+        if (!remoteSha) return <span className={styles.dash}>Branch still local</span>;
+        if (remoteSha === localSha) return <span className="ok">✓ On origin</span>;
+        return (
+            <span className={styles.dash} title="origin/… points at a different commit than your local branch (as of the last fetch).">
+                On origin · local differs
+            </span>
+        );
+    }
     return (
         <>
             {push && (

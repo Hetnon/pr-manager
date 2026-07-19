@@ -5,3 +5,11 @@
   color: var(--color-text-subtle);
   margin: 0 0 12px;
 }
+
+.refreshBanner {
+  composes: bannerInfo from './panelChrome.module.css';
+  margin: 0 0 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--color-text-link);
+}

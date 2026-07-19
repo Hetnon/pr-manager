@@ -60,6 +60,13 @@ export async function fetchOrigin(
             dir: '/',
             url: gitProxyUrl(owner, repo),
             remote: 'origin',
+            // Key the fetch off the remote's HEAD (always advertised) rather than
+            // letting isomorphic-git default to the local current branch's upstream.
+            // A branch whose configured upstream (branch.<name>.merge) no longer
+            // matches a remote-advertised ref would otherwise abort the whole fetch
+            // with "Could not find refs/heads/<branch>". singleBranch stays false, so
+            // all refs/remotes/origin/* are still updated and pruned.
+            ref: 'HEAD',
             prune: true,
             pruneTags: true,
             tags: true,

@@ -89,7 +89,7 @@ export default function BranchRow({
                 onOpenPr={() => openPr(branch)}
             />
             <div className={styles.colStatus}>
-                <BranchStatusCell push={pushOutcome} pr={prOutcome} isCurrent={branch.current} />
+                <BranchStatusCell push={pushOutcome} pr={prOutcome} isCurrent={branch.current} localSha={branch.sha} remoteSha={branch.remoteSha} />
             </div>
         </div>
     );

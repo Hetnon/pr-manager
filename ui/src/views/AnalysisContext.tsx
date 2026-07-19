@@ -12,6 +12,7 @@ import { formatDateTime } from '../lib/formatDate.js';
 interface AnalysisContextValue {
     prs: PR[] | null;          // all the PRs in the chosen repo - null while loading
     prLoadStatus: string;      // transient "Loading…" / "Loaded N at HH:MM"
+    prsLoading: boolean;       // true while a (re)load is in flight — drives the refresh banner
     contentError: string | null;
     loadPrs: () => Promise<void>;   // refetch just the PRs (after a merge/close/push or refresh request)
     refreshRepo: () => void;     // full reread: reload PRs + rerun the branch/PR analysis
@@ -34,6 +35,7 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
         currentRepoOwnerAndName ? loadCachedPrs(`${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`) : null,
     );
     const [prLoadStatus, setPrLoadStatus] = useState('');
+    const [prsLoading, setPrsLoading] = useState(false);
     const [contentError, setContentError] = useState<string | null>(null);
 
 
@@ -44,6 +46,7 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
     const loadPrs = useCallback(async () => {
         if (!currentRepoOwnerAndName) return;
         const slug = `${currentRepoOwnerAndName.owner}/${currentRepoOwnerAndName.name}`;
+        setPrsLoading(true);
         setPrLoadStatus('Loading…');
         setPrs(null);
         setContentError(null);
@@ -61,6 +64,8 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
             }
             setContentError(`Error: ${(error as Error).message}`);
             setPrLoadStatus('');
+        } finally {
+            setPrsLoading(false);
         }
     }, [currentRepoOwnerAndName, recheckSession]);
 
@@ -74,7 +79,7 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
     const prsAnalysis = usePrAnalysis(prs ?? []);
 
     const value = useMemo<AnalysisContextValue>(() => ({
-        prs, prLoadStatus, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis
-    }), [prs, prLoadStatus, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis]);
+        prs, prLoadStatus, prsLoading, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis
+    }), [prs, prLoadStatus, prsLoading, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis]);
     return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
 }

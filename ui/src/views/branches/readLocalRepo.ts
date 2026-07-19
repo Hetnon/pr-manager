@@ -13,6 +13,10 @@ export interface LocalBranch {
     sha: string;
     current: boolean;
     head: LocalBranchHead | null;
+    // SHA of refs/remotes/origin/<name>, or null if the branch has no
+    // remote-tracking ref (i.e. it isn't on origin as of the last fetch).
+    // Reflects the most recent fetch, so it can lag origin by one refresh.
+    remoteSha: string | null;
     aheadOfDefault: number;
     behindDefault: number;
     truncated: boolean;
@@ -68,6 +72,7 @@ async function readBranch(
         sha: '',
         current: name === currentBranch,
         head: null,
+        remoteSha: null,
         aheadOfDefault: 0,
         behindDefault: 0,
         truncated: false,
@@ -86,6 +91,13 @@ async function readBranch(
         branch.error = `HEAD: ${(error as Error).message}`;
         return branch;
     }
+
+    // Whether (and where) the branch sits on origin. Populated by the last fetch;
+    // absent ref = not on origin. Resolved for the default branch too, so its
+    // status cell can report "on origin" instead of guessing "still local".
+    try {
+        branch.remoteSha = await git.resolveRef({ fs, dir, ref: `refs/remotes/origin/${name}` });
+    } catch { /* no remote-tracking ref — branch isn't on origin as of last fetch */ }
 
     if (!defaultBranch || !defaultSha || name === defaultBranch) return branch;
 

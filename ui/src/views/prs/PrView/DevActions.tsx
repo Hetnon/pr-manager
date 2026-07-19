@@ -26,6 +26,8 @@ export default function DevActions({ matrix }: Readonly<Props>) {
             return { path, prsForFile, authors };
         });
 
+    if (sharedFiles.length === 0) return null;
+
     const sameAuthorFiles = sharedFiles.filter((sharedFile) => sharedFile.authors.size === 1);
     const byAuthor = new Map<string, SharedFile[]>();
     for (const sharedFile of sameAuthorFiles) {

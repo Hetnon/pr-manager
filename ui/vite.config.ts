@@ -60,11 +60,11 @@ export default defineConfig(({ mode }) => {
         generateScopedName: '[name]__[local]--[hash:base64:5]',
       },
     },
-    // Pre-bundle the heavy deps up front so no dependency is discovered at
-    // runtime. With HMR off (below), Vite can't signal the browser to reload
-    // after a re-optimize, so a late-discovered dep would leave the page on a
-    // stale bundle until a manual refresh. Listing the known deps here optimizes
-    // them in the first pass and keeps the dep graph fixed.
+    // Pre-bundle the heavy deps up front so none is discovered mid-session. A dep
+    // first seen at runtime forces a re-optimize + full page reload (which loses
+    // app state and defeats Fast Refresh); listing @mui/material's large barrel
+    // (+ emotion) and isomorphic-git here optimizes them in the first pass so the
+    // dep graph never changes underfoot.
     optimizeDeps: {
       include: [
         'react',
@@ -87,10 +87,10 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 7654,
       host: 'localhost',
-      // Rebuild modules on save but never auto-refresh: with HMR off the page only
-      // updates on a manual reload, so whatever's on screen (a working reference) is
-      // never lost. Vite still serves the latest module on the next request.
-      hmr: false,
+      // HMR on (Vite default) → React Fast Refresh: editing a component repaints
+      // just that component in place, preserving its state and without re-running
+      // unaffected effects. Vite only does a full page reload for edits Fast
+      // Refresh can't apply (e.g. a module that also exports non-components).
       ...(certs && { https: certs }),
     },
   };

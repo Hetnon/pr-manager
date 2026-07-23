@@ -1,30 +1,11 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { useContext, useMemo, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import { AnalysisContext } from '../../../AnalysisContext.js';
 import { formatDateTime, formatRelativeShort } from '../../../../lib/formatDate.js';
 import { useClosePr } from '../../../useClosePr.js';
 import { usePrActions } from './usePrActions.js';
-import type { usePrAnalysis } from '../../usePrAnalysis/usePrAnalysis.js';
-import type { CellState } from './PrMatrix/prMatrixModel.js';
+import { PrConflictsContext, type PrConflictsContextValue } from './PrConflictsContext.js';
 import styles from './PrConflicts.module.css';
-
-type PrsAnalysis = ReturnType<typeof usePrAnalysis>;
-
-// prsAnalysis (merged bag) + the merge/close actions + the values derived for the matrix,
-// bundled so every child of the conflict panel reads one context instead of a prop spread.
-export type PrConflictsContextValue =
-    PrsAnalysis
-    & ReturnType<typeof usePrActions>
-    & ReturnType<typeof useClosePr>
-    & {
-        cellState?: (pr: PR, filePath: string) => CellState;
-        renderFileExtra?: (filePath: string) => ReactNode;
-        readyToMerge: PR[];
-        errors: Array<[string, { ok: false; error: string }]>;
-        allClean: boolean;
-    };
-
-export const PrConflictsContext = createContext<PrConflictsContextValue>(null as unknown as PrConflictsContextValue);
 
 export function PrConflictsProvider({ onMerged, children }: Readonly<{ onMerged?: () => void; children: ReactNode }>) {
     const prsAnalysis = useContext(AnalysisContext).prsAnalysis;

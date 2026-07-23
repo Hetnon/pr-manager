@@ -31,16 +31,18 @@ npm run typecheck  # tsc --noEmit
 
 `dev` reuses the API server's HTTPS certs from
 `../server/keys/security_certificate/` when they exist, otherwise falls back to
-HTTP. HMR is intentionally off (`server.hmr: false` in `vite.config.ts`): the
-page only updates on a manual reload, so whatever's on screen — used as a working
-reference — is never lost. No disk writes happen during dev.
+HTTP. HMR is on (Vite default): React Fast Refresh patches the edited component
+in place — it repaints instantly while its state and unaffected effects are
+preserved. A full page reload happens only when Fast Refresh can't apply an edit
+(e.g. a module that also exports non-components). No disk writes happen in dev.
 
 ## Conventions
 
 - Imports use `.js` extensions even for `.ts`/`.tsx` files (NodeNext-style, same
   as the server). Vite has no `resolve.extensionAlias`, so a small `resolveId`
   plugin in `vite.config.ts` strips the `.js` and lets the default resolver
-  re-add `.ts`/`.tsx`.
+  re-add `.ts`/`.tsx`. It's scoped to our source (skips `node_modules`) so it
+  never rewrites the `./chunk-*.js` imports inside optimized deps.
 - Shared types come from `@shared/*` (aliased to `../TypesAndInterfaces`).
 - CSS Modules for `*.module.css` (`localsConvention: 'camelCaseOnly'`, `composes`
   supported); plain `*.css` stays global. Files in `public/` are served at the

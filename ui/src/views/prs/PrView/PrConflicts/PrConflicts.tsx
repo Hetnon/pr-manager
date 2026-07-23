@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { AnalysisContext } from '../../../AnalysisContext.js';
-import { PrConflictsProvider } from './PrConflictsContext.js';
+import { PrConflictsProvider } from './PrConflictsProvider.js';
 import PrConflictsBody from './PrConflictsBody.js';
 
 interface Props {

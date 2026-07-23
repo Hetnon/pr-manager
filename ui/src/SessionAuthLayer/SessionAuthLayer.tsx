@@ -1,5 +1,5 @@
 
-import { AuthProvider } from './AuthContext.js';
+import { AuthProvider } from './AuthProvider.js';
 import AuthGate from './AuthGate.js';
 
 

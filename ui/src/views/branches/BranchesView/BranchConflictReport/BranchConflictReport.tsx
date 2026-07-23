@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { AnalysisContext } from '../../../AnalysisContext.js';
-import { BranchReportContext, BranchReportProvider } from './BranchReportContext.js';
+import { BranchReportContext } from './BranchReportContext.js';
+import { BranchReportProvider } from './BranchReportProvider.js';
 import DedupPanel from './DedupPanel/DedupPanel.js';
 import ConflictTriagePanel from './ConflictTriagePanel/ConflictTriagePanel.js';
 import LocalBranchesMatrix from './LocalBranchesMatrix.js';

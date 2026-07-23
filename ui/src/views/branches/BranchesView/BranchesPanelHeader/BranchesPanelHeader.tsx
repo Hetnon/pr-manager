@@ -5,7 +5,7 @@ import { formatDateTime } from '../../../../lib/formatDate.js';
 
 export default function BranchesPanelHeader() {
     const { branchesAnalysis } = useContext(AnalysisContext);
-    const { busy, fetching, conflictBusy, snapshot, lastFetch } = branchesAnalysis;
+    const { busy, readProgress, fetching, conflictBusy, snapshot, lastFetch } = branchesAnalysis;
     const [loadingMessage, setLoadingMessage] = useState<string>('');
 
     useEffect(() => {
@@ -14,11 +14,13 @@ export default function BranchesPanelHeader() {
         } else if (conflictBusy) {
             setLoadingMessage('Analyzing conflicts…');
         } else if (busy) {
-            setLoadingMessage('Reading…');
+            setLoadingMessage(readProgress && readProgress.total > 0
+                ? `Reading… ${readProgress.done}/${readProgress.total}`
+                : 'Reading…');
         } else {
             setLoadingMessage('');
         }
-    }, [fetching, conflictBusy, busy]);
+    }, [fetching, conflictBusy, busy, readProgress]);
     
     return (
         <div className={styles.panelHead}>

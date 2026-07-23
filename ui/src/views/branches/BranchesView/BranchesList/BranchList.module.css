@@ -18,11 +18,26 @@
 .colHead { flex: 0 0 84px; }
 .colNum { flex: 0 0 64px; text-align: right; }
 .colCommit { composes: ellipsis; flex: 3 1 0; }
-.colActions { flex: 0 0 272px; }
-.colActionsCell { composes: colActions; display: flex; gap: 6px; align-items: center; }
-/* Equal-width action buttons: the floor exceeds the longest label ("Push & Open
-   PR"), so "Push" pads out to match instead of sizing to its shorter text. */
-.colActionsCell button { min-width: 130px; white-space: nowrap; }
-.colStatus { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.colActions { flex: 0 0 372px; }
+.colActionsCell { composes: colActions; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.actionsRow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* Equal-width primary action buttons: the floor exceeds the longest label ("Push &
+   Open PR"), so "Push" pads out to match instead of sizing to its shorter text. */
+.actionsRow button { min-width: 130px; white-space: nowrap; }
+/* The trailing admin button (Delete / Switch) is compact — it opts out of the 130px floor. */
+.actionsRow button.secondaryAction { min-width: 0; padding: 4px 10px; }
+.actionError { font-size: 11px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A merged-and-gone branch: highlight Delete as the suggested action. */
+.deleteSuggested {
+  border-color: var(--color-border-warning);
+  background: var(--color-bg-warning);
+  color: var(--color-text-warning);
+  font-weight: 600;
+}
+/* An ordinary local delete — available, but not visually pushed. */
+.deleteButton { color: var(--color-text-danger); }
+.colWorkingTree { flex: 1.4 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.colLocation { flex: 1.6 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dash { color: var(--color-text-faint); }
 .listFootnote { text-align: right; font-size: 11px; color: var(--color-text-faint); font-style: italic; margin-top: 6px; }

@@ -41,6 +41,51 @@ export async function gitPushBranch(
     }
 }
 
+export type CheckoutResult = { ok: true } | { ok: false; error: string };
+export type CheckoutProgress = { phase: string; loaded: number; total: number };
+
+// Switch the working tree to `ref` (a local branch). Purely local — no network.
+// isomorphic-git refuses (throws) if uncommitted changes would be overwritten, so
+// a dirty tree can't be silently clobbered; callers should still pre-check clean.
+//
+// This rewrites every working-tree file that differs between the two branches,
+// one file at a time over the File System Access bridge — so it can be slow for a
+// branch far from its target. A shared cache avoids re-parsing packfiles per object,
+// and onProgress lets the caller show it's alive rather than frozen.
+export async function checkoutLocalBranch(
+    handle: FileSystemDirectoryHandle,
+    ref: string,
+    onProgress?: (progress: CheckoutProgress) => void,
+): Promise<CheckoutResult> {
+    const fs = makeFsApiFs(handle);
+    try {
+        await git.checkout({ fs, dir: '/', ref, cache: {}, onProgress });
+        return { ok: true };
+    } catch (error) {
+        return { ok: false, error: (error as Error).message };
+    }
+}
+
+// Delete the CURRENT branch without a working-tree rewrite: detach HEAD onto the
+// commit the branch already points at (noCheckout ⇒ HEAD moves, files untouched),
+// then delete the ref. Ends on a detached HEAD at the same commit — the working tree
+// is byte-for-byte unchanged. This is the fast alternative to checking out another
+// branch first (which would rewrite every differing file).
+export async function detachHeadAndDeleteBranch(
+    handle: FileSystemDirectoryHandle,
+    branch: string,
+    sha: string,
+): Promise<CheckoutResult> {
+    const fs = makeFsApiFs(handle);
+    try {
+        await git.checkout({ fs, dir: '/', ref: sha, noCheckout: true, cache: {} });
+        await git.deleteBranch({ fs, dir: '/', ref: branch });
+        return { ok: true };
+    } catch (error) {
+        return { ok: false, error: (error as Error).message };
+    }
+}
+
 export type FetchResult =
     | { ok: true; fetchedAt: string; defaultBranch: string | null; prunedRefs: number }
     | { ok: false; error: string };

@@ -1,16 +1,5 @@
-import { createContext, useCallback, useMemo, useState, type ReactNode } from 'react';
-
-export interface UiGlobalContextValue {
-    loading: boolean;
-    beginLoading: () => void;
-    endLoading: () => void;
-}
-
-export const UiGlobalContext = createContext<UiGlobalContextValue>({
-    loading: false,
-    beginLoading: () => {},
-    endLoading: () => {},
-});
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { UiGlobalContext, type UiGlobalContextValue } from './UiGlobalContext.js';
 
 // `loading` is reference-counted so overlapping actions don't clear each other's flag.
 export default function UiGlobal({ children }: Readonly<{ children: ReactNode }>) {

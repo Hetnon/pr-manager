@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { PR } from '@shared/pr.js';
 import { AuthContext } from '../SessionAuthLayer/AuthContext.js';
 import { listPrs } from '../api/prs.js';
@@ -8,27 +8,27 @@ import { useBranchAnalysis } from './branches/useBranchAnalysis/useBranchAnalysi
 import { usePrAnalysis } from './prs/usePrAnalysis/usePrAnalysis.js';
 import { loadCachedPrs, saveCachedPrs, prSetKey } from './prs/prCache.js';
 import { formatDateTime } from '../lib/formatDate.js';
-
-interface AnalysisContextValue {
-    prs: PR[] | null;          // all the PRs in the chosen repo - null while loading
-    prLoadStatus: string;      // transient "Loading…" / "Loaded N at HH:MM"
-    prsLoading: boolean;       // true while a (re)load is in flight — drives the refresh banner
-    contentError: string | null;
-    loadPrs: () => Promise<void>;   // refetch just the PRs (after a merge/close/push or refresh request)
-    refreshRepo: () => void;     // full reread: reload PRs + rerun the branch/PR analysis
-    branchesAnalysis: ReturnType<typeof useBranchAnalysis>;
-    prsAnalysis: ReturnType<typeof usePrAnalysis>;
-}
-
-// Non-null: shape too large for a meaningful default; AnalysisProvider always supplies it.
-export const AnalysisContext = createContext<AnalysisContextValue>(null as unknown as AnalysisContextValue);
-
+import { AnalysisContext, type AnalysisContextValue } from './AnalysisContext.js';
 
 export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>) {
     const { currentRepoSlug, currentRepoOwnerAndName } = useContext(RepoContext);
     const { recheckSession } = useContext(AuthContext);
     const [refreshRepoNonce, setRefreshRepoNonce] = useState(0);
-    const refreshRepo = useCallback(() => setRefreshRepoNonce((nonce) => nonce + 1), []);
+
+    // Blocking status modal for user-initiated refresh/merge. `armed` guards the
+    // completion watcher against firing on the render where the modal opens but the
+    // async work hasn't flipped its flags to busy yet.
+    const [refreshModalOpen, setRefreshModalOpen] = useState(false);
+    const [refreshModalSettled, setRefreshModalSettled] = useState(false);
+    const refreshArmedRef = useRef(false);
+
+    const refreshRepo = useCallback(() => {
+        refreshArmedRef.current = false;
+        setRefreshModalOpen(true);
+        setRefreshModalSettled(false);
+        setRefreshRepoNonce((nonce) => nonce + 1);
+    }, []);
+    const closeRefreshModal = useCallback(() => setRefreshModalOpen(false), []);
 
 
     const [prs, setPrs] = useState<PR[] | null>(() =>
@@ -78,8 +78,23 @@ export function AnalysisProvider({ children }: Readonly<{ children: ReactNode }>
     const branchesAnalysis = useBranchAnalysis(refreshRepoNonce);
     const prsAnalysis = usePrAnalysis(prs ?? []);
 
+    // Drive the refresh modal's "settled" state: while it's open, once we've seen the
+    // async work start (armed) and both the PR load and the branch read+fetch have
+    // finished, enable the OK button. `refreshing` is gap-free, so this can't misfire
+    // between the branch read and the origin fetch.
+    const refreshBusy = prsLoading || branchesAnalysis.refreshing;
+    useEffect(() => {
+        if (!refreshModalOpen) return;
+        if (refreshBusy) { refreshArmedRef.current = true; return; }
+        if (refreshArmedRef.current) setRefreshModalSettled(true);
+    }, [refreshModalOpen, refreshBusy]);
+
     const value = useMemo<AnalysisContextValue>(() => ({
-        prs, prLoadStatus, prsLoading, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis
-    }), [prs, prLoadStatus, prsLoading, contentError, loadPrs, refreshRepo, branchesAnalysis, prsAnalysis]);
+        prs, prLoadStatus, prsLoading, contentError, loadPrs, refreshRepo,
+        refreshModalOpen, refreshModalSettled, closeRefreshModal,
+        branchesAnalysis, prsAnalysis
+    }), [prs, prLoadStatus, prsLoading, contentError, loadPrs, refreshRepo,
+        refreshModalOpen, refreshModalSettled, closeRefreshModal,
+        branchesAnalysis, prsAnalysis]);
     return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>;
 }

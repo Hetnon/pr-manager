@@ -1,4 +1,5 @@
 import ProgressModal from './ProgressModal/ProgressModal.js';
+import RefreshStatusModal from './RefreshStatusModal/RefreshStatusModal.js';
 import BranchesView from './branches/BranchesView/BranchesView.js';
 import PrView from './prs/PrView/PrView.js';
 import type { View } from '../Header/AppHeader.js';
@@ -12,6 +13,7 @@ interface Props {
 export default function AppMain({ view }: Readonly<Props>) {
     return (
         <main>
+            <RefreshStatusModal />
             <ProgressModal />
             {view === 'branches' && <BranchesView />}
             {view === 'prs' && <PrView />}

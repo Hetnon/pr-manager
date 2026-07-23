@@ -4,6 +4,7 @@ import type { Branch } from '../../types.js';
 import { RepoContext } from '../../../../repo/RepoContext.js';
 import { usePushBranch } from './usePushBranch.js';
 import { useOpenPr } from './useOpenPr.js';
+import { useBranchLifecycle } from './useBranchLifecycle.js';
 import styles from './BranchList.module.css';
 import { AnalysisContext } from '../../../AnalysisContext.js';
 import BranchListHeader from './BranchListHeader.js';
@@ -22,6 +23,7 @@ export default function BranchList() {
     const repo = currentRepoOwnerAndName?.name ?? null;
     const { pushingBranch, lastPushByBranch, pushBranch } = usePushBranch(snapshot, refresh, loadPrs);
     const { openingPr, lastPrByBranch, openPr } = useOpenPr(snapshot, refresh, loadPrs);
+    const { busyBranch, progress, errorByBranch, deleteBranch, deleteCurrentBranch, switchBranch } = useBranchLifecycle(refresh);
 
     if (!snapshot?.branches || snapshot.branches.length === 0) return null;
 
@@ -61,12 +63,19 @@ export default function BranchList() {
                 <BranchRow
                     key={branch.name}
                     branch={branch}
+                    defaultBranch={defaultBranch}
                     pushingBranch={pushingBranch}
                     openingPr={openingPr}
                     pushBranch={pushBranch}
                     openPr={openPr}
                     pushOutcome={lastPushByBranch.get(branch.name) ?? null}
                     prOutcome={lastPrByBranch.get(branch.name) ?? null}
+                    lifecycleBusy={busyBranch === branch.name}
+                    lifecycleProgress={busyBranch === branch.name ? progress : null}
+                    lifecycleError={errorByBranch.get(branch.name) ?? null}
+                    onDelete={() => deleteBranch(branch.name)}
+                    onDeleteCurrent={() => deleteCurrentBranch(branch.name, branch.sha)}
+                    onSwitch={() => defaultBranch && switchBranch(branch.name, defaultBranch)}
                 />
             ))}
             {worktreeDirty && hasOtherPushable && (

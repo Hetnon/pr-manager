@@ -1,8 +1,9 @@
 import { useContext, useState } from 'react';
 import RepoSelector from './repo/RepoSelector/RepoSelector.js';
 import FolderAccessModal from './repo/FolderAccessModal.js';
-import { RepoContext, RepoProvider } from './repo/RepoContext.js';
-import { AnalysisProvider } from './views/AnalysisContext.js';
+import { RepoContext } from './repo/RepoContext.js';
+import { RepoProvider } from './repo/RepoProvider.js';
+import { AnalysisProvider } from './views/AnalysisProvider.js';
 import AppHeader, { type View } from './Header/AppHeader.js';
 import AppMain from './views/AppMain.js';
 

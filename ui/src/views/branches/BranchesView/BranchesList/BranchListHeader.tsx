@@ -12,7 +12,8 @@ export default function BranchListHeader(): JSX.Element {
             <div className={styles.colNum}>Behind</div>
             <div className={styles.colCommit}>Last commit</div>
             <div className={styles.colActions}>Actions</div>
-            <div className={styles.colStatus}>Status</div>
+            <div className={styles.colWorkingTree}>Working Tree</div>
+            <div className={styles.colLocation}>Location</div>
         </div>
     );
 }
